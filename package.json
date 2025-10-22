@@ -1,7 +1,28 @@
 {
-  "name":"talkdrove-whatsapp-bot",
-  "version":"1.0.0",
-  "main":"bot.js",
-  "scripts":{"start":"node bot.js"},
-  "dependencies":{"whatsapp-web.js":"^1.19.0","qrcode-terminal":"^0.12.0"}
+  "name": "r2-presign-ts",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.380.0",
+    "@aws-sdk/s3-request-presigner": "^3.380.0",
+    "axios": "^1.12.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "express": "^4.21.2",
+    "multer": "^2.0.2"
+  },
+  "devDependencies": {
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.0.0"
+  },
+  "description": "",
+  "main": "server.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
 }
