@@ -387,70 +387,140 @@
       result.textContent = 'Anile tout uploads...';
     });
 
-    // helper: upload single file with progress callbacks
+    // ---------- SSE-aware upload function (replaces the previous uploadSingleFile) ----------
+    // This function opens an EventSource to /progress/:uploadId and prefers server progress.
+    // It sets headers x-upload-id and x-file-size so server can tie the request to SSE.
     function uploadSingleFile(file, index, { onProgress = ()=>{}, onXhrCreated = ()=>{} } = {}) {
       return new Promise((resolve, reject) => {
-        const endpoint = `/upload`; // modify si sèvè ou a diferan
-        const formData = new FormData();
-        formData.append('file', file);
+        const endpoint = `/upload`;
+        const uploadId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `uid-${Date.now()}-${Math.floor(Math.random()*100000)}`;
 
+        // SSE setup
+        let serverActive = false;
+        let doneBySSE = false;
+        let lastServerLoaded = 0;
+        let lastServerTotal = file.size || 0;
+
+        // Promise that resolves when SSE 'done' arrives
+        let sseDoneResolve;
+        const sseDonePromise = new Promise((r) => { sseDoneResolve = r; });
+
+        const es = new EventSource(`/progress/${uploadId}`);
+        es.addEventListener('progress', (ev) => {
+          try {
+            const d = JSON.parse(ev.data);
+            serverActive = true;
+            lastServerLoaded = d.loaded || 0;
+            lastServerTotal = d.total || lastServerTotal || 0;
+            const pct = d.percent !== null && d.percent !== undefined ? d.percent : (lastServerTotal ? Math.round((lastServerLoaded/lastServerTotal)*100) : 0);
+            // call onProgress with server values
+            onProgress(lastServerLoaded, lastServerTotal, 0, 0);
+          } catch (e) {
+            // ignore parse errors
+          }
+        });
+        es.addEventListener('done', (ev) => {
+          try {
+            const d = JSON.parse(ev.data);
+            doneBySSE = true;
+            try { es.close(); } catch (e) {}
+            // ensure UI shows full
+            onProgress(d.total || lastServerTotal, d.total || lastServerTotal, 0, 0);
+            sseDoneResolve({ url: d.url || '', data: d });
+          } catch (e) {
+            sseDoneResolve({ url: '' });
+          }
+        });
+        es.addEventListener('error', () => {
+          // SSE unavailable -> fallback to XHR progress
+          serverActive = false;
+        });
+
+        // XHR upload
         const xhr = new XMLHttpRequest();
         let startTime = Date.now();
         xhr.open('POST', endpoint);
 
+        try {
+          xhr.setRequestHeader('x-upload-id', uploadId);
+          xhr.setRequestHeader('x-file-size', String(file.size));
+          xhr.setRequestHeader('x-file-name', encodeURIComponent(file.name));
+        } catch (e) {
+          // some environments may forbid setting certain headers
+        }
+
         xhr.upload.onprogress = (e) => {
+          if (serverActive) return; // prefer server-side progress when available
           if (e.lengthComputable) {
             const elapsed = (Date.now() - startTime) / 1000;
             const speed = e.loaded / Math.max(elapsed, 0.001);
             const remainingBytes = e.total - e.loaded;
             const secsLeft = Math.round(remainingBytes / Math.max(speed, 1));
             onProgress(e.loaded, e.total, speed, secsLeft);
+          } else {
+            onProgress(e.loaded || 0, file.size || 0, 0, 0);
           }
         };
 
-        xhr.onload = () => {
-          xhrs.delete(index);
+        xhr.onload = async () => {
+          try { xhrs.delete(index); } catch (e) {}
+          if (doneBySSE) return; // already resolved by SSE
+          // wait for SSE done just in case server emits it after XHR finishes
+          try {
+            const timeoutMs = 12000; // wait up to 12s for SSE done
+            const race = Promise.race([
+              sseDonePromise,
+              new Promise((r) => setTimeout(() => r(null), timeoutMs))
+            ]);
+            const sseResult = await race;
+            if (sseResult && sseResult.url !== undefined) {
+              try { es.close(); } catch (e) {}
+              return resolve(sseResult.url || '');
+            }
+          } catch (e) {
+            // ignore, fallback to XHR
+          }
+
+          // fallback: parse XHR response
           if (xhr.status >= 200 && xhr.status < 300) {
             try {
               const data = JSON.parse(xhr.responseText || '{}');
               const url = data.url || data.fileUrl || data.path || data.location || '';
-              if (url) {
-                resolve(url);
-              } else {
-                // some servers return plain text URL
-                const text = (xhr.responseText || '').trim();
-                if (text) resolve(text);
-                else reject(new Error('Repons sèvè pa gen URL'));
-              }
+              try { es.close(); } catch (e) {}
+              return resolve(url || '');
             } catch (err) {
-              // maybe server returned plain text
-              const text = (xhr.responseText || '').trim();
-              if (text) resolve(text);
-              else reject(new Error('Erè parse repons sèvè: ' + err.message));
+              try { es.close(); } catch (e) {}
+              return resolve((xhr.responseText || '').trim() || '');
             }
           } else {
-            reject(new Error('HTTP ' + xhr.status));
+            try { es.close(); } catch (e) {}
+            return reject(new Error('HTTP ' + xhr.status + ' — ' + xhr.responseText));
           }
         };
 
         xhr.onerror = () => {
-          xhrs.delete(index);
+          try { xhrs.delete(index); } catch (e) {}
+          try { es.close(); } catch (e) {}
           reject(new Error('Erè rezo pandan upload'));
         };
 
         xhr.onabort = () => {
-          xhrs.delete(index);
+          try { xhrs.delete(index); } catch (e) {}
+          try { es.close(); } catch (e) {}
           const err = new Error('Abòte pa itilizatè');
           err.isAbort = true;
           reject(err);
         };
 
-        // expose xhr for cancel
+        // expose xhr
         onXhrCreated(xhr);
 
         try {
-          xhr.send(formData);
+          const fd = new FormData();
+          fd.append('file', file);
+          xhr.send(fd);
         } catch (err) {
+          try { es.close(); } catch (e) {}
           reject(err);
         }
       });
@@ -488,4 +558,4 @@
 <!-- Index.html, anba tout lòt scripts -->
 <script src="pwa.js"></script>
 </body>
-          </html>
+  </html>
