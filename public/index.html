@@ -1,42 +1,491 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="ht">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Upload to R2</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TF-Stream-Url</title>
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#2563eb" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="TF-Stream-Url" />
+  <link rel="apple-touch-icon" href="https://res.cloudinary.com/dckwrqrur/image/upload/v1755996395/tf-stream-url/tfstream-text-only_mo4wml.png" />
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; background-color: #f8fafc; margin: 0; }
+    .ad-layer { pointer-events: auto; z-index: 9999; } /* piblisite aktive */
+    #mainUI { position: relative; z-index: 10001; }
+    #ad-left, #ad-right { width: 90px; max-width: 120px; }
+    #ad-top, #ad-bottom { height: 90px; }
+    .ad-frame { display: block; }
+    .ad-layer iframe, .ad-layer > div { opacity: 0.98; }
+    .copied { color: #059669; font-weight: 600; }
+
+    /* Amelyorasyon pou non fichye yo */
+    .file-name {
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2; /* montre max 2 liy, apre sa elips */
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: normal;
+      word-break: break-word; /* kase mo long tankou non dosye yo */
+      cursor: pointer;
+    }
+
+    /* lè itilizatè klike pou agrandi */
+    .file-name.expanded {
+      -webkit-line-clamp: unset;
+      overflow: visible;
+      text-overflow: unset;
+      white-space: normal;
+    }
+
+    /* ti ajisteman pou w pa kraze layout sou mobil */
+    .selected-row { display:flex; align-items:flex-start; gap:0.5rem; }
+    .selected-row .meta { flex:1; min-width:0; } /* min-width:0 pou truncate travay byen */
+
+    /* responsive tweaks */
+    @media (max-width:420px) {
+      .file-name { font-size: 13px; }
+      .ad-layer { display:none; } /* ou ka kache ad sou ti ekran si ou vle */
+    }
+  </style>
 </head>
-<body>
-<h2>Upload File to Cloudflare R2</h2>
-<form id="uploadForm">
-  <input type="file" name="file" required>
-  <button type="submit">Upload</button>
-</form>
-<div id="result"></div>
+<body class="relative">
+  <div id="mainUI" class="flex items-center justify-center min-h-screen p-4">
+    <div class="bg-white w-full max-w-2xl rounded-3xl shadow-xl p-6 space-y-5">
 
-<script>
-const form = document.getElementById('uploadForm');
-const result = document.getElementById('result');
+      <h2 class="text-xl font-bold text-center text-gray-800">TF-Stream-Url</h2>
 
-form.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const file = form.file.files[0];
-  if (!file) return;
+      <!-- multiple attribute allows selecting plizyè fichye -->
+      <input id="fileInput" type="file" accept="*/*" multiple class="block w-full text-sm text-gray-700 bg-gray-100 rounded-xl border border-gray-300 p-2 cursor-pointer" />
 
-  const formData = new FormData();
-  formData.append('file', file);
+      <div id="selectedList" class="grid gap-2"></div>
 
-  const res = await fetch('/upload', {
-    method: 'POST',
-    body: formData
-  });
+      <div class="flex gap-2">
+        <button id="uploadBtn" class="flex-1 w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-xl transition">Upload tout</button>
+        <button id="cancelAllBtn" class="w-32 bg-gray-200 text-gray-700 font-semibold py-2 rounded-xl hidden">Anile tout</button>
+      </div>
 
-  const data = await res.json();
-  if (res.ok) {
-    result.innerHTML = `<p>Upload successful! <a href="${data.url}" target="_blank">View file</a></p>`;
-  } else {
-    result.innerText = 'Upload failed!';
-  }
-});
-</script>
+      <div id="overallProgressWrap" class="mt-2 hidden">
+        <div class="text-xs text-gray-600 mb-1">Pwogrè total</div>
+        <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+          <div id="overallProgressFill" style="width:0%" class="h-3 rounded-full transition-all bg-blue-500"></div>
+        </div>
+        <div class="flex justify-between items-center mt-2 text-xs">
+          <div id="overallPct" class="font-mono text-sm">0%</div>
+          <div id="overallInfo" class="text-gray-500 text-xs"></div>
+        </div>
+      </div>
+
+      <div id="result" class="text-center text-sm text-gray-700"></div>
+
+      <div id="previewAll" class="mt-4 space-y-4"></div>
+
+    </div>
+  </div>
+
+  <!-- ad-layer placeholders -->
+  <div id="ad-top" class="ad-layer fixed top-0 left-0 w-full flex justify-center items-start"></div>
+  <div id="ad-left" class="ad-layer fixed top-1/4 left-0 h-1/2 flex items-center"></div>
+  <div id="ad-right" class="ad-layer fixed top-1/4 right-0 h-1/2 flex items-center"></div>
+  <div id="ad-bottom" class="ad-layer fixed bottom-0 left-0 w-full flex justify-center items-end"></div>
+
+  <script>
+    // Elements
+    const fileInput = document.getElementById('fileInput');
+    const selectedList = document.getElementById('selectedList');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const cancelAllBtn = document.getElementById('cancelAllBtn');
+    const result = document.getElementById('result');
+
+    const overallProgressWrap = document.getElementById('overallProgressWrap');
+    const overallProgressFill = document.getElementById('overallProgressFill');
+    const overallPct = document.getElementById('overallPct');
+    const overallInfo = document.getElementById('overallInfo');
+
+    const previewAll = document.getElementById('previewAll');
+
+    // state
+    let filesArray = []; // array of File objects selected
+    let xhrs = new Map(); // map index -> xhr for cancellation
+    let uploading = false;
+
+    function humanFileSize(bytes) {
+      const thresh = 1024;
+      if (Math.abs(bytes) < thresh) return bytes + ' B';
+      const units = ['KB','MB','GB','TB','PB','EB','ZB','YB'];
+      let u = -1;
+      do {
+        bytes /= thresh;
+        ++u;
+      } while(Math.abs(bytes) >= thresh && u < units.length - 1);
+      return bytes.toFixed(1)+' '+units[u];
+    }
+
+    function escapeHtml(unsafe) {
+      return String(unsafe)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    // renderSelectedList (improved for truncation & expand on click)
+    function renderSelectedList() {
+      selectedList.innerHTML = '';
+      if (filesArray.length === 0) {
+        selectedList.innerHTML = `<div class="text-xs text-gray-500 italic">Pa gen fichye chwazi.</div>`;
+        return;
+      }
+
+      const grid = document.createElement('div');
+      grid.className = 'space-y-1';
+
+      filesArray.forEach((file, idx) => {
+        const row = document.createElement('div');
+        row.className = 'flex items-center justify-between gap-2 bg-gray-50 border border-gray-200 rounded-xl p-2 selected-row';
+
+        const left = document.createElement('div');
+        left.className = 'flex items-start gap-2 meta';
+
+        // icon oswa preview si ou vle (optional)
+        const icon = document.createElement('div');
+        icon.className = 'w-10 h-10 flex-shrink-0 rounded-md bg-gray-100 flex items-center justify-center text-xs text-gray-600';
+        icon.textContent = file.type && file.type.startsWith('video') ? 'VID' : 'FILE';
+
+        const titleWrap = document.createElement('div');
+        titleWrap.style.minWidth = '0'; // trè enpòtan pou truncate sou flex
+        const title = document.createElement('div');
+        title.className = 'file-name text-sm text-gray-800';
+        title.textContent = file.name;
+        title.title = file.name; // hover/long-press montre non antye
+        // klike pou toggle ekspansyon non an (montre antye)
+        title.addEventListener('click', () => {
+          title.classList.toggle('expanded');
+        });
+
+        const sub = document.createElement('div');
+        sub.className = 'text-xs text-gray-500';
+        sub.textContent = `${humanFileSize(file.size)} • ${file.type || '—'}`;
+
+        titleWrap.appendChild(title);
+        titleWrap.appendChild(sub);
+
+        left.appendChild(icon);
+        left.appendChild(titleWrap);
+
+        const right = document.createElement('div');
+        right.className = 'flex items-center gap-2';
+
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'text-xs text-red-600 px-2 py-1 rounded-md bg-red-50 border border-red-100';
+        removeBtn.textContent = 'Retire';
+        removeBtn.onclick = () => {
+          if (uploading) return; // pa pèmèt retire pandan upload
+          filesArray.splice(idx, 1);
+          renderSelectedList();
+        };
+
+        right.appendChild(removeBtn);
+        row.appendChild(left);
+        row.appendChild(right);
+        grid.appendChild(row);
+      });
+
+      selectedList.appendChild(grid);
+    }
+
+    // when user selects files
+    fileInput.addEventListener('change', (e) => {
+      const list = Array.from(e.target.files || []);
+      // append new selection to existing list
+      filesArray = filesArray.concat(list);
+      renderSelectedList();
+    });
+
+    // Upload logic: CONCURRENT uploads (tout menm moman)
+    uploadBtn.addEventListener('click', async () => {
+      if (filesArray.length === 0) {
+        return alert('Tanpri chwazi omwen yon fichye anvan ou upload.');
+      }
+      if (uploading) return;
+      uploading = true;
+      uploadBtn.disabled = true;
+      cancelAllBtn.classList.remove('hidden');
+      fileInput.disabled = true;
+      result.textContent = 'Kòmanse upload...';
+
+      overallProgressWrap.classList.remove('hidden');
+      overallInfo.textContent = '';
+
+      previewAll.innerHTML = ''; // reset preview area
+      xhrs.clear();
+
+      const totalBytes = filesArray.reduce((s,f) => s + f.size, 0);
+      const loadedBytes = new Array(filesArray.length).fill(0);
+
+      // create UI blocks for all files before starting
+      const blocks = filesArray.map((file, i) => {
+        const block = document.createElement('div');
+        block.className = 'p-3 bg-white border border-gray-200 rounded-xl shadow-sm';
+        block.innerHTML = `
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="font-semibold text-sm text-gray-800">${escapeHtml(file.name)}</div>
+              <div class="text-xs text-gray-500">${humanFileSize(file.size)} • ${file.type || '—'}</div>
+            </div>
+            <div class="flex items-center gap-2">
+              <button class="text-xs text-gray-600 px-2 py-1 rounded-md bg-gray-50 hidden file-cancel">Anile</button>
+            </div>
+          </div>
+          <div class="mt-3">
+            <div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+              <div class="file-progress h-2 rounded-full transition-all bg-blue-500" style="width:0%"></div>
+            </div>
+            <div class="flex justify-between items-center mt-2 text-xs">
+              <div class="file-pct font-mono text-sm">0%</div>
+              <div class="file-info text-gray-500"></div>
+            </div>
+            <div class="mt-3 file-result"></div>
+          </div>
+        `;
+        previewAll.appendChild(block);
+        return {
+          block,
+          fileProgressFill: block.querySelector('.file-progress'),
+          filePct: block.querySelector('.file-pct'),
+          fileInfo: block.querySelector('.file-info'),
+          fileCancelBtn: block.querySelector('.file-cancel'),
+          fileResult: block.querySelector('.file-result')
+        };
+      });
+
+      // helper to update overall
+      function updateOverall() {
+        const sum = loadedBytes.reduce((a,b) => a + b, 0);
+        const overallPercent = totalBytes ? Math.round((sum / totalBytes) * 100) : 0;
+        overallProgressFill.style.width = overallPercent + '%';
+        overallPct.textContent = overallPercent + '%';
+        overallInfo.textContent = `${humanFileSize(sum)} / ${humanFileSize(totalBytes)}`;
+      }
+
+      // start all uploads concurrently
+      const uploadPromises = filesArray.map((file, i) => {
+        const ui = blocks[i];
+        return uploadSingleFile(file, i, {
+          onProgress: (loaded, total, speed, secsLeft) => {
+            // update per-file UI
+            const percent = total ? Math.round((loaded/total)*100) : 0;
+            ui.fileProgressFill.style.width = percent + '%';
+            ui.filePct.textContent = percent + '%';
+            ui.fileInfo.textContent = `${humanFileSize(loaded)} / ${humanFileSize(total)} • ${Math.round(secsLeft)}s left`;
+
+            // update overall loaded bytes
+            loadedBytes[i] = loaded;
+            updateOverall();
+          },
+          onXhrCreated: (xhr) => {
+            xhrs.set(i, xhr);
+            ui.fileCancelBtn.classList.remove('hidden');
+            ui.fileCancelBtn.onclick = () => {
+              try { xhr.abort(); } catch(e) {}
+            };
+          }
+        }).then(url => {
+          // success
+          loadedBytes[i] = file.size;
+          updateOverall();
+          ui.fileProgressFill.style.width = '100%';
+          ui.filePct.textContent = '100%';
+          ui.fileInfo.textContent = `${humanFileSize(file.size)} • Konplete`;
+
+          const div = document.createElement('div');
+          div.className = 'mt-2';
+          const urlDisplay = `<div class="break-all text-blue-600 text-xs cursor-pointer file-url">${escapeHtml(url)}</div>`;
+          div.innerHTML = urlDisplay;
+          ui.fileResult.appendChild(div);
+
+          const urlEl = ui.fileResult.querySelector('.file-url');
+          urlEl.onclick = async () => {
+            try {
+              await navigator.clipboard.writeText(url);
+              result.innerHTML = '<span class="copied">URL kopi nan clipboard</span>';
+              setTimeout(()=> result.textContent = '', 2000);
+            } catch (e) {
+              result.textContent = 'Pa kapab kopiye: ' + e.message;
+            }
+          };
+
+          // render preview if image/video/audio
+          const type = (file.type || '').toLowerCase();
+          if (type.startsWith('image/')) {
+            const img = document.createElement('img');
+            img.src = url;
+            img.className = 'mt-2 mx-auto rounded-lg shadow max-h-44';
+            ui.fileResult.appendChild(img);
+          } else if (type.startsWith('video/') || type.startsWith('audio/')) {
+            const vid = document.createElement('video');
+            vid.src = url;
+            vid.controls = true;
+            vid.className = 'mt-2 mx-auto rounded-lg shadow max-h-44';
+            ui.fileResult.appendChild(vid);
+          }
+          return { status: 'fulfilled', url };
+        }).catch(err => {
+          // error or abort
+          if (err && err.isAbort) {
+            ui.fileInfo.textContent = '';
+            ui.filePct.textContent = '—';
+            ui.fileProgressFill.style.width = '0%';
+            const errDiv = document.createElement('div');
+            errDiv.className = 'text-xs text-red-600 mt-2';
+            errDiv.textContent = 'Upload anile pa itilizatè';
+            ui.fileResult.appendChild(errDiv);
+            return { status: 'aborted' };
+          } else {
+            ui.fileInfo.textContent = '';
+            ui.filePct.textContent = '—';
+            ui.fileProgressFill.style.width = '0%';
+            const errDiv = document.createElement('div');
+            errDiv.className = 'text-xs text-red-600 mt-2';
+            errDiv.textContent = 'Erè upload: ' + (err && err.message ? err.message : String(err));
+            ui.fileResult.appendChild(errDiv);
+            return { status: 'rejected', reason: err };
+          }
+        });
+      });
+
+      // Wait for all to finish (either success, fail, or abort)
+      const results = await Promise.allSettled(uploadPromises);
+
+      // finalize UI
+      uploading = false;
+      uploadBtn.disabled = false;
+      cancelAllBtn.classList.add('hidden');
+      fileInput.disabled = false;
+
+      // summary message
+      const succeeded = results.filter(r => r.status === 'fulfilled' && r.value && r.value.status === 'fulfilled').length;
+      const aborted = results.filter(r => r.status === 'fulfilled' && r.value && r.value.status === 'aborted').length;
+      const failed = results.filter(r => r.status === 'fulfilled' && r.value && r.value.status === 'rejected').length;
+      overallInfo.textContent = `Konplete: ${humanFileSize(loadedBytes.reduce((a,b)=>a+b,0))}`;
+      result.textContent = `Fen: ${succeeded} siksè, ${failed} erè, ${aborted} anile.`;
+    });
+
+    // cancel all button
+    cancelAllBtn.addEventListener('click', () => {
+      // abort all xhrs
+      for (const xhr of xhrs.values()) {
+        try { xhr.abort(); } catch(e) {}
+      }
+      xhrs.clear();
+      result.textContent = 'Anile tout uploads...';
+    });
+
+    // helper: upload single file with progress callbacks
+    function uploadSingleFile(file, index, { onProgress = ()=>{}, onXhrCreated = ()=>{} } = {}) {
+      return new Promise((resolve, reject) => {
+        const endpoint = `/upload`; // modify si sèvè ou a diferan
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const xhr = new XMLHttpRequest();
+        let startTime = Date.now();
+        xhr.open('POST', endpoint);
+
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) {
+            const elapsed = (Date.now() - startTime) / 1000;
+            const speed = e.loaded / Math.max(elapsed, 0.001);
+            const remainingBytes = e.total - e.loaded;
+            const secsLeft = Math.round(remainingBytes / Math.max(speed, 1));
+            onProgress(e.loaded, e.total, speed, secsLeft);
+          }
+        };
+
+        xhr.onload = () => {
+          xhrs.delete(index);
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              const data = JSON.parse(xhr.responseText || '{}');
+              const url = data.url || data.fileUrl || data.path || data.location || '';
+              if (url) {
+                resolve(url);
+              } else {
+                // some servers return plain text URL
+                const text = (xhr.responseText || '').trim();
+                if (text) resolve(text);
+                else reject(new Error('Repons sèvè pa gen URL'));
+              }
+            } catch (err) {
+              // maybe server returned plain text
+              const text = (xhr.responseText || '').trim();
+              if (text) resolve(text);
+              else reject(new Error('Erè parse repons sèvè: ' + err.message));
+            }
+          } else {
+            reject(new Error('HTTP ' + xhr.status));
+          }
+        };
+
+        xhr.onerror = () => {
+          xhrs.delete(index);
+          reject(new Error('Erè rezo pandan upload'));
+        };
+
+        xhr.onabort = () => {
+          xhrs.delete(index);
+          const err = new Error('Abòte pa itilizatè');
+          err.isAbort = true;
+          reject(err);
+        };
+
+        // expose xhr for cancel
+        onXhrCreated(xhr);
+
+        try {
+          xhr.send(formData);
+        } catch (err) {
+          reject(err);
+        }
+      });
+    }
+
+    // service worker register (same as original)
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js')
+          .then(reg => {
+            console.log('Service worker registered.', reg);
+          })
+          .catch(err => {
+            console.warn('Service worker registration failed:', err);
+          });
+      });
+    }
+  </script>
+
+  <!-- Re-add your original ad scripts (si ou vle) -->
+  <script async="async" data-cfasync="false" src="//pantherinvincible.com/831d752652add5a4318102e95e23728b/invoke.js"></script>
+  <div id="container-831d752652add5a4318102e95e23728b" class="ad-layer fixed top-2 left-1"></div>
+  <script type="text/javascript" src="//pantherinvincible.com/97/a6/20/97a620f293cd665277c661660533234e.js"></script>
+  <script type="text/javascript" src="//pantherinvincible.com/8f/36/29/8f362929c71ab43f93c6d86c43889bfb.js"></script>
+  <script type="text/javascript">
+    atOptions = {
+      'key' : 'a948baf246dd1ff24f0a6fcde286b31b',
+      'format' : 'iframe',
+      'height' : 300,
+      'width' : 160,
+      'params' : {}
+    };
+  </script>
+  <script type="text/javascript" src="//pantherinvincible.com/a948baf246dd1ff24f0a6fcde286b31b/invoke.js"></script>
+<!-- Index.html, anba tout lòt scripts -->
+<script src="pwa.js"></script>
 </body>
-</html>
+          </html>
