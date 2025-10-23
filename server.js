@@ -7,10 +7,12 @@ const path = require('path');
 const { EventEmitter } = require('events');
 const { S3Client } = require('@aws-sdk/client-s3');
 const { Upload } = require('@aws-sdk/lib-storage');
+const cors = require('cors');
 
 const app = express();
 
-const MAX_FILE_BYTES = 5 * 1024 * 1024 * 1024; // 5 GB
+const PORT = process.env.PORT || 3000;
+const MAX_FILE_BYTES = parseInt(process.env.CHUNK_MAX_SIZE || String(5 * 1024 * 1024 * 1024), 10); // default 5 GB
 const uploadDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
@@ -18,26 +20,38 @@ const s3 = new S3Client({
   region: process.env.R2_REGION || 'auto',
   endpoint: process.env.R2_ENDPOINT,
   credentials: {
-    accessKeyId: process.env.R2_ACCESS_KEY_ID,
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
+    accessKeyId: process.env.R2_ACCESS_KEY_ID || '',
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || '',
   },
 });
 
-const uploads = new Map();
+const uploads = new Map(); // uploadId -> EventEmitter
 
 function getNormalizedPublicUrl() {
   let publicUrl = (process.env.R2_PUBLIC_URL || '').trim();
   if (!publicUrl) return '';
-  publicUrl = publicUrl.replace(/\/+$/g, '');
+  publicUrl = publicUrl.replace(/\/+/g, '/').replace(/\/+$/g, '');
   if (!/^https?:\/\//i.test(publicUrl)) {
     publicUrl = 'https://' + publicUrl;
   }
-  return publicUrl;
+  return publicUrl.replace(/\/+$/g, '');
 }
 const R2_PUBLIC_URL = getNormalizedPublicUrl();
 
-function formatMB(bytes) {
-  return `${Math.round(bytes / 1024 / 1024)}mo`;
+function humanFileLabel(bytes) {
+  // returns strings like "2ko" (KB) or "1mo" (MB), rounded
+  if (!bytes && bytes !== 0) return '0ko';
+  const kb = bytes / 1024;
+  if (kb < 1024) return `${Math.round(kb)}ko`;
+  const mb = kb / 1024;
+  if (mb < 1024) return `${Math.round(mb)}mo`;
+  const gb = mb / 1024;
+  return `${Math.round(gb)}go`;
+}
+
+function formatPercent(loaded, total) {
+  if (!total) return '0%';
+  return `${Math.round((loaded / total) * 100)}%`;
 }
 
 function getBusboyFactory() {
@@ -47,7 +61,16 @@ function getBusboyFactory() {
   return BusboyPkg;
 }
 
-// SSE: /progress/:uploadId
+// CORS (allow frontend origin or all during dev)
+app.use(cors({
+  origin: process.env.FRONTEND_ORIGIN || '*',
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'x-upload-id', 'x-file-size', 'x-file-name'],
+}));
+
+app.get('/health', (req, res) => res.json({ ok: true }));
+
+// SSE endpoint
 app.get('/progress/:uploadId', (req, res) => {
   const { uploadId } = req.params;
   if (!uploadId) return res.status(400).end('Missing uploadId');
@@ -66,16 +89,13 @@ app.get('/progress/:uploadId', (req, res) => {
   res.write(`event: connected\ndata: ${JSON.stringify({ ok: true, uploadId })}\n\n`);
 
   const onProgress = (data) => {
-    res.write(`event: progress\ndata: ${JSON.stringify(data)}\n\n`);
+    try { res.write(`event: progress\ndata: ${JSON.stringify(data)}\n\n`); } catch (e) {}
   };
   const onDone = (data) => {
-    res.write(`event: done\ndata: ${JSON.stringify(data)}\n\n`);
-    setTimeout(() => {
-      try { res.end(); } catch (e) {}
-    }, 500);
+    try { res.write(`event: done\ndata: ${JSON.stringify(data)}\n\n`); } catch (e) {}
   };
   const onError = (data) => {
-    res.write(`event: error\ndata: ${JSON.stringify(data)}\n\n`);
+    try { res.write(`event: error\ndata: ${JSON.stringify(data)}\n\n`); } catch (e) {}
   };
 
   emitter.on('progress', onProgress);
@@ -86,10 +106,20 @@ app.get('/progress/:uploadId', (req, res) => {
     emitter.removeListener('progress', onProgress);
     emitter.removeListener('done', onDone);
     emitter.removeListener('error', onError);
+    // if no listeners remain, schedule cleanup
+    const remaining = emitter.listenerCount('progress') + emitter.listenerCount('done') + emitter.listenerCount('error');
+    if (remaining === 0) {
+      setTimeout(() => {
+        const e = uploads.get(uploadId);
+        if (e && e.listenerCount('progress') + e.listenerCount('done') + e.listenerCount('error') === 0) {
+          uploads.delete(uploadId);
+        }
+      }, 5000);
+    }
   });
 });
 
-// Upload endpoint
+// Upload endpoint (supports multiple files per request)
 app.post('/upload', (req, res) => {
   const contentLength = parseInt(req.headers['content-length'] || '0', 10);
   const clientFileSizeHeader = parseInt(req.headers['x-file-size'] || '0', 10);
@@ -114,23 +144,20 @@ app.post('/upload', (req, res) => {
     }
   }
 
-  let responded = false;
-  let fileHandled = false;
+  const uploadPromises = []; // collect per-file upload promises
+  let anyFile = false;
 
-  busboy.on('file', (fieldname, fileStream, third, fourth, fifth) => {
+  busboy.on('file', (fieldname, fileStream, filenameOrInfo, maybeEncoding, maybeMime) => {
+    anyFile = true;
+    // parse filename & mimetype robustly
     let filename = 'file';
-    let encoding = '';
     let mimetype = 'application/octet-stream';
-
-    if (typeof third === 'string') {
-      filename = third || filename;
-      encoding = fourth || encoding;
-      mimetype = fifth || mimetype;
-    } else if (third && typeof third === 'object') {
-      const info = third;
-      filename = info.filename || info.fileName || filename;
-      encoding = info.encoding || encoding;
-      mimetype = info.mimeType || info.mime || info.mimetype || mimetype;
+    if (typeof filenameOrInfo === 'string') {
+      filename = filenameOrInfo || filename;
+      mimetype = maybeMime || mimetype;
+    } else if (filenameOrInfo && typeof filenameOrInfo === 'object') {
+      filename = filenameOrInfo.filename || filename;
+      mimetype = filenameOrInfo.mimeType || filenameOrInfo.mime || maybeMime || mimetype;
     }
 
     filename = path.basename(String(filename || 'file'));
@@ -139,7 +166,6 @@ app.post('/upload', (req, res) => {
       return;
     }
 
-    fileHandled = true;
     const safeName = `${Date.now()}-${filename.replace(/\s+/g, '_')}`;
     const tempPath = path.join(uploadDir, safeName);
     const writeStream = fs.createWriteStream(tempPath);
@@ -149,41 +175,39 @@ app.post('/upload', (req, res) => {
 
     console.log(`Start receiving ${filename} -> temp: ${tempPath}`);
 
+    // emit receiving progress while writing to disk
     fileStream.on('data', (chunk) => {
       received += chunk.length;
       if (emitter) {
         const percent = totalForProgress ? Math.min(100, Math.floor((received / totalForProgress) * 100)) : null;
-        emitter.emit('progress', {
+        const data = {
           phase: 'receiving',
           filename,
           loaded: received,
           total: totalForProgress || null,
           percent
-        });
+        };
+        emitter.emit('progress', data);
+        // log line like: Name.mp4 1mo/2mo. 50%
+        const loadedLabel = humanFileLabel(received);
+        const totalLabel = totalForProgress ? humanFileLabel(totalForProgress) : humanFileLabel(0);
+        console.log(`${filename} ${loadedLabel}/${totalLabel} ${percent !== null ? percent + '%' : ''}`);
       }
     });
 
     fileStream.on('limit', () => {
-      console.warn(`${filename} exceeded limit ${formatMB(MAX_FILE_BYTES)} - aborting`);
+      console.warn(`${filename} exceeded limit ${humanFileLabel(MAX_FILE_BYTES)} - aborting`);
       try { fileStream.unpipe(); } catch (e) {}
       try { writeStream.end(); } catch (e) {}
       try { fs.unlinkSync(tempPath); } catch (e) {}
-      if (emitter) emitter.emit('error', { message: 'File too large (limit 5 GB)' });
-      if (!responded) {
-        responded = true;
-        res.status(413).json({ error: 'File too large. Limit is 5 GB.' });
-      }
+      if (emitter) emitter.emit('error', { message: 'File too large (limit)', filename });
     });
 
     fileStream.on('error', (err) => {
       console.error(`Read stream error for ${filename}:`, err);
       try { writeStream.end(); } catch (e) {}
       try { fs.unlinkSync(tempPath); } catch (e) {}
-      if (emitter) emitter.emit('error', { message: err.message });
-      if (!responded) {
-        responded = true;
-        res.status(500).json({ error: 'File stream error', details: err.message });
-      }
+      if (emitter) emitter.emit('error', { message: err.message, filename });
     });
 
     fileStream.pipe(writeStream);
@@ -192,101 +216,120 @@ app.post('/upload', (req, res) => {
       console.error(`Write stream error for ${tempPath}:`, err);
       try { fileStream.unpipe(); } catch (e) {}
       try { fs.unlinkSync(tempPath); } catch (e) {}
-      if (emitter) emitter.emit('error', { message: err.message });
-      if (!responded) {
-        responded = true;
-        res.status(500).json({ error: 'Disk write error', details: err.message });
-      }
+      if (emitter) emitter.emit('error', { message: err.message, filename });
     });
 
-    fileStream.on('end', async () => {
-      writeStream.end();
-      console.log(`${filename} fully received (${formatMB(received)}) — starting upload to R2`);
+    // create a promise for this file's lifecycle (receive -> upload -> done)
+    const p = new Promise((resolve) => {
+      fileStream.on('end', async () => {
+        writeStream.end();
+        console.log(`${filename} fully received (${humanFileLabel(received)}) — starting upload to R2`);
 
-      let fileSizeOnDisk = received;
-      try {
-        const st = fs.statSync(tempPath);
-        fileSizeOnDisk = st.size;
-      } catch (e) {}
+        // confirm actual size on disk
+        let fileSizeOnDisk = received;
+        try {
+          const st = fs.statSync(tempPath);
+          fileSizeOnDisk = st.size;
+        } catch (e) {}
 
-      const key = `${Date.now()}-${filename.replace(/\s+/g, '_')}`;
-      const fileReadStream = fs.createReadStream(tempPath);
+        const key = `${Date.now()}-${filename.replace(/\s+/g, '_')}`;
+        const fileReadStream = fs.createReadStream(tempPath);
 
-      try {
-        const parallelUploads3 = new Upload({
-          client: s3,
-          params: {
-            Bucket: process.env.R2_BUCKET,
-            Key: key,
-            Body: fileReadStream,
-            ContentType: mimetype || 'application/octet-stream',
-          },
-          queueSize: 4,
-          partSize: 10 * 1024 * 1024,
-          leavePartsOnError: false,
-        });
+        try {
+          const uploader = new Upload({
+            client: s3,
+            params: {
+              Bucket: process.env.R2_BUCKET,
+              Key: key,
+              Body: fileReadStream,
+              ContentType: mimetype || 'application/octet-stream',
+            },
+            queueSize: 4,
+            partSize: 10 * 1024 * 1024,
+            leavePartsOnError: false,
+          });
 
-        parallelUploads3.on('httpUploadProgress', (progress) => {
-          const loaded = progress.loaded || 0;
-          const total = progress.total || fileSizeOnDisk || 0;
-          const percent = total ? Math.min(100, Math.floor((loaded / total) * 100)) : null;
-          console.log(`S3 upload ${filename} ${formatMB(loaded)}/${formatMB(total)} ${percent || ''}%`);
+          uploader.on('httpUploadProgress', (progress) => {
+            const loaded = progress.loaded || 0;
+            const total = progress.total || fileSizeOnDisk || 0;
+            const percent = total ? Math.min(100, Math.floor((loaded / total) * 100)) : null;
+            if (emitter) {
+              const data = {
+                phase: 'uploading',
+                filename,
+                loaded,
+                total,
+                percent
+              };
+              emitter.emit('progress', data);
+              // console log like: Name.mp4 1mo/2mo. 50%
+              const loadedLabel = humanFileLabel(loaded);
+              const totalLabel = humanFileLabel(total);
+              console.log(`${filename} ${loadedLabel}/${totalLabel} ${percent !== null ? percent + '%' : ''}`);
+            }
+          });
+
+          await uploader.done();
+
+          try { fs.unlinkSync(tempPath); } catch (e) { console.warn('Could not delete temp file', e); }
+
+          const fileUrl = R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${key}` : `/${key}`;
+
+          // emit done for this file
           if (emitter) {
-            emitter.emit('progress', {
-              phase: 'uploading',
-              filename,
-              loaded,
-              total,
-              percent
-            });
+            const doneData = { filename, url: fileUrl, key };
+            emitter.emit('done', doneData);
+            console.log(`${filename} uploaded -> ${fileUrl}`);
           }
-        });
 
-        await parallelUploads3.done();
-
-        try { fs.unlinkSync(tempPath); } catch (e) { console.warn('Could not delete temp file', e); }
-
-        const fileUrl = R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${key}` : `/${key}`;
-
-        if (emitter) {
-          emitter.emit('done', { filename, url: fileUrl, key });
-          setTimeout(() => {
-            uploads.delete(uploadIdHeader);
-            try { emitter.removeAllListeners(); } catch (e) {}
-          }, 2000);
+          // resolve success
+          resolve({ filename, url: fileUrl, key });
+        } catch (err) {
+          console.error('Upload to R2 failed for', filename, err);
+          try { fs.unlinkSync(tempPath); } catch (e) {}
+          if (emitter) emitter.emit('error', { message: err.message, filename });
+          resolve({ filename, error: err.message });
         }
-
-        if (!responded) {
-          responded = true;
-          res.json({ message: 'Upload successful!', url: fileUrl, key });
-        }
-      } catch (err) {
-        console.error('Upload to R2 failed', err);
-        try { fs.unlinkSync(tempPath); } catch (e) {}
-        if (emitter) emitter.emit('error', { message: err.message });
-        if (!responded) {
-          responded = true;
-          res.status(500).json({ error: 'Upload to R2 failed', details: err.message });
-        }
-      }
+      });
     });
+
+    uploadPromises.push(p);
   });
 
-  busboy.on('field', () => {});
-  busboy.on('finish', () => {
-    if (!fileHandled && !responded) {
-      responded = true;
-      res.status(400).json({ error: 'No file uploaded' });
+  busboy.on('field', (name, val) => {
+    // accept normal form fields if needed; not used now
+  });
+
+  busboy.on('finish', async () => {
+    if (!anyFile) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    // wait for all file uploads to finish (success or error)
+    try {
+      const files = await Promise.all(uploadPromises);
+      // send consolidated response
+      return res.json({ ok: true, files });
+    } catch (err) {
+      console.error('Error awaiting uploads', err);
+      return res.status(500).json({ error: 'Upload processing failed', details: err.message });
+    } finally {
+      // cleanup emitters for this uploadId after short delay
+      if (uploadIdHeader) {
+        setTimeout(() => {
+          const e = uploads.get(uploadIdHeader);
+          if (e && e.listenerCount('progress') + e.listenerCount('done') + e.listenerCount('error') === 0) {
+            uploads.delete(uploadIdHeader);
+          }
+        }, 2000);
+      }
     }
   });
 
   busboy.on('error', (err) => {
-    console.error('Busboy error', err);
+    console.error('Busboy parse error', err);
     if (emitter) emitter.emit('error', { message: err.message });
-    if (!responded) {
-      responded = true;
-      res.status(500).json({ error: 'Parse error', details: err.message });
-    }
+    return res.status(500).json({ error: 'Parse error', details: err.message });
   });
 
   req.pipe(busboy);
@@ -294,8 +337,7 @@ app.post('/upload', (req, res) => {
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
-  console.log('Max upload size set to 5 GB.');
+  console.log(`Max upload size set to ${humanFileLabel(MAX_FILE_BYTES)} (${MAX_FILE_BYTES} bytes).`);
 });
