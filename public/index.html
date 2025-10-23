@@ -23,38 +23,28 @@
     .ad-layer iframe, .ad-layer > div { opacity: 0.98; }
     .copied { color: #059669; font-weight: 600; }
 
-    /* Amelyorasyon pou non fichye yo */
     .file-name {
       display: -webkit-box;
       -webkit-box-orient: vertical;
-      -webkit-line-clamp: 2; /* montre max 2 liy, apre sa elips */
+      -webkit-line-clamp: 2;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: normal;
-      word-break: break-word; /* kase mo long tankou non dosye yo */
+      word-break: break-word;
       cursor: pointer;
     }
-
-    /* lè itilizatè klike pou agrandi */
     .file-name.expanded {
       -webkit-line-clamp: unset;
       overflow: visible;
       text-overflow: unset;
       white-space: normal;
     }
-
-    /* ti ajisteman pou w pa kraze layout sou mobil */
     .selected-row { display:flex; align-items:flex-start; gap:0.5rem; }
-    .selected-row .meta { flex:1; min-width:0; } /* min-width:0 pou truncate travay byen */
-
-    /* responsive tweaks */
+    .selected-row .meta { flex:1; min-width:0; }
     @media (max-width:420px) {
       .file-name { font-size: 13px; }
-      .ad-layer { display:none; } /* ou ka kache ad sou ti ekran si ou vle */
+      .ad-layer { display:none; }
     }
-
-    /* ekstra: asire long url kase byen */
-    .file-url { word-break: break-all; }
   </style>
 </head>
 <body class="relative">
@@ -63,7 +53,6 @@
 
       <h2 class="text-xl font-bold text-center text-gray-800">TF-Stream</h2>
 
-      <!-- multiple attribute allows selecting plizyè fichye -->
       <input id="fileInput" type="file" accept="*/*" multiple class="block w-full text-sm text-gray-700 bg-gray-100 rounded-xl border border-gray-300 p-2 cursor-pointer" />
 
       <div id="selectedList" class="grid gap-2"></div>
@@ -98,7 +87,7 @@
   <div id="ad-bottom" class="ad-layer fixed bottom-0 left-0 w-full flex justify-center items-end"></div>
 
   <script>
-    // Elements
+    // ---------- Elements ----------
     const fileInput = document.getElementById('fileInput');
     const selectedList = document.getElementById('selectedList');
     const uploadBtn = document.getElementById('uploadBtn');
@@ -112,15 +101,16 @@
 
     const previewAll = document.getElementById('previewAll');
 
-    // state
-    let filesArray = []; // array of File objects selected
-    let xhrs = new Map(); // map index -> xhr for cancellation
+    // ---------- State ----------
+    let filesArray = [];
+    let xhrs = new Map();
     let uploading = false;
 
+    // ---------- Utilities ----------
     function humanFileSize(bytes) {
       const thresh = 1024;
       if (Math.abs(bytes) < thresh) return bytes + ' B';
-      const units = ['KB','MB','GB','TB','PB','EB','ZB','YB'];
+      const units = ['KB','MB','GB','TB'];
       let u = -1;
       do {
         bytes /= thresh;
@@ -128,121 +118,75 @@
       } while(Math.abs(bytes) >= thresh && u < units.length - 1);
       return bytes.toFixed(1)+' '+units[u];
     }
-
     function escapeHtml(unsafe) {
-      return String(unsafe)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/\"/g, "&quot;")
-        .replace(/'/g, "&#039;");
+      return String(unsafe).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+                           .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
     }
 
-    // normalize URL helper — returns absolute URL when possible
-    function normalizeUrl(u) {
-      try {
-        if (!u) return '';
-        return /^https?:\/\//i.test(u) ? u : new URL(u, window.location.origin).href;
-      } catch (e) {
-        return u || '';
-      }
-    }
-
-    // renderSelectedList (improved for truncation & expand on click)
+    // ---------- Render selected list ----------
     function renderSelectedList() {
       selectedList.innerHTML = '';
       if (filesArray.length === 0) {
         selectedList.innerHTML = `<div class="text-xs text-gray-500 italic">Pa gen fichye chwazi.</div>`;
         return;
       }
-
       const grid = document.createElement('div');
       grid.className = 'space-y-1';
-
       filesArray.forEach((file, idx) => {
         const row = document.createElement('div');
         row.className = 'flex items-center justify-between gap-2 bg-gray-50 border border-gray-200 rounded-xl p-2 selected-row';
-
         const left = document.createElement('div');
         left.className = 'flex items-start gap-2 meta';
-
-        // icon oswa preview si ou vle (optional)
         const icon = document.createElement('div');
         icon.className = 'w-10 h-10 flex-shrink-0 rounded-md bg-gray-100 flex items-center justify-center text-xs text-gray-600';
         icon.textContent = file.type && file.type.startsWith('video') ? 'VID' : 'FILE';
-
         const titleWrap = document.createElement('div');
-        titleWrap.style.minWidth = '0'; // trè enpòtan pou truncate sou flex
+        titleWrap.style.minWidth = '0';
         const title = document.createElement('div');
         title.className = 'file-name text-sm text-gray-800';
         title.textContent = file.name;
-        title.title = file.name; // hover/long-press montre non antye
-        // klike pou toggle ekspansyon non an (montre antye)
-        title.addEventListener('click', () => {
-          title.classList.toggle('expanded');
-        });
-
+        title.title = file.name;
+        title.addEventListener('click', () => title.classList.toggle('expanded'));
         const sub = document.createElement('div');
         sub.className = 'text-xs text-gray-500';
         sub.textContent = `${humanFileSize(file.size)} • ${file.type || '—'}`;
-
-        titleWrap.appendChild(title);
-        titleWrap.appendChild(sub);
-
-        left.appendChild(icon);
-        left.appendChild(titleWrap);
-
-        const right = document.createElement('div');
-        right.className = 'flex items-center gap-2';
-
+        titleWrap.appendChild(title); titleWrap.appendChild(sub);
+        left.appendChild(icon); left.appendChild(titleWrap);
+        const right = document.createElement('div'); right.className = 'flex items-center gap-2';
         const removeBtn = document.createElement('button');
         removeBtn.className = 'text-xs text-red-600 px-2 py-1 rounded-md bg-red-50 border border-red-100';
         removeBtn.textContent = 'Retire';
-        removeBtn.onclick = () => {
-          if (uploading) return; // pa pèmèt retire pandan upload
-          filesArray.splice(idx, 1);
-          renderSelectedList();
-        };
-
+        removeBtn.onclick = () => { if (uploading) return; filesArray.splice(idx,1); renderSelectedList(); };
         right.appendChild(removeBtn);
-        row.appendChild(left);
-        row.appendChild(right);
-        grid.appendChild(row);
+        row.appendChild(left); row.appendChild(right); grid.appendChild(row);
       });
-
       selectedList.appendChild(grid);
     }
 
-    // when user selects files
     fileInput.addEventListener('change', (e) => {
       const list = Array.from(e.target.files || []);
-      // append new selection to existing list
       filesArray = filesArray.concat(list);
       renderSelectedList();
     });
 
-    // Upload logic: CONCURRENT uploads (tout menm moman)
+    // ---------- Upload flow (batch UploadId + single EventSource) ----------
     uploadBtn.addEventListener('click', async () => {
-      if (filesArray.length === 0) {
-        return alert('Tanpri chwazi omwen yon fichye anvan ou upload.');
-      }
+      if (filesArray.length === 0) return alert('Tanpri chwazi omwen yon fichye anvan ou upload.');
       if (uploading) return;
       uploading = true;
       uploadBtn.disabled = true;
       cancelAllBtn.classList.remove('hidden');
       fileInput.disabled = true;
       result.textContent = 'Kòmanse upload...';
-
       overallProgressWrap.classList.remove('hidden');
       overallInfo.textContent = '';
-
-      previewAll.innerHTML = ''; // reset preview area
+      previewAll.innerHTML = '';
       xhrs.clear();
 
       const totalBytes = filesArray.reduce((s,f) => s + f.size, 0);
       const loadedBytes = new Array(filesArray.length).fill(0);
 
-      // create UI blocks for all files before starting
+      // create UI blocks
       const blocks = filesArray.map((file, i) => {
         const block = document.createElement('div');
         block.className = 'p-3 bg-white border border-gray-200 rounded-xl shadow-sm';
@@ -278,7 +222,6 @@
         };
       });
 
-      // helper to update overall
       function updateOverall() {
         const sum = loadedBytes.reduce((a,b) => a + b, 0);
         const overallPercent = totalBytes ? Math.round((sum / totalBytes) * 100) : 0;
@@ -287,86 +230,95 @@
         overallInfo.textContent = `${humanFileSize(sum)} / ${humanFileSize(totalBytes)}`;
       }
 
-      // start all uploads concurrently
+      // create batchUploadId and single EventSource
+      const batchUploadId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `batch-${Date.now()}-${Math.floor(Math.random()*100000)}`;
+      const es = new EventSource(`/progress/${batchUploadId}`);
+      es.addEventListener('connected', () => console.log('SSE connected for batch', batchUploadId));
+      es.addEventListener('error', (e) => console.warn('SSE error', e));
+      es.addEventListener('progress', (ev) => {
+        try {
+          const d = JSON.parse(ev.data);
+          // match by filename (if duplicates exist matching may choose first)
+          const idx = filesArray.findIndex(f => f.name === d.filename);
+          if (idx === -1) return;
+          const ui = blocks[idx];
+          const pct = (d.percent !== null && d.percent !== undefined) ? d.percent : (d.total ? Math.round((d.loaded/d.total)*100) : 0);
+          ui.fileProgressFill.style.width = pct + '%';
+          ui.filePct.textContent = pct + '%';
+          ui.fileInfo.textContent = `${humanFileSize(d.loaded || 0)} / ${humanFileSize(d.total || filesArray[idx].size)} • ${d.phase || ''}`;
+          loadedBytes[idx] = d.loaded || loadedBytes[idx];
+          updateOverall();
+        } catch (err) {}
+      });
+      es.addEventListener('done', (ev) => {
+        try {
+          const d = JSON.parse(ev.data);
+          const idx = filesArray.findIndex(f => f.name === d.filename);
+          if (idx === -1) return;
+          const ui = blocks[idx];
+          loadedBytes[idx] = filesArray[idx].size;
+          updateOverall();
+          ui.fileProgressFill.style.width = '100%';
+          ui.filePct.textContent = '100%';
+          ui.fileInfo.textContent = `${humanFileSize(filesArray[idx].size)} • Konplete`;
+          const div = document.createElement('div');
+          div.className = 'mt-2';
+          const urlDisplay = `<div class="break-all text-blue-600 text-xs cursor-pointer file-url">${escapeHtml(d.url)}</div>`;
+          div.innerHTML = urlDisplay;
+          ui.fileResult.appendChild(div);
+          const urlEl = ui.fileResult.querySelector('.file-url');
+          urlEl.onclick = async () => {
+            try { await navigator.clipboard.writeText(d.url); result.innerHTML = '<span class=\"copied\">URL kopi nan clipboard</span>'; setTimeout(()=> result.textContent = '', 2000); }
+            catch (e) { result.textContent = 'Pa kapab kopiye: ' + e.message; }
+          };
+        } catch (err) {}
+      });
+      es.addEventListener('batch-done', (ev) => {
+        try {
+          const data = JSON.parse(ev.data);
+          console.log('batch-done', data);
+        } catch(e){}
+      });
+
+      // launch all uploads concurrently but pass same batchUploadId
       const uploadPromises = filesArray.map((file, i) => {
         const ui = blocks[i];
         return uploadSingleFile(file, i, {
+          uploadId: batchUploadId,
           onProgress: (loaded, total, speed, secsLeft) => {
-            // update per-file UI
+            // only used if SSE not available for that file
             const percent = total ? Math.round((loaded/total)*100) : 0;
             ui.fileProgressFill.style.width = percent + '%';
             ui.filePct.textContent = percent + '%';
             ui.fileInfo.textContent = `${humanFileSize(loaded)} / ${humanFileSize(total)} • ${Math.round(secsLeft)}s left`;
-
-            // update overall loaded bytes
             loadedBytes[i] = loaded;
             updateOverall();
           },
           onXhrCreated: (xhr) => {
             xhrs.set(i, xhr);
             ui.fileCancelBtn.classList.remove('hidden');
-            ui.fileCancelBtn.onclick = () => {
-              try { xhr.abort(); } catch(e) {}
+            ui.fileCancelBtn.onclick = () => { try { xhr.abort(); } catch(e) {} };
+          }
+        }).then(url => {
+          // resolved URL (sometimes SSE already handled UI)
+          if (!url) return { status:'fulfilled', url: '' };
+          // ensure UI shows url if SSE didn't
+          const existing = ui.fileResult.querySelector('.file-url');
+          if (!existing) {
+            const div = document.createElement('div');
+            div.className = 'mt-2';
+            const urlDisplay = `<div class="break-all text-blue-600 text-xs cursor-pointer file-url">${escapeHtml(url)}</div>`;
+            div.innerHTML = urlDisplay;
+            ui.fileResult.appendChild(div);
+            const urlEl = ui.fileResult.querySelector('.file-url');
+            urlEl.onclick = async () => {
+              try { await navigator.clipboard.writeText(url); result.innerHTML = '<span class="copied">URL kopi nan clipboard</span>'; setTimeout(()=> result.textContent = '', 2000); }
+              catch (e) { result.textContent = 'Pa kapab kopiye: ' + e.message; }
             };
           }
-        }).then(rawUrl => {
-          // success: normalize and render clickable link + copy button + preview
-          const normalizedUrl = normalizeUrl(rawUrl || '');
-
-          loadedBytes[i] = file.size;
-          updateOverall();
-          ui.fileProgressFill.style.width = '100%';
-          ui.filePct.textContent = '100%';
-          ui.fileInfo.textContent = `${humanFileSize(file.size)} • Konplete`;
-
-          const div = document.createElement('div');
-          div.className = 'mt-2';
-
-          const a = document.createElement('a');
-          a.className = 'break-all text-blue-600 text-xs file-url';
-          a.href = normalizedUrl;
-          a.target = '_blank';
-          a.rel = 'noopener noreferrer';
-          try { a.textContent = decodeURI(normalizedUrl); } catch(e) { a.textContent = normalizedUrl; }
-
-          const copyBtn = document.createElement('button');
-          copyBtn.type = 'button';
-          copyBtn.className = 'ml-2 text-xs px-2 py-1 rounded-md bg-gray-100 border border-gray-200';
-          copyBtn.textContent = 'Kopi';
-          copyBtn.onclick = async () => {
-            try {
-              await navigator.clipboard.writeText(normalizedUrl);
-              result.innerHTML = '<span class="copied">URL kopi nan clipboard</span>';
-              setTimeout(() => result.textContent = '', 2000);
-            } catch (e) {
-              result.textContent = 'Pa kapab kopiye: ' + (e && e.message ? e.message : String(e));
-            }
-          };
-
-          div.appendChild(a);
-          div.appendChild(copyBtn);
-          ui.fileResult.appendChild(div);
-
-          // render preview if image/video/audio
-          const type = (file.type || '').toLowerCase();
-          if (type.startsWith('image/')) {
-            const img = document.createElement('img');
-            img.src = normalizedUrl;
-            img.className = 'mt-2 mx-auto rounded-lg shadow max-h-44';
-            ui.fileResult.appendChild(img);
-          } else if (type.startsWith('video/') || type.startsWith('audio/')) {
-            const media = document.createElement(type.startsWith('video/') ? 'video' : 'audio');
-            media.src = normalizedUrl;
-            media.controls = true;
-            media.className = 'mt-2 mx-auto rounded-lg shadow max-h-44';
-            ui.fileResult.appendChild(media);
-          }
-
-          return { status: 'fulfilled', url: normalizedUrl };
+          return { status: 'fulfilled', url };
         }).catch(err => {
-          // error or abort
-          const isAbort = err && err.isAbort;
-          if (isAbort) {
+          if (err && err.isAbort) {
             ui.fileInfo.textContent = '';
             ui.filePct.textContent = '—';
             ui.fileProgressFill.style.width = '0%';
@@ -388,7 +340,7 @@
         });
       });
 
-      // Wait for all to finish (either success, fail, or abort)
+      // wait for all
       const results = await Promise.allSettled(uploadPromises);
 
       // finalize UI
@@ -397,88 +349,40 @@
       cancelAllBtn.classList.add('hidden');
       fileInput.disabled = false;
 
-      // summary message
+      // summary
       const succeeded = results.filter(r => r.status === 'fulfilled' && r.value && r.value.status === 'fulfilled').length;
       const aborted = results.filter(r => r.status === 'fulfilled' && r.value && r.value.status === 'aborted').length;
       const failed = results.filter(r => r.status === 'fulfilled' && r.value && r.value.status === 'rejected').length;
       overallInfo.textContent = `Konplete: ${humanFileSize(loadedBytes.reduce((a,b)=>a+b,0))}`;
       result.textContent = `Fen: ${succeeded} siksè, ${failed} erè, ${aborted} anile.`;
+
+      // close SSE after short grace period
+      setTimeout(() => { try { es.close(); } catch(e) {} }, 2000);
     });
 
-    // cancel all button
+    // cancel all
     cancelAllBtn.addEventListener('click', () => {
-      // abort all xhrs
-      for (const xhr of xhrs.values()) {
-        try { xhr.abort(); } catch(e) {}
-      }
+      for (const xhr of xhrs.values()) { try { xhr.abort(); } catch(e) {} }
       xhrs.clear();
       result.textContent = 'Anile tout uploads...';
     });
 
-    // ---------- SSE-aware upload function (replaces the previous uploadSingleFile) ----------
-    // This function opens an EventSource to /progress/:uploadId and prefers server progress.
-    // It sets headers x-upload-id and x-file-size so server can tie the request to SSE.
-    function uploadSingleFile(file, index, { onProgress = ()=>{}, onXhrCreated = ()=>{} } = {}) {
+    // ---------- uploadSingleFile (no EventSource inside) ----------
+    // accepts { uploadId, onProgress, onXhrCreated }
+    function uploadSingleFile(file, index, { uploadId = null, onProgress = ()=>{}, onXhrCreated = ()=>{} } = {}) {
       return new Promise((resolve, reject) => {
         const endpoint = `/upload`;
-        const uploadId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `uid-${Date.now()}-${Math.floor(Math.random()*100000)}`;
-
-        // SSE setup
-        let serverActive = false;
-        let doneBySSE = false;
-        let lastServerLoaded = 0;
-        let lastServerTotal = file.size || 0;
-
-        // Promise that resolves when SSE 'done' arrives
-        let sseDoneResolve;
-        const sseDonePromise = new Promise((r) => { sseDoneResolve = r; });
-
-        const es = new EventSource(`/progress/${uploadId}`);
-        es.addEventListener('progress', (ev) => {
-          try {
-            const d = JSON.parse(ev.data);
-            serverActive = true;
-            lastServerLoaded = d.loaded || 0;
-            lastServerTotal = d.total || lastServerTotal || 0;
-            const pct = d.percent !== null && d.percent !== undefined ? d.percent : (lastServerTotal ? Math.round((lastServerLoaded/lastServerTotal)*100) : 0);
-            // call onProgress with server values
-            onProgress(lastServerLoaded, lastServerTotal, 0, 0);
-          } catch (e) {
-            // ignore parse errors
-          }
-        });
-        es.addEventListener('done', (ev) => {
-          try {
-            const d = JSON.parse(ev.data);
-            doneBySSE = true;
-            try { es.close(); } catch (e) {}
-            // ensure UI shows full
-            onProgress(d.total || lastServerTotal, d.total || lastServerTotal, 0, 0);
-            sseDoneResolve({ url: d.url || '', data: d });
-          } catch (e) {
-            sseDoneResolve({ url: '' });
-          }
-        });
-        es.addEventListener('error', () => {
-          // SSE unavailable -> fallback to XHR progress
-          serverActive = false;
-        });
-
-        // XHR upload
         const xhr = new XMLHttpRequest();
         let startTime = Date.now();
         xhr.open('POST', endpoint);
 
         try {
-          xhr.setRequestHeader('x-upload-id', uploadId);
+          if (uploadId) xhr.setRequestHeader('x-upload-id', uploadId);
           xhr.setRequestHeader('x-file-size', String(file.size));
-          xhr.setRequestHeader('x-file-name', encodeURIComponent(file.name));
-        } catch (e) {
-          // some environments may forbid setting certain headers
-        }
+          // don't rely on custom file-name header; busboy reads filename from multipart
+        } catch (e) {}
 
         xhr.upload.onprogress = (e) => {
-          if (serverActive) return; // prefer server-side progress when available
           if (e.lengthComputable) {
             const elapsed = (Date.now() - startTime) / 1000;
             const speed = e.loaded / Math.max(elapsed, 0.001);
@@ -491,56 +395,33 @@
         };
 
         xhr.onload = async () => {
-          try { xhrs.delete(index); } catch (e) {}
-          if (doneBySSE) return; // already resolved by SSE
-          // wait for SSE done just in case server emits it after XHR finishes
-          try {
-            const timeoutMs = 12000; // wait up to 12s for SSE done
-            const race = Promise.race([
-              sseDonePromise,
-              new Promise((r) => setTimeout(() => r(null), timeoutMs))
-            ]);
-            const sseResult = await race;
-            if (sseResult && sseResult.url !== undefined) {
-              try { es.close(); } catch (e) {}
-              return resolve(sseResult.url || '');
-            }
-          } catch (e) {
-            // ignore, fallback to XHR
-          }
-
-          // fallback: parse XHR response
+          try { xhrs.delete(index); } catch(e) {}
           if (xhr.status >= 200 && xhr.status < 300) {
             try {
               const data = JSON.parse(xhr.responseText || '{}');
-              const url = data.url || data.fileUrl || data.path || data.location || '';
-              try { es.close(); } catch (e) {}
+              // server may return: { url } or { file: { url } } or { files: [...] }
+              const url = data.url || (data.file && data.file.url) || (data.files && data.files[0] && data.files[0].url) || '';
               return resolve(url || '');
             } catch (err) {
-              try { es.close(); } catch (e) {}
               return resolve((xhr.responseText || '').trim() || '');
             }
           } else {
-            try { es.close(); } catch (e) {}
             return reject(new Error('HTTP ' + xhr.status + ' — ' + xhr.responseText));
           }
         };
 
         xhr.onerror = () => {
-          try { xhrs.delete(index); } catch (e) {}
-          try { es.close(); } catch (e) {}
+          try { xhrs.delete(index); } catch(e) {}
           reject(new Error('Erè rezo pandan upload'));
         };
 
         xhr.onabort = () => {
-          try { xhrs.delete(index); } catch (e) {}
-          try { es.close(); } catch (e) {}
+          try { xhrs.delete(index); } catch(e) {}
           const err = new Error('Abòte pa itilizatè');
           err.isAbort = true;
           reject(err);
         };
 
-        // expose xhr
         onXhrCreated(xhr);
 
         try {
@@ -548,7 +429,6 @@
           fd.append('file', file);
           xhr.send(fd);
         } catch (err) {
-          try { es.close(); } catch (e) {}
           reject(err);
         }
       });
@@ -558,12 +438,8 @@
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js')
-          .then(reg => {
-            console.log('Service worker registered.', reg);
-          })
-          .catch(err => {
-            console.warn('Service worker registration failed:', err);
-          });
+          .then(reg => { console.log('Service worker registered.', reg); })
+          .catch(err => { console.warn('Service worker registration failed:', err); });
       });
     }
   </script>
@@ -583,7 +459,6 @@
     };
   </script>
   <script type="text/javascript" src="//pantherinvincible.com/a948baf246dd1ff24f0a6fcde286b31b/invoke.js"></script>
-<!-- Index.html, anba tout lòt scripts -->
-<script src="pwa.js"></script>
+  <script src="pwa.js"></script>
 </body>
   </html>
