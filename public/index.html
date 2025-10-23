@@ -15,43 +15,44 @@
 
   <style>
     body { font-family: 'Segoe UI', sans-serif; background-color: #f8fafc; margin: 0; }
-    .ad-layer { pointer-events: auto; z-index: 9999; } /* piblisite aktive */
+    .ad-layer { pointer-events: auto; z-index: 9999; }
     #mainUI { position: relative; z-index: 10001; }
-    #ad-left, #ad-right { width: 90px; max-width: 120px; }
-    #ad-top, #ad-bottom { height: 90px; }
-    .ad-frame { display: block; }
-    .ad-layer iframe, .ad-layer > div { opacity: 0.98; }
     .copied { color: #059669; font-weight: 600; }
-
-    .file-name {
-      display: -webkit-box;
-      -webkit-box-orient: vertical;
-      -webkit-line-clamp: 2;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: normal;
-      word-break: break-word;
-      cursor: pointer;
-    }
-    .file-name.expanded {
-      -webkit-line-clamp: unset;
-      overflow: visible;
-      text-overflow: unset;
-      white-space: normal;
-    }
+    .file-name { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; text-overflow: ellipsis; white-space: normal; word-break: break-word; cursor: pointer; }
+    .file-name.expanded { -webkit-line-clamp: unset; overflow: visible; text-overflow: unset; white-space: normal; }
     .selected-row { display:flex; align-items:flex-start; gap:0.5rem; }
     .selected-row .meta { flex:1; min-width:0; }
-    @media (max-width:420px) {
-      .file-name { font-size: 13px; }
-      .ad-layer { display:none; }
-    }
+    @media (max-width:420px) { .file-name { font-size: 13px; } .ad-layer { display:none; } }
+
+    /* modal */
+    .modal-backdrop { position:fixed; inset:0; background:rgba(0,0,0,0.45); display:flex; align-items:center; justify-content:center; z-index:20000; }
+    .modal { background:white; width:90%; max-width:960px; border-radius:12px; padding:18px; max-height:80vh; overflow:auto; box-shadow:0 10px 30px rgba(0,0,0,0.3); }
+    .modal .group { margin-bottom:14px; }
+    .modal .item { display:flex; gap:12px; align-items:center; padding:8px; border-radius:8px; border:1px solid #eee; background:#fafafa; }
+    .modal .thumb { width:64px; height:48px; object-fit:cover; border-radius:6px; background:#eee; display:flex; align-items:center; justify-content:center; font-size:12px; color:#666; }
+    .searchbox { display:flex; gap:8px; align-items:center; }
+    .searchbox input { flex:1; padding:8px 10px; border-radius:10px; border:1px solid #ddd; }
+    .small-note { font-size:12px; color:#6b7280; }
   </style>
 </head>
 <body class="relative">
   <div id="mainUI" class="flex items-center justify-center min-h-screen p-4">
-    <div class="bg-white w-full max-w-2xl rounded-3xl shadow-xl p-6 space-y-5">
+    <div class="bg-white w-full max-w-3xl rounded-3xl shadow-xl p-6 space-y-4">
 
-      <h2 class="text-xl font-bold text-center text-gray-800">TF-Stream</h2>
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <img id="logo" src="https://res.cloudinary.com/dckwrqrur/image/upload/v1755996395/tf-stream-url/tfstream-text-only_mo4wml.png" alt="TF-Stream" style="width:48px;height:48px;cursor:pointer;border-radius:8px;" title="Double-click pou wè tout uploads" />
+          <div>
+            <h2 class="text-xl font-bold text-gray-800">TF-Stream</h2>
+            <div class="text-xs text-gray-500">Upload & pataje fichiers fasil</div>
+          </div>
+        </div>
+
+        <div class="searchbox" style="width:40%;">
+          <input id="globalSearch" placeholder="Rechèch....... (eg: Img 2025, samount, video)" />
+          <div class="small-note">Previously</div>
+        </div>
+      </div>
 
       <input id="fileInput" type="file" accept="*/*" multiple class="block w-full text-sm text-gray-700 bg-gray-100 rounded-xl border border-gray-300 p-2 cursor-pointer" />
 
@@ -77,99 +78,235 @@
 
       <div id="previewAll" class="mt-4 space-y-4"></div>
 
+      <hr class="mt-2" />
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <div class="font-medium">Previously</div>
+          <div class="text-xs text-gray-500">Istorik upload (local)</div>
+        </div>
+        <div id="previousList" class="space-y-2"></div>
+      </div>
+
     </div>
   </div>
 
-  <!-- ad-layer placeholders -->
-  <div id="ad-top" class="ad-layer fixed top-0 left-0 w-full flex justify-center items-start"></div>
-  <div id="ad-left" class="ad-layer fixed top-1/4 left-0 h-1/2 flex items-center"></div>
-  <div id="ad-right" class="ad-layer fixed top-1/4 right-0 h-1/2 flex items-center"></div>
-  <div id="ad-bottom" class="ad-layer fixed bottom-0 left-0 w-full flex justify-center items-end"></div>
+  <!-- modal container -->
+  <div id="modalRoot" style="display:none;"></div>
 
   <script>
-    // ---------- Elements ----------
-    const fileInput = document.getElementById('fileInput');
-    const selectedList = document.getElementById('selectedList');
-    const uploadBtn = document.getElementById('uploadBtn');
-    const cancelAllBtn = document.getElementById('cancelAllBtn');
-    const result = document.getElementById('result');
-
-    const overallProgressWrap = document.getElementById('overallProgressWrap');
-    const overallProgressFill = document.getElementById('overallProgressFill');
-    const overallPct = document.getElementById('overallPct');
-    const overallInfo = document.getElementById('overallInfo');
-
-    const previewAll = document.getElementById('previewAll');
-
-    // ---------- State ----------
-    let filesArray = [];
-    let xhrs = new Map();
-    let uploading = false;
-
     // ---------- Utilities ----------
+    const HISTORY_KEY = 'tfstream_history_v1';
     function humanFileSize(bytes) {
+      if (!bytes && bytes !== 0) return '0 B';
       const thresh = 1024;
       if (Math.abs(bytes) < thresh) return bytes + ' B';
       const units = ['KB','MB','GB','TB'];
       let u = -1;
-      do {
-        bytes /= thresh;
-        ++u;
-      } while(Math.abs(bytes) >= thresh && u < units.length - 1);
+      do { bytes /= thresh; ++u; } while (Math.abs(bytes) >= thresh && u < units.length - 1);
       return bytes.toFixed(1)+' '+units[u];
     }
     function escapeHtml(unsafe) {
       return String(unsafe).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
                            .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
     }
+    function nowISO(){ return (new Date()).toISOString(); }
+    function loadHistory(){
+      try {
+        const raw = localStorage.getItem(HISTORY_KEY);
+        if (!raw) return [];
+        return JSON.parse(raw);
+      } catch(e){ return []; }
+    }
+    function saveHistoryArray(arr){
+      try { localStorage.setItem(HISTORY_KEY, JSON.stringify(arr.slice(0,500))); } catch(e){}
+    }
+    function addToHistory(item){
+      // item = { filename, url, type, timestamp }
+      if (!item || !item.url) return;
+      const arr = loadHistory();
+      // prevent exact duplicate url
+      const exists = arr.find(i => i.url === item.url);
+      if (exists) {
+        // update timestamp to most recent
+        exists.timestamp = item.timestamp || nowISO();
+        saveHistoryArray(arr);
+        return;
+      }
+      arr.unshift(item);
+      // keep max 500
+      saveHistoryArray(arr);
+    }
 
-    // ---------- Render selected list ----------
-    function renderSelectedList() {
+    // determine mime type by filename ext (fallback)
+    function mimeFromName(name){
+      const lower = (name||'').toLowerCase();
+      if (lower.match(/\.(jpg|jpeg|png|gif|webp|svg|bmp)$/)) return 'image/*';
+      if (lower.match(/\.(mp4|mov|webm|mkv|avi|ogg)$/)) return 'video/*';
+      if (lower.match(/\.(mp3|wav|m4a|flac)$/)) return 'audio/*';
+      return 'application/octet-stream';
+    }
+
+    // simple fuzzy token-match: query tokens must all appear somewhere in text (orderless)
+    function tokenMatch(text, query){
+      if (!query) return true;
+      if (!text) return false;
+      const tq = String(text).toLowerCase();
+      const tokens = String(query).toLowerCase().split(/\s+/).filter(Boolean);
+      return tokens.every(tok => tq.indexOf(tok) !== -1);
+    }
+
+    // ---------- DOM elements ----------
+    const fileInput = document.getElementById('fileInput');
+    const selectedList = document.getElementById('selectedList');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const cancelAllBtn = document.getElementById('cancelAllBtn');
+    const result = document.getElementById('result');
+    const overallProgressWrap = document.getElementById('overallProgressWrap');
+    const overallProgressFill = document.getElementById('overallProgressFill');
+    const overallPct = document.getElementById('overallPct');
+    const overallInfo = document.getElementById('overallInfo');
+    const previewAll = document.getElementById('previewAll');
+    const previousList = document.getElementById('previousList');
+    const globalSearch = document.getElementById('globalSearch');
+    const logo = document.getElementById('logo');
+    const modalRoot = document.getElementById('modalRoot');
+
+    // state
+    let filesArray = [];
+    let xhrs = new Map();
+    let uploading = false;
+
+    // render selected list
+    function renderSelectedList(){
       selectedList.innerHTML = '';
       if (filesArray.length === 0) {
         selectedList.innerHTML = `<div class="text-xs text-gray-500 italic">Pa gen fichye chwazi.</div>`;
         return;
       }
-      const grid = document.createElement('div');
-      grid.className = 'space-y-1';
+      const grid = document.createElement('div'); grid.className='space-y-1';
       filesArray.forEach((file, idx) => {
         const row = document.createElement('div');
         row.className = 'flex items-center justify-between gap-2 bg-gray-50 border border-gray-200 rounded-xl p-2 selected-row';
-        const left = document.createElement('div');
-        left.className = 'flex items-start gap-2 meta';
-        const icon = document.createElement('div');
-        icon.className = 'w-10 h-10 flex-shrink-0 rounded-md bg-gray-100 flex items-center justify-center text-xs text-gray-600';
+        const left = document.createElement('div'); left.className = 'flex items-start gap-2 meta';
+        const icon = document.createElement('div'); icon.className='w-10 h-10 flex-shrink-0 rounded-md bg-gray-100 flex items-center justify-center text-xs text-gray-600';
         icon.textContent = file.type && file.type.startsWith('video') ? 'VID' : 'FILE';
-        const titleWrap = document.createElement('div');
-        titleWrap.style.minWidth = '0';
-        const title = document.createElement('div');
-        title.className = 'file-name text-sm text-gray-800';
-        title.textContent = file.name;
-        title.title = file.name;
-        title.addEventListener('click', () => title.classList.toggle('expanded'));
-        const sub = document.createElement('div');
-        sub.className = 'text-xs text-gray-500';
-        sub.textContent = `${humanFileSize(file.size)} • ${file.type || '—'}`;
+        const titleWrap = document.createElement('div'); titleWrap.style.minWidth='0';
+        const title = document.createElement('div'); title.className='file-name text-sm text-gray-800';
+        title.textContent = file.name; title.title=file.name;
+        title.addEventListener('click', ()=>title.classList.toggle('expanded'));
+        const sub = document.createElement('div'); sub.className='text-xs text-gray-500'; sub.textContent = `${humanFileSize(file.size)} • ${file.type||'—'}`;
         titleWrap.appendChild(title); titleWrap.appendChild(sub);
         left.appendChild(icon); left.appendChild(titleWrap);
-        const right = document.createElement('div'); right.className = 'flex items-center gap-2';
-        const removeBtn = document.createElement('button');
-        removeBtn.className = 'text-xs text-red-600 px-2 py-1 rounded-md bg-red-50 border border-red-100';
-        removeBtn.textContent = 'Retire';
-        removeBtn.onclick = () => { if (uploading) return; filesArray.splice(idx,1); renderSelectedList(); };
+        const right = document.createElement('div'); right.className='flex items-center gap-2';
+        const removeBtn = document.createElement('button'); removeBtn.className='text-xs text-red-600 px-2 py-1 rounded-md bg-red-50 border border-red-100';
+        removeBtn.textContent='Retire'; removeBtn.onclick = ()=>{ if (uploading) return; filesArray.splice(idx,1); renderSelectedList(); };
         right.appendChild(removeBtn);
         row.appendChild(left); row.appendChild(right); grid.appendChild(row);
       });
       selectedList.appendChild(grid);
     }
 
+    // render history (previousList) with optional filter
+    function renderHistory(filterQuery = ''){
+      const arr = loadHistory();
+      // filter & sort: tokenMatch on filename OR url; more recent first
+      const filtered = arr.filter(item => tokenMatch(item.filename + ' ' + item.url, filterQuery));
+      previousList.innerHTML = '';
+      if (filtered.length === 0) {
+        previousList.innerHTML = `<div class="text-xs text-gray-500 italic">Pa gen rezilta.</div>`;
+        return;
+      }
+      // show up to 50
+      filtered.slice(0, 50).forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'flex items-center justify-between gap-2 p-2 rounded-md border border-gray-100 bg-white';
+        const left = document.createElement('div'); left.className='flex items-center gap-3';
+        const thumb = document.createElement('div'); thumb.className='w-12 h-8 rounded-md overflow-hidden';
+        if ((item.type||'').startsWith('image')) {
+          const img = document.createElement('img'); img.src = item.url; img.className='w-12 h-8 object-cover rounded-md'; thumb.appendChild(img);
+        } else {
+          thumb.innerHTML = `<div style="width:48px;height:32px;display:flex;align-items:center;justify-content:center;color:#666;font-size:12px;background:#f3f4f6;border-radius:6px;">F</div>`;
+        }
+        const meta = document.createElement('div'); meta.className='text-xs';
+        const aTitle = document.createElement('div'); aTitle.className='font-medium text-sm text-gray-800'; aTitle.textContent = item.filename;
+        const aUrl = document.createElement('div'); aUrl.className='text-blue-600 text-xs break-all'; aUrl.textContent = item.url;
+        const atime = document.createElement('div'); atime.className='text-gray-400 text-xs'; atime.textContent = (new Date(item.timestamp)).toLocaleString();
+        meta.appendChild(aTitle); meta.appendChild(aUrl); meta.appendChild(atime);
+        left.appendChild(thumb); left.appendChild(meta);
+
+        const right = document.createElement('div'); right.className='flex flex-col items-end gap-2';
+        const copyBtn = document.createElement('button'); copyBtn.className='text-xs px-2 py-1 bg-blue-50 text-blue-600 rounded-md'; copyBtn.textContent='Kopye';
+        copyBtn.onclick = async () => {
+          try { await navigator.clipboard.writeText(item.url); result.innerHTML = '<span class="copied">URL kopi nan clipboard</span>'; setTimeout(()=>result.textContent='',2000); }
+          catch(e){ result.textContent = 'Pa kapab kopiye: '+e.message; }
+        };
+        right.appendChild(copyBtn);
+        row.appendChild(left); row.appendChild(right);
+        previousList.appendChild(row);
+      });
+    }
+
+    // modal: show all history grouped by type
+    function openHistoryModal(){
+      const arr = loadHistory();
+      // group
+      const groups = { images:[], videos:[], files:[] };
+      arr.forEach(it => {
+        if ((it.type||'').startsWith('image')) groups.images.push(it);
+        else if ((it.type||'').startsWith('video')) groups.videos.push(it);
+        else groups.files.push(it);
+      });
+      modalRoot.innerHTML = '';
+      const backdrop = document.createElement('div'); backdrop.className='modal-backdrop';
+      const modal = document.createElement('div'); modal.className='modal';
+      const header = document.createElement('div'); header.className='flex items-center justify-between mb-4';
+      header.innerHTML = `<div><strong>All uploaded files</strong><div class="text-xs text-gray-500">Total: ${arr.length}</div></div><div><button id="closeModal" class="px-3 py-1 rounded-md bg-gray-100">Fèmen</button></div>`;
+      modal.appendChild(header);
+
+      const makeGroup = (title, items) => {
+        const g = document.createElement('div'); g.className='group';
+        const gt = document.createElement('div'); gt.className='font-medium mb-2'; gt.textContent = `${title} (${items.length})`;
+        g.appendChild(gt);
+        items.forEach(it => {
+          const itRow = document.createElement('div'); itRow.className='item mb-2';
+          const thumb = document.createElement('div'); thumb.className='thumb';
+          if ((it.type||'').startsWith('image')) {
+            const img = document.createElement('img'); img.src=it.url; img.className='thumb'; img.style.width='64px'; img.style.height='48px'; img.style.objectFit='cover';
+            thumb.innerHTML=''; thumb.appendChild(img);
+          } else {
+            thumb.textContent = it.type && it.type.startsWith('video') ? 'VID' : 'FILE';
+          }
+          const meta = document.createElement('div'); meta.style.flex='1';
+          meta.innerHTML = `<div style="font-weight:600">${escapeHtml(it.filename)}</div><div style="font-size:12px;color:#6b7280">${escapeHtml(it.url)}</div><div style="font-size:11px;color:#9ca3af">${(new Date(it.timestamp)).toLocaleString()}</div>`;
+          const actions = document.createElement('div'); actions.style.display='flex'; actions.style.flexDirection='column'; actions.style.gap='6px';
+          const copy = document.createElement('button'); copy.className='px-2 py-1 rounded-md bg-blue-50 text-blue-600 text-xs'; copy.textContent='Kopye';
+          copy.onclick = async ()=>{ try{ await navigator.clipboard.writeText(it.url); result.innerHTML='<span class="copied">URL kopi nan clipboard</span>'; setTimeout(()=>result.textContent='',2000);}catch(e){result.textContent='Pa kapab kopiye';}};
+          const open = document.createElement('a'); open.className='px-2 py-1 rounded-md bg-gray-50 text-gray-700 text-xs'; open.textContent='Ouvri'; open.href=it.url; open.target='_blank';
+          actions.appendChild(copy); actions.appendChild(open);
+          itRow.appendChild(thumb); itRow.appendChild(meta); itRow.appendChild(actions);
+          g.appendChild(itRow);
+        });
+        return g;
+      };
+
+      modal.appendChild(makeGroup('Images', groups.images));
+      modal.appendChild(makeGroup('Videos', groups.videos));
+      modal.appendChild(makeGroup('Files', groups.files));
+
+      backdrop.appendChild(modal);
+      modalRoot.appendChild(backdrop);
+      modalRoot.style.display='block';
+      document.getElementById('closeModal').onclick = ()=>{ modalRoot.style.display='none'; modalRoot.innerHTML=''; };
+      backdrop.addEventListener('click', (ev)=>{ if (ev.target === backdrop) { modalRoot.style.display='none'; modalRoot.innerHTML=''; } });
+    }
+
+    // ---------- Upload code (based on previous version, enhanced to save history) ----------
     fileInput.addEventListener('change', (e) => {
       const list = Array.from(e.target.files || []);
       filesArray = filesArray.concat(list);
       renderSelectedList();
     });
 
-    // ---------- Upload flow (batch UploadId + single EventSource) ----------
     uploadBtn.addEventListener('click', async () => {
       if (filesArray.length === 0) return alert('Tanpri chwazi omwen yon fichye anvan ou upload.');
       if (uploading) return;
@@ -183,18 +320,17 @@
       previewAll.innerHTML = '';
       xhrs.clear();
 
-      const totalBytes = filesArray.reduce((s,f) => s + f.size, 0);
+      const totalBytes = filesArray.reduce((s,f)=>s+f.size,0);
       const loadedBytes = new Array(filesArray.length).fill(0);
 
       // create UI blocks
-      const blocks = filesArray.map((file, i) => {
-        const block = document.createElement('div');
-        block.className = 'p-3 bg-white border border-gray-200 rounded-xl shadow-sm';
+      const blocks = filesArray.map((file,i)=>{
+        const block = document.createElement('div'); block.className='p-3 bg-white border border-gray-200 rounded-xl shadow-sm';
         block.innerHTML = `
           <div class="flex items-center justify-between">
             <div>
               <div class="font-semibold text-sm text-gray-800">${escapeHtml(file.name)}</div>
-              <div class="text-xs text-gray-500">${humanFileSize(file.size)} • ${file.type || '—'}</div>
+              <div class="text-xs text-gray-500">${humanFileSize(file.size)} • ${file.type||'—'}</div>
             </div>
             <div class="flex items-center gap-2">
               <button class="text-xs text-gray-600 px-2 py-1 rounded-md bg-gray-50 hidden file-cancel">Anile</button>
@@ -222,23 +358,23 @@
         };
       });
 
-      function updateOverall() {
-        const sum = loadedBytes.reduce((a,b) => a + b, 0);
-        const overallPercent = totalBytes ? Math.round((sum / totalBytes) * 100) : 0;
-        overallProgressFill.style.width = overallPercent + '%';
-        overallPct.textContent = overallPercent + '%';
+      function updateOverall(){
+        const sum = loadedBytes.reduce((a,b)=>a+b,0);
+        const overallPercent = totalBytes ? Math.round((sum/totalBytes)*100):0;
+        overallProgressFill.style.width = overallPercent+'%';
+        overallPct.textContent = overallPercent+'%';
         overallInfo.textContent = `${humanFileSize(sum)} / ${humanFileSize(totalBytes)}`;
       }
 
-      // create batchUploadId and single EventSource
+      // batchUploadId + single EventSource
       const batchUploadId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `batch-${Date.now()}-${Math.floor(Math.random()*100000)}`;
       const es = new EventSource(`/progress/${batchUploadId}`);
-      es.addEventListener('connected', () => console.log('SSE connected for batch', batchUploadId));
-      es.addEventListener('error', (e) => console.warn('SSE error', e));
-      es.addEventListener('progress', (ev) => {
+      es.addEventListener('connected', ()=>console.log('SSE connected', batchUploadId));
+      es.addEventListener('error', (e)=>console.warn('SSE error',e));
+      es.addEventListener('progress', (ev)=>{
         try {
           const d = JSON.parse(ev.data);
-          // match by filename (if duplicates exist matching may choose first)
+          // match by filename (works unless names duplicate)
           const idx = filesArray.findIndex(f => f.name === d.filename);
           if (idx === -1) return;
           const ui = blocks[idx];
@@ -248,9 +384,9 @@
           ui.fileInfo.textContent = `${humanFileSize(d.loaded || 0)} / ${humanFileSize(d.total || filesArray[idx].size)} • ${d.phase || ''}`;
           loadedBytes[idx] = d.loaded || loadedBytes[idx];
           updateOverall();
-        } catch (err) {}
+        } catch(err){}
       });
-      es.addEventListener('done', (ev) => {
+      es.addEventListener('done', (ev)=>{
         try {
           const d = JSON.parse(ev.data);
           const idx = filesArray.findIndex(f => f.name === d.filename);
@@ -261,32 +397,31 @@
           ui.fileProgressFill.style.width = '100%';
           ui.filePct.textContent = '100%';
           ui.fileInfo.textContent = `${humanFileSize(filesArray[idx].size)} • Konplete`;
-          const div = document.createElement('div');
-          div.className = 'mt-2';
+          // add url to UI
+          const div = document.createElement('div'); div.className='mt-2';
           const urlDisplay = `<div class="break-all text-blue-600 text-xs cursor-pointer file-url">${escapeHtml(d.url)}</div>`;
-          div.innerHTML = urlDisplay;
-          ui.fileResult.appendChild(div);
+          div.innerHTML = urlDisplay; ui.fileResult.appendChild(div);
           const urlEl = ui.fileResult.querySelector('.file-url');
-          urlEl.onclick = async () => {
-            try { await navigator.clipboard.writeText(d.url); result.innerHTML = '<span class=\"copied\">URL kopi nan clipboard</span>'; setTimeout(()=> result.textContent = '', 2000); }
-            catch (e) { result.textContent = 'Pa kapab kopiye: ' + e.message; }
-          };
-        } catch (err) {}
-      });
-      es.addEventListener('batch-done', (ev) => {
-        try {
-          const data = JSON.parse(ev.data);
-          console.log('batch-done', data);
-        } catch(e){}
+          urlEl.onclick = async ()=>{ try{ await navigator.clipboard.writeText(d.url); result.innerHTML='<span class="copied">URL kopi nan clipboard</span>'; setTimeout(()=>result.textContent='',2000);}catch(e){result.textContent='Pa kapab kopiye: '+e.message;} };
+
+          // save to history
+          const type = mimeFromName(d.filename);
+          addToHistory({ filename: d.filename, url: d.url, type, timestamp: nowISO() });
+          renderHistory(globalSearch.value.trim());
+        } catch(err){}
       });
 
-      // launch all uploads concurrently but pass same batchUploadId
+      es.addEventListener('batch-done', (ev)=>{
+        // optional: could use to show final batch summary
+        try { const d = JSON.parse(ev.data); console.log('batch-done', d); } catch(e){}
+      });
+
+      // launch concurrent uploads
       const uploadPromises = filesArray.map((file, i) => {
         const ui = blocks[i];
         return uploadSingleFile(file, i, {
           uploadId: batchUploadId,
           onProgress: (loaded, total, speed, secsLeft) => {
-            // only used if SSE not available for that file
             const percent = total ? Math.round((loaded/total)*100) : 0;
             ui.fileProgressFill.style.width = percent + '%';
             ui.filePct.textContent = percent + '%';
@@ -297,91 +432,66 @@
           onXhrCreated: (xhr) => {
             xhrs.set(i, xhr);
             ui.fileCancelBtn.classList.remove('hidden');
-            ui.fileCancelBtn.onclick = () => { try { xhr.abort(); } catch(e) {} };
+            ui.fileCancelBtn.onclick = ()=>{ try{ xhr.abort(); }catch(e){} };
           }
         }).then(url => {
-          // resolved URL (sometimes SSE already handled UI)
-          if (!url) return { status:'fulfilled', url: '' };
-          // ensure UI shows url if SSE didn't
+          if (!url) return { status:'fulfilled', url:'' };
           const existing = ui.fileResult.querySelector('.file-url');
           if (!existing) {
-            const div = document.createElement('div');
-            div.className = 'mt-2';
+            const div = document.createElement('div'); div.className='mt-2';
             const urlDisplay = `<div class="break-all text-blue-600 text-xs cursor-pointer file-url">${escapeHtml(url)}</div>`;
-            div.innerHTML = urlDisplay;
-            ui.fileResult.appendChild(div);
+            div.innerHTML = urlDisplay; ui.fileResult.appendChild(div);
             const urlEl = ui.fileResult.querySelector('.file-url');
-            urlEl.onclick = async () => {
-              try { await navigator.clipboard.writeText(url); result.innerHTML = '<span class="copied">URL kopi nan clipboard</span>'; setTimeout(()=> result.textContent = '', 2000); }
-              catch (e) { result.textContent = 'Pa kapab kopiye: ' + e.message; }
-            };
+            urlEl.onclick = async ()=>{ try{ await navigator.clipboard.writeText(url); result.innerHTML='<span class="copied">URL kopi nan clipboard</span>'; setTimeout(()=>result.textContent='',2000);}catch(e){result.textContent='Pa kapab kopiye: '+e.message;} };
           }
-          return { status: 'fulfilled', url };
-        }).catch(err => {
+          // save history if server didn't send SSE done (fallback)
+          const mime = file.type || mimeFromName(file.name);
+          addToHistory({ filename: file.name, url, type: mime, timestamp: nowISO() });
+          renderHistory(globalSearch.value.trim());
+          return { status:'fulfilled', url };
+        }).catch(err=>{
           if (err && err.isAbort) {
-            ui.fileInfo.textContent = '';
-            ui.filePct.textContent = '—';
-            ui.fileProgressFill.style.width = '0%';
-            const errDiv = document.createElement('div');
-            errDiv.className = 'text-xs text-red-600 mt-2';
-            errDiv.textContent = 'Upload anile pa itilizatè';
-            ui.fileResult.appendChild(errDiv);
-            return { status: 'aborted' };
+            ui.fileInfo.textContent = ''; ui.filePct.textContent='—'; ui.fileProgressFill.style.width='0%';
+            const errDiv = document.createElement('div'); errDiv.className='text-xs text-red-600 mt-2'; errDiv.textContent='Upload anile pa itilizatè'; ui.fileResult.appendChild(errDiv);
+            return { status:'aborted' };
           } else {
-            ui.fileInfo.textContent = '';
-            ui.filePct.textContent = '—';
-            ui.fileProgressFill.style.width = '0%';
-            const errDiv = document.createElement('div');
-            errDiv.className = 'text-xs text-red-600 mt-2';
-            errDiv.textContent = 'Erè upload: ' + (err && err.message ? err.message : String(err));
-            ui.fileResult.appendChild(errDiv);
-            return { status: 'rejected', reason: err };
+            ui.fileInfo.textContent = ''; ui.filePct.textContent='—'; ui.fileProgressFill.style.width='0%';
+            const errDiv = document.createElement('div'); errDiv.className='text-xs text-red-600 mt-2'; errDiv.textContent='Erè upload: '+(err && err.message?err.message:String(err)); ui.fileResult.appendChild(errDiv);
+            return { status:'rejected', reason: err };
           }
         });
       });
 
-      // wait for all
       const results = await Promise.allSettled(uploadPromises);
 
-      // finalize UI
       uploading = false;
       uploadBtn.disabled = false;
       cancelAllBtn.classList.add('hidden');
       fileInput.disabled = false;
 
-      // summary
       const succeeded = results.filter(r => r.status === 'fulfilled' && r.value && r.value.status === 'fulfilled').length;
       const aborted = results.filter(r => r.status === 'fulfilled' && r.value && r.value.status === 'aborted').length;
       const failed = results.filter(r => r.status === 'fulfilled' && r.value && r.value.status === 'rejected').length;
       overallInfo.textContent = `Konplete: ${humanFileSize(loadedBytes.reduce((a,b)=>a+b,0))}`;
       result.textContent = `Fen: ${succeeded} siksè, ${failed} erè, ${aborted} anile.`;
 
-      // close SSE after short grace period
-      setTimeout(() => { try { es.close(); } catch(e) {} }, 2000);
+      setTimeout(()=>{ try{ es.close(); }catch(e){} }, 2000);
     });
 
     // cancel all
-    cancelAllBtn.addEventListener('click', () => {
-      for (const xhr of xhrs.values()) { try { xhr.abort(); } catch(e) {} }
-      xhrs.clear();
-      result.textContent = 'Anile tout uploads...';
-    });
+    cancelAllBtn.addEventListener('click', ()=>{ for (const xhr of xhrs.values()) try{ xhr.abort(); }catch(e){}; xhrs.clear(); result.textContent='Anile tout uploads...'; });
 
-    // ---------- uploadSingleFile (no EventSource inside) ----------
-    // accepts { uploadId, onProgress, onXhrCreated }
+    // uploadSingleFile (xhr) - no internal EventSource
     function uploadSingleFile(file, index, { uploadId = null, onProgress = ()=>{}, onXhrCreated = ()=>{} } = {}) {
       return new Promise((resolve, reject) => {
         const endpoint = `/upload`;
         const xhr = new XMLHttpRequest();
         let startTime = Date.now();
         xhr.open('POST', endpoint);
-
         try {
           if (uploadId) xhr.setRequestHeader('x-upload-id', uploadId);
           xhr.setRequestHeader('x-file-size', String(file.size));
-          // don't rely on custom file-name header; busboy reads filename from multipart
-        } catch (e) {}
-
+        } catch(e){}
         xhr.upload.onprogress = (e) => {
           if (e.lengthComputable) {
             const elapsed = (Date.now() - startTime) / 1000;
@@ -393,58 +503,54 @@
             onProgress(e.loaded || 0, file.size || 0, 0, 0);
           }
         };
-
         xhr.onload = async () => {
-          try { xhrs.delete(index); } catch(e) {}
-          if (xhr.status >= 200 && xhr.status < 300) {
+          try{ xhrs.delete(index); }catch(e){}
+          if (xhr.status >=200 && xhr.status <300) {
             try {
               const data = JSON.parse(xhr.responseText || '{}');
-              // server may return: { url } or { file: { url } } or { files: [...] }
               const url = data.url || (data.file && data.file.url) || (data.files && data.files[0] && data.files[0].url) || '';
               return resolve(url || '');
-            } catch (err) {
+            } catch(err){
               return resolve((xhr.responseText || '').trim() || '');
             }
           } else {
             return reject(new Error('HTTP ' + xhr.status + ' — ' + xhr.responseText));
           }
         };
-
-        xhr.onerror = () => {
-          try { xhrs.delete(index); } catch(e) {}
-          reject(new Error('Erè rezo pandan upload'));
-        };
-
-        xhr.onabort = () => {
-          try { xhrs.delete(index); } catch(e) {}
-          const err = new Error('Abòte pa itilizatè');
-          err.isAbort = true;
-          reject(err);
-        };
-
+        xhr.onerror = ()=>{ try{ xhrs.delete(index); }catch(e){}; reject(new Error('Erè rezo pandan upload')); };
+        xhr.onabort = ()=>{ try{ xhrs.delete(index); }catch(e){}; const err = new Error('Abòte pa itilizatè'); err.isAbort=true; reject(err); };
         onXhrCreated(xhr);
-
         try {
           const fd = new FormData();
           fd.append('file', file);
           xhr.send(fd);
-        } catch (err) {
-          reject(err);
-        }
+        } catch(err){ reject(err); }
       });
     }
 
-    // service worker register (same as original)
+    // double-click logo => open modal with all files
+    logo.addEventListener('dblclick', ()=> openHistoryModal());
+
+    // search input wiring
+    globalSearch.addEventListener('input', (e) => {
+      const q = e.target.value.trim();
+      renderHistory(q);
+      // also filter preview results (if you want to only show previously, we handle only history here)
+    });
+
+    // initial render
+    renderSelectedList();
+    renderHistory();
+
+    // service worker register (if exists)
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js')
-          .then(reg => { console.log('Service worker registered.', reg); })
-          .catch(err => { console.warn('Service worker registration failed:', err); });
+        navigator.serviceWorker.register('sw.js').then(reg=>console.log('sw registered',reg)).catch(err=>console.warn('sw failed',err));
       });
     }
   </script>
 
-  <!-- Re-add your original ad scripts (si ou vle) -->
+  <!-- your ad scripts (unchanged) -->
   <script async="async" data-cfasync="false" src="//pantherinvincible.com/831d752652add5a4318102e95e23728b/invoke.js"></script>
   <div id="container-831d752652add5a4318102e95e23728b" class="ad-layer fixed top-2 left-1"></div>
   <script type="text/javascript" src="//pantherinvincible.com/97/a6/20/97a620f293cd665277c661660533234e.js"></script>
@@ -461,4 +567,4 @@
   <script type="text/javascript" src="//pantherinvincible.com/a948baf246dd1ff24f0a6fcde286b31b/invoke.js"></script>
   <script src="pwa.js"></script>
 </body>
-  </html>
+                                                                </html>
