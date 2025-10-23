@@ -1,4 +1,4 @@
-// server.js (updated — returns top-level url for single-file requests, emits batch-done)
+// server.js
 require('dotenv').config();
 const express = require('express');
 const BusboyPkg = require('busboy');
@@ -39,6 +39,7 @@ function getNormalizedPublicUrl() {
 const R2_PUBLIC_URL = getNormalizedPublicUrl();
 
 function humanFileLabel(bytes) {
+  // returns strings like "2ko" (KB) or "1mo" (MB), rounded
   if (!bytes && bytes !== 0) return '0ko';
   const kb = bytes / 1024;
   if (kb < 1024) return `${Math.round(kb)}ko`;
@@ -48,6 +49,11 @@ function humanFileLabel(bytes) {
   return `${Math.round(gb)}go`;
 }
 
+function formatPercent(loaded, total) {
+  if (!total) return '0%';
+  return `${Math.round((loaded / total) * 100)}%`;
+}
+
 function getBusboyFactory() {
   if (!BusboyPkg) throw new Error('busboy not installed');
   if (typeof BusboyPkg === 'function') return BusboyPkg;
@@ -55,7 +61,7 @@ function getBusboyFactory() {
   return BusboyPkg;
 }
 
-// CORS
+// CORS (allow frontend origin or all during dev)
 app.use(cors({
   origin: process.env.FRONTEND_ORIGIN || '*',
   methods: ['GET', 'POST', 'OPTIONS'],
@@ -82,26 +88,30 @@ app.get('/progress/:uploadId', (req, res) => {
 
   res.write(`event: connected\ndata: ${JSON.stringify({ ok: true, uploadId })}\n\n`);
 
-  const onProgress = (data) => { try { res.write(`event: progress\ndata: ${JSON.stringify(data)}\n\n`); } catch (e) {} };
-  const onDone = (data) => { try { res.write(`event: done\ndata: ${JSON.stringify(data)}\n\n`); } catch (e) {} };
-  const onError = (data) => { try { res.write(`event: error\ndata: ${JSON.stringify(data)}\n\n`); } catch (e) {} };
-  const onBatchDone = (data) => { try { res.write(`event: batch-done\ndata: ${JSON.stringify(data)}\n\n`); } catch (e) {} };
+  const onProgress = (data) => {
+    try { res.write(`event: progress\ndata: ${JSON.stringify(data)}\n\n`); } catch (e) {}
+  };
+  const onDone = (data) => {
+    try { res.write(`event: done\ndata: ${JSON.stringify(data)}\n\n`); } catch (e) {}
+  };
+  const onError = (data) => {
+    try { res.write(`event: error\ndata: ${JSON.stringify(data)}\n\n`); } catch (e) {}
+  };
 
   emitter.on('progress', onProgress);
   emitter.on('done', onDone);
   emitter.on('error', onError);
-  emitter.on('batch-done', onBatchDone);
 
   req.on('close', () => {
     emitter.removeListener('progress', onProgress);
     emitter.removeListener('done', onDone);
     emitter.removeListener('error', onError);
-    emitter.removeListener('batch-done', onBatchDone);
-    const remaining = emitter.listenerCount('progress') + emitter.listenerCount('done') + emitter.listenerCount('error') + emitter.listenerCount('batch-done');
+    // if no listeners remain, schedule cleanup
+    const remaining = emitter.listenerCount('progress') + emitter.listenerCount('done') + emitter.listenerCount('error');
     if (remaining === 0) {
       setTimeout(() => {
         const e = uploads.get(uploadId);
-        if (e && e.listenerCount('progress') + e.listenerCount('done') + e.listenerCount('error') + e.listenerCount('batch-done') === 0) {
+        if (e && e.listenerCount('progress') + e.listenerCount('done') + e.listenerCount('error') === 0) {
           uploads.delete(uploadId);
         }
       }, 5000);
@@ -134,11 +144,12 @@ app.post('/upload', (req, res) => {
     }
   }
 
-  const uploadPromises = [];
+  const uploadPromises = []; // collect per-file upload promises
   let anyFile = false;
 
   busboy.on('file', (fieldname, fileStream, filenameOrInfo, maybeEncoding, maybeMime) => {
     anyFile = true;
+    // parse filename & mimetype robustly
     let filename = 'file';
     let mimetype = 'application/octet-stream';
     if (typeof filenameOrInfo === 'string') {
@@ -148,8 +159,12 @@ app.post('/upload', (req, res) => {
       filename = filenameOrInfo.filename || filename;
       mimetype = filenameOrInfo.mimeType || filenameOrInfo.mime || maybeMime || mimetype;
     }
+
     filename = path.basename(String(filename || 'file'));
-    if (!filename) { fileStream.resume(); return; }
+    if (!filename) {
+      fileStream.resume();
+      return;
+    }
 
     const safeName = `${Date.now()}-${filename.replace(/\s+/g, '_')}`;
     const tempPath = path.join(uploadDir, safeName);
@@ -160,13 +175,23 @@ app.post('/upload', (req, res) => {
 
     console.log(`Start receiving ${filename} -> temp: ${tempPath}`);
 
+    // emit receiving progress while writing to disk
     fileStream.on('data', (chunk) => {
       received += chunk.length;
       if (emitter) {
         const percent = totalForProgress ? Math.min(100, Math.floor((received / totalForProgress) * 100)) : null;
-        const data = { phase: 'receiving', filename, loaded: received, total: totalForProgress || null, percent };
+        const data = {
+          phase: 'receiving',
+          filename,
+          loaded: received,
+          total: totalForProgress || null,
+          percent
+        };
         emitter.emit('progress', data);
-        console.log(`${filename} ${humanFileLabel(received)}/${totalForProgress ? humanFileLabel(totalForProgress) : '—'} ${percent !== null ? percent + '%' : ''}`);
+        // log line like: Name.mp4 1mo/2mo. 50%
+        const loadedLabel = humanFileLabel(received);
+        const totalLabel = totalForProgress ? humanFileLabel(totalForProgress) : humanFileLabel(0);
+        console.log(`${filename} ${loadedLabel}/${totalLabel} ${percent !== null ? percent + '%' : ''}`);
       }
     });
 
@@ -194,13 +219,18 @@ app.post('/upload', (req, res) => {
       if (emitter) emitter.emit('error', { message: err.message, filename });
     });
 
+    // create a promise for this file's lifecycle (receive -> upload -> done)
     const p = new Promise((resolve) => {
       fileStream.on('end', async () => {
         writeStream.end();
         console.log(`${filename} fully received (${humanFileLabel(received)}) — starting upload to R2`);
 
+        // confirm actual size on disk
         let fileSizeOnDisk = received;
-        try { const st = fs.statSync(tempPath); fileSizeOnDisk = st.size; } catch (e) {}
+        try {
+          const st = fs.statSync(tempPath);
+          fileSizeOnDisk = st.size;
+        } catch (e) {}
 
         const key = `${Date.now()}-${filename.replace(/\s+/g, '_')}`;
         const fileReadStream = fs.createReadStream(tempPath);
@@ -208,7 +238,12 @@ app.post('/upload', (req, res) => {
         try {
           const uploader = new Upload({
             client: s3,
-            params: { Bucket: process.env.R2_BUCKET, Key: key, Body: fileReadStream, ContentType: mimetype || 'application/octet-stream' },
+            params: {
+              Bucket: process.env.R2_BUCKET,
+              Key: key,
+              Body: fileReadStream,
+              ContentType: mimetype || 'application/octet-stream',
+            },
             queueSize: 4,
             partSize: 10 * 1024 * 1024,
             leavePartsOnError: false,
@@ -219,23 +254,35 @@ app.post('/upload', (req, res) => {
             const total = progress.total || fileSizeOnDisk || 0;
             const percent = total ? Math.min(100, Math.floor((loaded / total) * 100)) : null;
             if (emitter) {
-              const data = { phase: 'uploading', filename, loaded, total, percent };
+              const data = {
+                phase: 'uploading',
+                filename,
+                loaded,
+                total,
+                percent
+              };
               emitter.emit('progress', data);
-              console.log(`${filename} ${humanFileLabel(loaded)}/${humanFileLabel(total)} ${percent !== null ? percent + '%' : ''}`);
+              // console log like: Name.mp4 1mo/2mo. 50%
+              const loadedLabel = humanFileLabel(loaded);
+              const totalLabel = humanFileLabel(total);
+              console.log(`${filename} ${loadedLabel}/${totalLabel} ${percent !== null ? percent + '%' : ''}`);
             }
           });
 
           await uploader.done();
+
           try { fs.unlinkSync(tempPath); } catch (e) { console.warn('Could not delete temp file', e); }
 
           const fileUrl = R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${key}` : `/${key}`;
 
+          // emit done for this file
           if (emitter) {
             const doneData = { filename, url: fileUrl, key };
             emitter.emit('done', doneData);
             console.log(`${filename} uploaded -> ${fileUrl}`);
           }
 
+          // resolve success
           resolve({ filename, url: fileUrl, key });
         } catch (err) {
           console.error('Upload to R2 failed for', filename, err);
@@ -249,26 +296,34 @@ app.post('/upload', (req, res) => {
     uploadPromises.push(p);
   });
 
-  busboy.on('field', () => {});
+  busboy.on('field', (name, val) => {
+    // accept normal form fields if needed; not used now
+  });
 
   busboy.on('finish', async () => {
-    if (uploadPromises.length === 0) return res.status(400).json({ error: 'No file uploaded' });
-
-    const files = await Promise.all(uploadPromises);
-
-    // Emit batch-done on emitter (if any)
-    if (emitter) {
-      emitter.emit('batch-done', { ok: true, files });
+    if (!anyFile) {
+      return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    // If single-file, return top-level url for easier XHR parsing
-    if (files.length === 1) {
-      const f = files[0];
-      return res.json({ ok: true, file: f, url: f.url });
+    // wait for all file uploads to finish (success or error)
+    try {
+      const files = await Promise.all(uploadPromises);
+      // send consolidated response
+      return res.json({ ok: true, files });
+    } catch (err) {
+      console.error('Error awaiting uploads', err);
+      return res.status(500).json({ error: 'Upload processing failed', details: err.message });
+    } finally {
+      // cleanup emitters for this uploadId after short delay
+      if (uploadIdHeader) {
+        setTimeout(() => {
+          const e = uploads.get(uploadIdHeader);
+          if (e && e.listenerCount('progress') + e.listenerCount('done') + e.listenerCount('error') === 0) {
+            uploads.delete(uploadIdHeader);
+          }
+        }, 2000);
+      }
     }
-
-    // multi-file response
-    return res.json({ ok: true, files });
   });
 
   busboy.on('error', (err) => {
