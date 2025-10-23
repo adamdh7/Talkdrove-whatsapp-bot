@@ -5,10 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>TF-Stream</title>
 
-  <!-- CONFIG: si backend sou lòt domain, ranpli sa a. Si pa gen, kite vid -->
-  <meta name="api-base" content="">
-  <!-- CONFIG: si R2 (oswa public CDN) gen yon URL public, ranpli li san trail slash (eg: https://assets.mydomain.com) -->
-  <meta name="r2-public-url" content="">
+  <!-- Set this to your backend base URL. Example: https://tf-stream-backend.example
+       If you serve frontend and backend from same origin, you can leave it empty or set to window.location -->
+  <meta name="backend-base" content="https://YOUR_BACKEND_BASE_HERE">
 
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#2563eb" />
@@ -21,39 +20,14 @@
 
   <style>
     body { font-family: 'Segoe UI', sans-serif; background-color: #f8fafc; margin: 0; }
-    .ad-layer { pointer-events: auto; z-index: 9999; } /* piblisite aktive */
+    .ad-layer { pointer-events: auto; z-index: 9999; }
     #mainUI { position: relative; z-index: 10001; }
-    #ad-left, #ad-right { width: 90px; max-width: 120px; }
-    #ad-top, #ad-bottom { height: 90px; }
-    .ad-frame { display: block; }
-    .ad-layer iframe, .ad-layer > div { opacity: 0.98; }
     .copied { color: #059669; font-weight: 600; }
-
-    .file-name {
-      display: -webkit-box;
-      -webkit-box-orient: vertical;
-      -webkit-line-clamp: 2;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: normal;
-      word-break: break-word;
-      cursor: pointer;
-    }
-
-    .file-name.expanded {
-      -webkit-line-clamp: unset;
-      overflow: visible;
-      text-overflow: unset;
-      white-space: normal;
-    }
-
+    .file-name { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; text-overflow: ellipsis; white-space: normal; word-break: break-word; cursor: pointer; }
+    .file-name.expanded { -webkit-line-clamp: unset; overflow: visible; text-overflow: unset; white-space: normal; }
     .selected-row { display:flex; align-items:flex-start; gap:0.5rem; }
     .selected-row .meta { flex:1; min-width:0; }
-
-    @media (max-width:420px) {
-      .file-name { font-size: 13px; }
-      .ad-layer { display:none; }
-    }
+    @media (max-width:420px) { .file-name { font-size: 13px; } .ad-layer { display:none; } }
   </style>
 </head>
 <body class="relative">
@@ -61,8 +35,9 @@
     <div class="bg-white w-full max-w-2xl rounded-3xl shadow-xl p-6 space-y-5">
       <h2 class="text-xl font-bold text-center text-gray-800">TF-Stream</h2>
 
-      <input id="fileInput" type="file" accept="*/*" multiple class="block w-full text-sm text-gray-700 bg-gray-100 rounded-xl border border-gray-300 p-2 cursor-pointer" />
+      <div class="text-xs text-gray-500">Backend: <span id="backendUsed" class="font-mono"></span></div>
 
+      <input id="fileInput" type="file" accept="*/*" multiple class="block w-full text-sm text-gray-700 bg-gray-100 rounded-xl border border-gray-300 p-2 cursor-pointer" />
       <div id="selectedList" class="grid gap-2"></div>
 
       <div class="flex gap-2">
@@ -82,55 +57,40 @@
       </div>
 
       <div id="result" class="text-center text-sm text-gray-700"></div>
-
       <div id="previewAll" class="mt-4 space-y-4"></div>
     </div>
   </div>
 
+  <!-- ad-layer placeholders -->
   <div id="ad-top" class="ad-layer fixed top-0 left-0 w-full flex justify-center items-start"></div>
   <div id="ad-left" class="ad-layer fixed top-1/4 left-0 h-1/2 flex items-center"></div>
   <div id="ad-right" class="ad-layer fixed top-1/4 right-0 h-1/2 flex items-center"></div>
   <div id="ad-bottom" class="ad-layer fixed bottom-0 left-0 w-full flex justify-center items-end"></div>
 
   <script>
-    // ---------- CONFIG & HELPERS ----------
-    const META_API_BASE = (document.querySelector('meta[name="api-base"]') || {content:''}).content.trim();
-    const META_R2_PUBLIC = (document.querySelector('meta[name="r2-public-url"]') || {content:''}).content.trim();
-    // API_BASE — si ou deploy backend sou diferan origin, mete li nan meta tag anwo a (eg: https://api.mydomain.com)
-    const API_BASE = META_API_BASE || '';
-
-    function makeApiUrl(path) {
-      if (!path) return path;
-      // si path deja absolute, retounen li
-      if (/^https?:\/\//i.test(path)) return path;
-      // si API_BASE espesifye, join l avèk path
-      if (API_BASE) {
-        return API_BASE.replace(/\/+$/,'') + '/' + String(path).replace(/^\/+/,'');
+    // ----- Backend base normalization -----
+    function getBackendBase() {
+      const meta = document.querySelector('meta[name="backend-base"]');
+      let base = (meta && meta.content) ? meta.content.trim() : '';
+      if (!base) {
+        // fallback to same origin as frontend
+        base = `${location.protocol}//${location.host}`;
       }
-      // sinon, itilize relative path (browser ap rezoud sou menm origin)
-      return path;
+      // remove trailing slash
+      base = base.replace(/\/+$/, '');
+      return base;
+    }
+    const BACKEND_BASE = getBackendBase();
+    document.getElementById('backendUsed').textContent = BACKEND_BASE;
+
+    function makeUrl(path) {
+      if (!path) return '';
+      if (path.startsWith('http://') || path.startsWith('https://')) return path;
+      if (path.startsWith('/')) return BACKEND_BASE + path;
+      return BACKEND_BASE + '/' + path;
     }
 
-    function normalizePublicUrl(url) {
-      if (!url) return url;
-      url = String(url).trim();
-      if (/^https?:\/\//i.test(url)) return url;
-      // si user bay R2 public url meta, itilize l kòm prefix
-      if (META_R2_PUBLIC) {
-        return META_R2_PUBLIC.replace(/\/+$/,'') + '/' + url.replace(/^\/+/,'');
-      }
-      // si API_BASE gen host, itilize origin li
-      if (API_BASE) {
-        try {
-          const origin = (new URL(API_BASE)).origin;
-          return origin + (url.startsWith('/') ? url : '/' + url);
-        } catch (e) {}
-      }
-      // fallback: same origin
-      return window.location.origin + (url.startsWith('/') ? url : '/' + url);
-    }
-
-    // ---------- UI & state ----------
+    // ----- Elements -----
     const fileInput = document.getElementById('fileInput');
     const selectedList = document.getElementById('selectedList');
     const uploadBtn = document.getElementById('uploadBtn');
@@ -157,14 +117,8 @@
       } while(Math.abs(bytes) >= thresh && u < units.length - 1);
       return bytes.toFixed(1)+' '+units[u];
     }
-
     function escapeHtml(unsafe) {
-      return String(unsafe)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
+      return String(unsafe).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
     }
 
     function renderSelectedList() {
@@ -178,47 +132,21 @@
       filesArray.forEach((file, idx) => {
         const row = document.createElement('div');
         row.className = 'flex items-center justify-between gap-2 bg-gray-50 border border-gray-200 rounded-xl p-2 selected-row';
-
-        const left = document.createElement('div');
-        left.className = 'flex items-start gap-2 meta';
-
-        const icon = document.createElement('div');
-        icon.className = 'w-10 h-10 flex-shrink-0 rounded-md bg-gray-100 flex items-center justify-center text-xs text-gray-600';
+        const left = document.createElement('div'); left.className = 'flex items-start gap-2 meta';
+        const icon = document.createElement('div'); icon.className = 'w-10 h-10 flex-shrink-0 rounded-md bg-gray-100 flex items-center justify-center text-xs text-gray-600';
         icon.textContent = file.type && file.type.startsWith('video') ? 'VID' : 'FILE';
-
-        const titleWrap = document.createElement('div');
-        titleWrap.style.minWidth = '0';
-        const title = document.createElement('div');
-        title.className = 'file-name text-sm text-gray-800';
-        title.textContent = file.name;
-        title.title = file.name;
-        title.addEventListener('click', () => { title.classList.toggle('expanded'); });
-
-        const sub = document.createElement('div');
-        sub.className = 'text-xs text-gray-500';
-        sub.textContent = `${humanFileSize(file.size)} • ${file.type || '—'}`;
-
-        titleWrap.appendChild(title);
-        titleWrap.appendChild(sub);
-
-        left.appendChild(icon);
-        left.appendChild(titleWrap);
-
-        const right = document.createElement('div');
-        right.className = 'flex items-center gap-2';
-
-        const removeBtn = document.createElement('button');
-        removeBtn.className = 'text-xs text-red-600 px-2 py-1 rounded-md bg-red-50 border border-red-100';
+        const titleWrap = document.createElement('div'); titleWrap.style.minWidth = '0';
+        const title = document.createElement('div'); title.className = 'file-name text-sm text-gray-800'; title.textContent = file.name; title.title = file.name;
+        title.addEventListener('click', () => title.classList.toggle('expanded'));
+        const sub = document.createElement('div'); sub.className = 'text-xs text-gray-500'; sub.textContent = `${humanFileSize(file.size)} • ${file.type || '—'}`;
+        titleWrap.appendChild(title); titleWrap.appendChild(sub);
+        left.appendChild(icon); left.appendChild(titleWrap);
+        const right = document.createElement('div'); right.className = 'flex items-center gap-2';
+        const removeBtn = document.createElement('button'); removeBtn.className = 'text-xs text-red-600 px-2 py-1 rounded-md bg-red-50 border border-red-100';
         removeBtn.textContent = 'Retire';
-        removeBtn.onclick = () => {
-          if (uploading) return;
-          filesArray.splice(idx, 1);
-          renderSelectedList();
-        };
-
+        removeBtn.onclick = () => { if (uploading) return; filesArray.splice(idx, 1); renderSelectedList(); };
         right.appendChild(removeBtn);
-        row.appendChild(left);
-        row.appendChild(right);
+        row.appendChild(left); row.appendChild(right);
         grid.appendChild(row);
       });
       selectedList.appendChild(grid);
@@ -231,9 +159,7 @@
     });
 
     uploadBtn.addEventListener('click', async () => {
-      if (filesArray.length === 0) {
-        return alert('Tanpri chwazi omwen yon fichye anvan ou upload.');
-      }
+      if (filesArray.length === 0) return alert('Tanpri chwazi omwen yon fichye anvan ou upload.');
       if (uploading) return;
       uploading = true;
       uploadBtn.disabled = true;
@@ -313,63 +239,47 @@
           ui.fileProgressFill.style.width = '100%';
           ui.filePct.textContent = '100%';
           ui.fileInfo.textContent = `${humanFileSize(file.size)} • Konplete`;
-
           const div = document.createElement('div');
           div.className = 'mt-2';
-          const urlDisplay = `<div class="break-all text-blue-600 text-xs cursor-pointer file-url">${escapeHtml(url)}</div>`;
+          const normalized = makeUrl(url || '');
+          const urlDisplay = `<div class="break-all text-blue-600 text-xs cursor-pointer file-url">${escapeHtml(normalized || url || '')}</div>`;
           div.innerHTML = urlDisplay;
           ui.fileResult.appendChild(div);
-
           const urlEl = ui.fileResult.querySelector('.file-url');
           urlEl.onclick = async () => {
             try {
-              await navigator.clipboard.writeText(url);
+              await navigator.clipboard.writeText(normalized || url || '');
               result.innerHTML = '<span class="copied">URL kopi nan clipboard</span>';
               setTimeout(()=> result.textContent = '', 2000);
             } catch (e) {
               result.textContent = 'Pa kapab kopiye: ' + e.message;
             }
           };
-
           const type = (file.type || '').toLowerCase();
           if (type.startsWith('image/')) {
-            const img = document.createElement('img');
-            img.src = url;
-            img.className = 'mt-2 mx-auto rounded-lg shadow max-h-44';
-            ui.fileResult.appendChild(img);
+            const img = document.createElement('img'); img.src = normalized || url; img.className = 'mt-2 mx-auto rounded-lg shadow max-h-44'; ui.fileResult.appendChild(img);
           } else if (type.startsWith('video/') || type.startsWith('audio/')) {
-            const vid = document.createElement('video');
-            vid.src = url;
-            vid.controls = true;
-            vid.className = 'mt-2 mx-auto rounded-lg shadow max-h-44';
-            ui.fileResult.appendChild(vid);
+            const vid = document.createElement('video'); vid.src = normalized || url; vid.controls = true; vid.className = 'mt-2 mx-auto rounded-lg shadow max-h-44'; ui.fileResult.appendChild(vid);
           }
-          return { status: 'fulfilled', url };
+          return { status: 'fulfilled', url: normalized || url };
         }).catch(err => {
           if (err && err.isAbort) {
             ui.fileInfo.textContent = '';
             ui.filePct.textContent = '—';
             ui.fileProgressFill.style.width = '0%';
-            const errDiv = document.createElement('div');
-            errDiv.className = 'text-xs text-red-600 mt-2';
-            errDiv.textContent = 'Upload anile pa itilizatè';
-            ui.fileResult.appendChild(errDiv);
+            const errDiv = document.createElement('div'); errDiv.className = 'text-xs text-red-600 mt-2'; errDiv.textContent = 'Upload anile pa itilizatè'; ui.fileResult.appendChild(errDiv);
             return { status: 'aborted' };
           } else {
             ui.fileInfo.textContent = '';
             ui.filePct.textContent = '—';
             ui.fileProgressFill.style.width = '0%';
-            const errDiv = document.createElement('div');
-            errDiv.className = 'text-xs text-red-600 mt-2';
-            errDiv.textContent = 'Erè upload: ' + (err && err.message ? err.message : String(err));
-            ui.fileResult.appendChild(errDiv);
+            const errDiv = document.createElement('div'); errDiv.className = 'text-xs text-red-600 mt-2'; errDiv.textContent = 'Erè upload: ' + (err && err.message ? err.message : String(err)); ui.fileResult.appendChild(errDiv);
             return { status: 'rejected', reason: err };
           }
         });
       });
 
       const results = await Promise.allSettled(uploadPromises);
-
       uploading = false;
       uploadBtn.disabled = false;
       cancelAllBtn.classList.add('hidden');
@@ -390,10 +300,11 @@
       result.textContent = 'Anile tout uploads...';
     });
 
-    // ---------- improved SSE-aware upload function ----------
+    // ---------- uploadSingleFile (SSE-aware) ----------
     function uploadSingleFile(file, index, { onProgress = ()=>{}, onXhrCreated = ()=>{} } = {}) {
       return new Promise((resolve, reject) => {
-        const endpoint = makeApiUrl('/upload');
+        const endpoint = makeUrl('/upload');
+        const progressEndpointBase = BACKEND_BASE; // we'll build /progress/:uploadId from base
         const uploadId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `uid-${Date.now()}-${Math.floor(Math.random()*100000)}`;
 
         let serverActive = false;
@@ -404,16 +315,15 @@
         let sseDoneResolve;
         const sseDonePromise = new Promise((r) => { sseDoneResolve = r; });
 
-        const sseUrl = makeApiUrl(`/progress/${uploadId}`);
+        const esUrl = `${progressEndpointBase}/progress/${encodeURIComponent(uploadId)}`;
         let es;
-        try { es = new EventSource(sseUrl); } catch (e) { es = null; }
-
-        if (es) {
+        try {
+          es = new EventSource(esUrl);
           es.addEventListener('progress', (ev) => {
             try {
               const d = JSON.parse(ev.data);
               serverActive = true;
-              lastServerLoaded = d.loaded || lastServerLoaded;
+              lastServerLoaded = d.loaded || 0;
               lastServerTotal = d.total || lastServerTotal || 0;
               onProgress(lastServerLoaded, lastServerTotal, 0, 0);
             } catch (e) {}
@@ -424,19 +334,19 @@
               doneBySSE = true;
               try { es.close(); } catch (e) {}
               onProgress(d.total || lastServerTotal, d.total || lastServerTotal, 0, 0);
-              sseDoneResolve({ url: normalizePublicUrl(d.url || '') || '' , data: d });
-            } catch (e) {
-              sseDoneResolve({ url: '' });
-            }
+              sseDoneResolve({ url: d.url || '', data: d });
+            } catch (e) { sseDoneResolve({ url: '' }); }
           });
-          es.addEventListener('error', () => {
-            serverActive = false;
-          });
+          es.addEventListener('error', () => { serverActive = false; });
+        } catch (e) {
+          // EventSource failed (maybe browser restriction). SSE will be ignored and XHR progress used.
+          es = null;
         }
 
         const xhr = new XMLHttpRequest();
         let startTime = Date.now();
         xhr.open('POST', endpoint);
+
         try {
           xhr.setRequestHeader('x-upload-id', uploadId);
           xhr.setRequestHeader('x-file-size', String(file.size));
@@ -461,23 +371,22 @@
           if (doneBySSE) return;
           try {
             const timeoutMs = 12000;
-            const race = Promise.race([ sseDonePromise, new Promise((r)=> setTimeout(()=> r(null), timeoutMs)) ]);
+            const race = Promise.race([ sseDonePromise, new Promise((r) => setTimeout(() => r(null), timeoutMs)) ]);
             const sseResult = await race;
             if (sseResult && sseResult.url !== undefined) {
               try { if (es) es.close(); } catch (e) {}
-              return resolve(sseResult.url || '');
+              return resolve(makeUrl(sseResult.url || ''));
             }
           } catch (e) {}
-
           if (xhr.status >= 200 && xhr.status < 300) {
             try {
               const data = JSON.parse(xhr.responseText || '{}');
-              const rawUrl = data.url || data.fileUrl || data.path || data.location || '';
+              const url = data.url || (data.files && data.files[0] && data.files[0].url) || data.fileUrl || data.path || data.location || '';
               try { if (es) es.close(); } catch (e) {}
-              return resolve(normalizePublicUrl(rawUrl) || '');
+              return resolve(makeUrl(url || ''));
             } catch (err) {
               try { if (es) es.close(); } catch (e) {}
-              return resolve(normalizePublicUrl((xhr.responseText || '').trim()) || '');
+              return resolve(makeUrl((xhr.responseText || '').trim() || ''));
             }
           } else {
             try { if (es) es.close(); } catch (e) {}
@@ -494,9 +403,7 @@
         xhr.onabort = () => {
           try { xhrs.delete(index); } catch (e) {}
           try { if (es) es.close(); } catch (e) {}
-          const err = new Error('Abòte pa itilizatè');
-          err.isAbort = true;
-          reject(err);
+          const err = new Error('Abòte pa itilizatè'); err.isAbort = true; reject(err);
         };
 
         onXhrCreated(xhr);
@@ -512,32 +419,26 @@
       });
     }
 
-    // service worker register
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js')
-          .then(reg => { console.log('Service worker registered.', reg); })
-          .catch(err => { console.warn('Service worker registration failed:', err); });
+        navigator.serviceWorker.register('sw.js').then(reg => {
+          console.log('Service worker registered.', reg);
+        }).catch(err => {
+          console.warn('Service worker registration failed:', err);
+        });
       });
     }
   </script>
 
-  <!-- Re-add your original ad scripts (si ou vle) -->
+  <!-- Optional ad scripts kept as you had them -->
   <script async="async" data-cfasync="false" src="//pantherinvincible.com/831d752652add5a4318102e95e23728b/invoke.js"></script>
   <div id="container-831d752652add5a4318102e95e23728b" class="ad-layer fixed top-2 left-1"></div>
   <script type="text/javascript" src="//pantherinvincible.com/97/a6/20/97a620f293cd665277c661660533234e.js"></script>
   <script type="text/javascript" src="//pantherinvincible.com/8f/36/29/8f362929c71ab43f93c6d86c43889bfb.js"></script>
   <script type="text/javascript">
-    atOptions = {
-      'key' : 'a948baf246dd1ff24f0a6fcde286b31b',
-      'format' : 'iframe',
-      'height' : 300,
-      'width' : 160,
-      'params' : {}
-    };
+    atOptions = { 'key' : 'a948baf246dd1ff24f0a6fcde286b31b', 'format' : 'iframe', 'height' : 300, 'width' : 160, 'params' : {} };
   </script>
   <script type="text/javascript" src="//pantherinvincible.com/a948baf246dd1ff24f0a6fcde286b31b/invoke.js"></script>
-
   <script src="pwa.js"></script>
 </body>
   </html>
