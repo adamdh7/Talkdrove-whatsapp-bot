@@ -13,6 +13,10 @@
   <link rel="apple-touch-icon" href="https://res.cloudinary.com/dckwrqrur/image/upload/v1755996395/tf-stream-url/tfstream-text-only_mo4wml.png" />
   <script src="https://cdn.tailwindcss.com"></script>
 
+  <!-- Si backend ou a sou yon lòt domèn, mete li isit la: -->
+  <!-- <meta name="api-base" content="https://api.mondomaine.com"> -->
+  <!-- OU: ou ka set window.__API_BASE__ anvan script sa a (via inlining oswa build). -->
+
   <style>
     body { font-family: 'Segoe UI', sans-serif; background-color: #f8fafc; margin: 0; }
     .ad-layer { pointer-events: auto; z-index: 9999; } /* piblisite aktive */
@@ -95,6 +99,17 @@
   <div id="ad-bottom" class="ad-layer fixed bottom-0 left-0 w-full flex justify-center items-end"></div>
 
   <script>
+    // --- CONFIG: detect API base ---
+    // Priority:
+    // 1) window.__API_BASE__ (set this before the script if you want)
+    // 2) <meta name="api-base" content="https://api.example.com">
+    // 3) window.location.origin (default — works if frontend served from same origin as backend)
+    const metaApi = document.querySelector('meta[name="api-base"]');
+    const API_BASE = (window.__API_BASE__ && String(window.__API_BASE__).trim()) || (metaApi ? metaApi.getAttribute('content') : '') || window.location.origin;
+    // Build absolute endpoints so EventSource and XHR target the backend exactly
+    const UPLOAD_ENDPOINT = new URL('/upload', API_BASE).toString();
+    const PROGRESS_ENDPOINT = (id) => new URL(`/progress/${id}`, API_BASE).toString();
+
     // Elements
     const fileInput = document.getElementById('fileInput');
     const selectedList = document.getElementById('selectedList');
@@ -392,7 +407,7 @@
     // It sets headers x-upload-id and x-file-size so server can tie the request to SSE.
     function uploadSingleFile(file, index, { onProgress = ()=>{}, onXhrCreated = ()=>{} } = {}) {
       return new Promise((resolve, reject) => {
-        const endpoint = `/upload`;
+        const endpoint = UPLOAD_ENDPOINT; // <- uses API_BASE
         const uploadId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `uid-${Date.now()}-${Math.floor(Math.random()*100000)}`;
 
         // SSE setup
@@ -405,7 +420,7 @@
         let sseDoneResolve;
         const sseDonePromise = new Promise((r) => { sseDoneResolve = r; });
 
-        const es = new EventSource(`/progress/${uploadId}`);
+        const es = new EventSource(PROGRESS_ENDPOINT(uploadId)); // <- absolute URL
         es.addEventListener('progress', (ev) => {
           try {
             const d = JSON.parse(ev.data);
@@ -485,7 +500,7 @@
           if (xhr.status >= 200 && xhr.status < 300) {
             try {
               const data = JSON.parse(xhr.responseText || '{}');
-              const url = data.url || data.fileUrl || data.path || data.location || '';
+              const url = data.url || data.fileUrl || data.path || data.location || (data.files && data.files[0] && data.files[0].url) || '';
               try { es.close(); } catch (e) {}
               return resolve(url || '');
             } catch (err) {
