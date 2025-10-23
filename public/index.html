@@ -45,6 +45,12 @@
       .file-name { font-size: 13px; }
       .ad-layer { display:none; }
     }
+
+    /* ensure long urls break */
+    .file-url { word-break: break-all; }
+
+    /* small responsive preview limits */
+    img.max-preview, video.max-preview, audio.max-preview { max-height: 180px; max-width: 100%; display:block; margin: 0.5rem auto; }
   </style>
 </head>
 <body class="relative">
@@ -121,6 +127,80 @@
     function escapeHtml(unsafe) {
       return String(unsafe).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
                            .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+
+    // ---------- New helpers: normalizeUrl + renderPreview ----------
+    function normalizeUrl(u) {
+      try {
+        if (!u) return '';
+        return /^https?:\/\//i.test(u) ? u : new URL(u, window.location.origin).href;
+      } catch (e) {
+        return u || '';
+      }
+    }
+
+    /**
+     * containerOrUi: either the ui object ({ fileResult, ... }) or the DOM element where previews should be appended
+     * file: the original File object (so we can use its type if present)
+     * url: the public URL returned by backend
+     */
+    function renderPreview(containerOrUi, file, url) {
+      if (!url) return;
+      const container = (containerOrUi && containerOrUi.fileResult) ? containerOrUi.fileResult : containerOrUi;
+      if (!container) return;
+      // avoid duplicate previews
+      if (container.querySelector('img') || container.querySelector('video') || container.querySelector('audio')) return;
+
+      const normalized = normalizeUrl(url);
+      const type = (file && file.type) ? file.type.toLowerCase() : '';
+
+      // Prefer file.type when available
+      if (type.startsWith('image/')) {
+        const img = document.createElement('img');
+        img.src = normalized;
+        img.alt = file && file.name ? file.name : 'image';
+        img.className = 'mt-2 mx-auto rounded-lg shadow max-preview';
+        img.onerror = () => {
+          // if can’t load (CORS etc) show small message
+          const e = document.createElement('div');
+          e.className = 'text-xs text-red-600 mt-2';
+          e.textContent = 'Pa kapab chaje preview imaj (CORS / URL erè)';
+          container.appendChild(e);
+        };
+        container.appendChild(img);
+      } else if (type.startsWith('video/')) {
+        const vid = document.createElement('video');
+        vid.src = normalized;
+        vid.controls = true;
+        vid.className = 'mt-2 mx-auto rounded-lg shadow max-preview';
+        container.appendChild(vid);
+      } else if (type.startsWith('audio/')) {
+        const aud = document.createElement('audio');
+        aud.src = normalized;
+        aud.controls = true;
+        aud.className = 'mt-2 mx-auto';
+        container.appendChild(aud);
+      } else {
+        // fallback: inspect url extension
+        try {
+          const ext = normalized.split('?')[0].split('.').pop().toLowerCase();
+          if (['png','jpg','jpeg','gif','webp','svg'].includes(ext)) {
+            const img = document.createElement('img');
+            img.src = normalized;
+            img.alt = file && file.name ? file.name : 'image';
+            img.className = 'mt-2 mx-auto rounded-lg shadow max-preview';
+            container.appendChild(img);
+          } else if (['mp4','webm','ogg','mov','mkv'].includes(ext)) {
+            const vid = document.createElement('video');
+            vid.src = normalized;
+            vid.controls = true;
+            vid.className = 'mt-2 mx-auto rounded-lg shadow max-preview';
+            container.appendChild(vid);
+          }
+        } catch (e) {
+          // silently ignore
+        }
+      }
     }
 
     // ---------- Render selected list ----------
@@ -261,16 +341,21 @@
           ui.fileProgressFill.style.width = '100%';
           ui.filePct.textContent = '100%';
           ui.fileInfo.textContent = `${humanFileSize(filesArray[idx].size)} • Konplete`;
+
           const div = document.createElement('div');
           div.className = 'mt-2';
           const urlDisplay = `<div class="break-all text-blue-600 text-xs cursor-pointer file-url">${escapeHtml(d.url)}</div>`;
           div.innerHTML = urlDisplay;
           ui.fileResult.appendChild(div);
+
           const urlEl = ui.fileResult.querySelector('.file-url');
           urlEl.onclick = async () => {
             try { await navigator.clipboard.writeText(d.url); result.innerHTML = '<span class=\"copied\">URL kopi nan clipboard</span>'; setTimeout(()=> result.textContent = '', 2000); }
             catch (e) { result.textContent = 'Pa kapab kopiye: ' + e.message; }
           };
+
+          // <-- IMPORTANT: render preview here -->
+          try { renderPreview(ui, filesArray[idx], d.url); } catch(e) { /* ignore */ }
         } catch (err) {}
       });
       es.addEventListener('batch-done', (ev) => {
@@ -315,6 +400,8 @@
               try { await navigator.clipboard.writeText(url); result.innerHTML = '<span class="copied">URL kopi nan clipboard</span>'; setTimeout(()=> result.textContent = '', 2000); }
               catch (e) { result.textContent = 'Pa kapab kopiye: ' + e.message; }
             };
+            // <-- IMPORTANT: render preview here too -->
+            try { renderPreview(ui, file, url); } catch(e){ /* ignore */ }
           }
           return { status: 'fulfilled', url };
         }).catch(err => {
@@ -400,7 +487,7 @@
             try {
               const data = JSON.parse(xhr.responseText || '{}');
               // server may return: { url } or { file: { url } } or { files: [...] }
-              const url = data.url || (data.file && data.file.url) || (data.files && data.files[0] && data.files[0].url) || '';
+              const url = data.url || (data.file && data.file.url) || (data.files && data.files[0] && (data.files[0].url || data.files[0].fileUrl || data.files[0].path || data.files[0].location)) || '';
               return resolve(url || '');
             } catch (err) {
               return resolve((xhr.responseText || '').trim() || '');
@@ -461,4 +548,4 @@
   <script type="text/javascript" src="//pantherinvincible.com/a948baf246dd1ff24f0a6fcde286b31b/invoke.js"></script>
   <script src="pwa.js"></script>
 </body>
-  </html>
+</html>
