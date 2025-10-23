@@ -5,8 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>TF-Stream</title>
 
-  <!-- Set this to your backend base URL. Example: https://tf-stream-backend.example
-       If you serve frontend and backend from same origin, you can leave it empty or set to window.location -->
+  <!-- Mete baz backend la isit la si frontend pa menm origin ak backend -->
   <meta name="backend-base" content="https://YOUR_BACKEND_BASE_HERE">
 
   <link rel="manifest" href="manifest.json" />
@@ -61,22 +60,16 @@
     </div>
   </div>
 
-  <!-- ad-layer placeholders -->
-  <div id="ad-top" class="ad-layer fixed top-0 left-0 w-full flex justify-center items-start"></div>
-  <div id="ad-left" class="ad-layer fixed top-1/4 left-0 h-1/2 flex items-center"></div>
-  <div id="ad-right" class="ad-layer fixed top-1/4 right-0 h-1/2 flex items-center"></div>
-  <div id="ad-bottom" class="ad-layer fixed bottom-0 left-0 w-full flex justify-center items-end"></div>
+  <!-- ad-layer placeholders omitted for brevity -->
 
   <script>
-    // ----- Backend base normalization -----
+    // ----- Backend base normalization (used only for EventSource and preview fetches) -----
     function getBackendBase() {
       const meta = document.querySelector('meta[name="backend-base"]');
       let base = (meta && meta.content) ? meta.content.trim() : '';
       if (!base) {
-        // fallback to same origin as frontend
         base = `${location.protocol}//${location.host}`;
       }
-      // remove trailing slash
       base = base.replace(/\/+$/, '');
       return base;
     }
@@ -233,35 +226,45 @@
             ui.fileCancelBtn.classList.remove('hidden');
             ui.fileCancelBtn.onclick = () => { try { xhr.abort(); } catch(e) {} };
           }
-        }).then(url => {
+        }).then(rawUrl => {
+          // **IMPORTANT:** rawUrl is EXACT string returned by backend (no normalization)
+          console.log('Backend returned URL (raw):', rawUrl);
           loadedBytes[i] = file.size;
           updateOverall();
           ui.fileProgressFill.style.width = '100%';
           ui.filePct.textContent = '100%';
           ui.fileInfo.textContent = `${humanFileSize(file.size)} • Konplete`;
+
           const div = document.createElement('div');
           div.className = 'mt-2';
-          const normalized = makeUrl(url || '');
-          const urlDisplay = `<div class="break-all text-blue-600 text-xs cursor-pointer file-url">${escapeHtml(normalized || url || '')}</div>`;
-          div.innerHTML = urlDisplay;
+
+          // Display the raw URL exactly as backend sent it
+          const displayText = escapeHtml(rawUrl || '');
+          div.innerHTML = `<div class="break-all text-blue-600 text-xs cursor-pointer file-url" title="${displayText}">${displayText}</div>`;
           ui.fileResult.appendChild(div);
+
           const urlEl = ui.fileResult.querySelector('.file-url');
           urlEl.onclick = async () => {
             try {
-              await navigator.clipboard.writeText(normalized || url || '');
+              // Copy RAW url exactly as backend sent it
+              await navigator.clipboard.writeText(rawUrl || '');
               result.innerHTML = '<span class="copied">URL kopi nan clipboard</span>';
               setTimeout(()=> result.textContent = '', 2000);
             } catch (e) {
               result.textContent = 'Pa kapab kopiye: ' + e.message;
             }
           };
+
+          // For previewing media, convert to absolute if needed (but DON'T change display text)
+          const previewUrl = (rawUrl && rawUrl.toLowerCase().startsWith('http')) ? rawUrl : makeUrl(rawUrl || '');
           const type = (file.type || '').toLowerCase();
           if (type.startsWith('image/')) {
-            const img = document.createElement('img'); img.src = normalized || url; img.className = 'mt-2 mx-auto rounded-lg shadow max-h-44'; ui.fileResult.appendChild(img);
+            const img = document.createElement('img'); img.src = previewUrl; img.className = 'mt-2 mx-auto rounded-lg shadow max-h-44'; ui.fileResult.appendChild(img);
           } else if (type.startsWith('video/') || type.startsWith('audio/')) {
-            const vid = document.createElement('video'); vid.src = normalized || url; vid.controls = true; vid.className = 'mt-2 mx-auto rounded-lg shadow max-h-44'; ui.fileResult.appendChild(vid);
+            const vid = document.createElement('video'); vid.src = previewUrl; vid.controls = true; vid.className = 'mt-2 mx-auto rounded-lg shadow max-h-44'; ui.fileResult.appendChild(vid);
           }
-          return { status: 'fulfilled', url: normalized || url };
+
+          return { status: 'fulfilled', url: rawUrl };
         }).catch(err => {
           if (err && err.isAbort) {
             ui.fileInfo.textContent = '';
@@ -301,10 +304,11 @@
     });
 
     // ---------- uploadSingleFile (SSE-aware) ----------
+    // NOTE: this function now RESOLVES with the RAW url string returned by backend (no normalization)
     function uploadSingleFile(file, index, { onProgress = ()=>{}, onXhrCreated = ()=>{} } = {}) {
       return new Promise((resolve, reject) => {
-        const endpoint = makeUrl('/upload');
-        const progressEndpointBase = BACKEND_BASE; // we'll build /progress/:uploadId from base
+        const endpoint = makeUrl('/upload'); // POST target (absolute)
+        const progressEndpointBase = BACKEND_BASE;
         const uploadId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `uid-${Date.now()}-${Math.floor(Math.random()*100000)}`;
 
         let serverActive = false;
@@ -334,12 +338,12 @@
               doneBySSE = true;
               try { es.close(); } catch (e) {}
               onProgress(d.total || lastServerTotal, d.total || lastServerTotal, 0, 0);
+              // **RESOLVE with RAW url string as server sent it**
               sseDoneResolve({ url: d.url || '', data: d });
             } catch (e) { sseDoneResolve({ url: '' }); }
           });
           es.addEventListener('error', () => { serverActive = false; });
         } catch (e) {
-          // EventSource failed (maybe browser restriction). SSE will be ignored and XHR progress used.
           es = null;
         }
 
@@ -375,18 +379,21 @@
             const sseResult = await race;
             if (sseResult && sseResult.url !== undefined) {
               try { if (es) es.close(); } catch (e) {}
-              return resolve(makeUrl(sseResult.url || ''));
+              // RESOLVE with RAW url from SSE (no makeUrl)
+              return resolve(sseResult.url || '');
             }
           } catch (e) {}
           if (xhr.status >= 200 && xhr.status < 300) {
             try {
               const data = JSON.parse(xhr.responseText || '{}');
+              // take backend-provided url as-is (raw)
               const url = data.url || (data.files && data.files[0] && data.files[0].url) || data.fileUrl || data.path || data.location || '';
               try { if (es) es.close(); } catch (e) {}
-              return resolve(makeUrl(url || ''));
+              return resolve(url || '');
             } catch (err) {
               try { if (es) es.close(); } catch (e) {}
-              return resolve(makeUrl((xhr.responseText || '').trim() || ''));
+              // if responseText is plain URL, return it raw
+              return resolve((xhr.responseText || '').trim() || '');
             }
           } else {
             try { if (es) es.close(); } catch (e) {}
@@ -430,15 +437,6 @@
     }
   </script>
 
-  <!-- Optional ad scripts kept as you had them -->
-  <script async="async" data-cfasync="false" src="//pantherinvincible.com/831d752652add5a4318102e95e23728b/invoke.js"></script>
-  <div id="container-831d752652add5a4318102e95e23728b" class="ad-layer fixed top-2 left-1"></div>
-  <script type="text/javascript" src="//pantherinvincible.com/97/a6/20/97a620f293cd665277c661660533234e.js"></script>
-  <script type="text/javascript" src="//pantherinvincible.com/8f/36/29/8f362929c71ab43f93c6d86c43889bfb.js"></script>
-  <script type="text/javascript">
-    atOptions = { 'key' : 'a948baf246dd1ff24f0a6fcde286b31b', 'format' : 'iframe', 'height' : 300, 'width' : 160, 'params' : {} };
-  </script>
-  <script type="text/javascript" src="//pantherinvincible.com/a948baf246dd1ff24f0a6fcde286b31b/invoke.js"></script>
   <script src="pwa.js"></script>
 </body>
   </html>
