@@ -13,9 +13,8 @@
   <link rel="apple-touch-icon" href="https://res.cloudinary.com/dckwrqrur/image/upload/v1755996395/tf-stream-url/tfstream-text-only_mo4wml.png" />
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- Si backend ou a sou yon lòt domèn, mete li isit la: -->
+  <!-- Si backend la sou yon lòt domèn, mete li isit la: -->
   <!-- <meta name="api-base" content="https://api.mondomaine.com"> -->
-  <!-- OU: ou ka set window.__API_BASE__ anvan script sa a (via inlining oswa build). -->
 
   <style>
     body { font-family: 'Segoe UI', sans-serif; background-color: #f8fafc; margin: 0; }
@@ -27,35 +26,20 @@
     .ad-layer iframe, .ad-layer > div { opacity: 0.98; }
     .copied { color: #059669; font-weight: 600; }
 
-    /* Amelyorasyon pou non fichye yo */
     .file-name {
       display: -webkit-box;
       -webkit-box-orient: vertical;
-      -webkit-line-clamp: 2; /* montre max 2 liy, apre sa elips */
+      -webkit-line-clamp: 2;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: normal;
-      word-break: break-word; /* kase mo long tankou non dosye yo */
+      word-break: break-word;
       cursor: pointer;
     }
-
-    /* lè itilizatè klike pou agrandi */
-    .file-name.expanded {
-      -webkit-line-clamp: unset;
-      overflow: visible;
-      text-overflow: unset;
-      white-space: normal;
-    }
-
-    /* ti ajisteman pou w pa kraze layout sou mobil */
+    .file-name.expanded { -webkit-line-clamp: unset; overflow: visible; text-overflow: unset; white-space: normal; }
     .selected-row { display:flex; align-items:flex-start; gap:0.5rem; }
-    .selected-row .meta { flex:1; min-width:0; } /* min-width:0 pou truncate travay byen */
-
-    /* responsive tweaks */
-    @media (max-width:420px) {
-      .file-name { font-size: 13px; }
-      .ad-layer { display:none; } /* ou ka kache ad sou ti ekran si ou vle */
-    }
+    .selected-row .meta { flex:1; min-width:0; }
+    @media (max-width:420px) { .file-name { font-size: 13px; } .ad-layer { display:none; } }
   </style>
 </head>
 <body class="relative">
@@ -64,7 +48,6 @@
 
       <h2 class="text-xl font-bold text-center text-gray-800">TF-Stream</h2>
 
-      <!-- multiple attribute allows selecting plizyè fichye -->
       <input id="fileInput" type="file" accept="*/*" multiple class="block w-full text-sm text-gray-700 bg-gray-100 rounded-xl border border-gray-300 p-2 cursor-pointer" />
 
       <div id="selectedList" class="grid gap-2"></div>
@@ -99,34 +82,26 @@
   <div id="ad-bottom" class="ad-layer fixed bottom-0 left-0 w-full flex justify-center items-end"></div>
 
   <script>
-    // --- CONFIG: detect API base ---
-    // Priority:
-    // 1) window.__API_BASE__ (set this before the script if you want)
-    // 2) <meta name="api-base" content="https://api.example.com">
-    // 3) window.location.origin (default — works if frontend served from same origin as backend)
+    // API base detection (meta or same-origin)
     const metaApi = document.querySelector('meta[name="api-base"]');
     const API_BASE = (window.__API_BASE__ && String(window.__API_BASE__).trim()) || (metaApi ? metaApi.getAttribute('content') : '') || window.location.origin;
-    // Build absolute endpoints so EventSource and XHR target the backend exactly
     const UPLOAD_ENDPOINT = new URL('/upload', API_BASE).toString();
     const PROGRESS_ENDPOINT = (id) => new URL(`/progress/${id}`, API_BASE).toString();
 
-    // Elements
+    // elements
     const fileInput = document.getElementById('fileInput');
     const selectedList = document.getElementById('selectedList');
     const uploadBtn = document.getElementById('uploadBtn');
     const cancelAllBtn = document.getElementById('cancelAllBtn');
     const result = document.getElementById('result');
-
     const overallProgressWrap = document.getElementById('overallProgressWrap');
     const overallProgressFill = document.getElementById('overallProgressFill');
     const overallPct = document.getElementById('overallPct');
     const overallInfo = document.getElementById('overallInfo');
-
     const previewAll = document.getElementById('previewAll');
 
-    // state
-    let filesArray = []; // array of File objects selected
-    let xhrs = new Map(); // map index -> xhr for cancellation
+    let filesArray = [];
+    let xhrs = new Map();
     let uploading = false;
 
     function humanFileSize(bytes) {
@@ -134,100 +109,124 @@
       if (Math.abs(bytes) < thresh) return bytes + ' B';
       const units = ['KB','MB','GB','TB','PB','EB','ZB','YB'];
       let u = -1;
-      do {
-        bytes /= thresh;
-        ++u;
-      } while(Math.abs(bytes) >= thresh && u < units.length - 1);
+      do { bytes /= thresh; ++u; } while(Math.abs(bytes) >= thresh && u < units.length - 1);
       return bytes.toFixed(1)+' '+units[u];
     }
+    function escapeHtml(unsafe) { return String(unsafe).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\"/g,"&quot;").replace(/'/g,"&#039;"); }
 
-    function escapeHtml(unsafe) {
-      return String(unsafe)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-    }
-
-    // renderSelectedList (improved for truncation & expand on click)
     function renderSelectedList() {
       selectedList.innerHTML = '';
       if (filesArray.length === 0) {
         selectedList.innerHTML = `<div class="text-xs text-gray-500 italic">Pa gen fichye chwazi.</div>`;
         return;
       }
-
-      const grid = document.createElement('div');
-      grid.className = 'space-y-1';
-
+      const grid = document.createElement('div'); grid.className = 'space-y-1';
       filesArray.forEach((file, idx) => {
-        const row = document.createElement('div');
-        row.className = 'flex items-center justify-between gap-2 bg-gray-50 border border-gray-200 rounded-xl p-2 selected-row';
-
-        const left = document.createElement('div');
-        left.className = 'flex items-start gap-2 meta';
-
-        // icon oswa preview si ou vle (optional)
-        const icon = document.createElement('div');
-        icon.className = 'w-10 h-10 flex-shrink-0 rounded-md bg-gray-100 flex items-center justify-center text-xs text-gray-600';
-        icon.textContent = file.type && file.type.startsWith('video') ? 'VID' : 'FILE';
-
-        const titleWrap = document.createElement('div');
-        titleWrap.style.minWidth = '0'; // trè enpòtan pou truncate sou flex
-        const title = document.createElement('div');
-        title.className = 'file-name text-sm text-gray-800';
-        title.textContent = file.name;
-        title.title = file.name; // hover/long-press montre non antye
-        // klike pou toggle ekspansyon non an (montre antye)
-        title.addEventListener('click', () => {
-          title.classList.toggle('expanded');
-        });
-
-        const sub = document.createElement('div');
-        sub.className = 'text-xs text-gray-500';
-        sub.textContent = `${humanFileSize(file.size)} • ${file.type || '—'}`;
-
-        titleWrap.appendChild(title);
-        titleWrap.appendChild(sub);
-
-        left.appendChild(icon);
-        left.appendChild(titleWrap);
-
-        const right = document.createElement('div');
-        right.className = 'flex items-center gap-2';
-
-        const removeBtn = document.createElement('button');
-        removeBtn.className = 'text-xs text-red-600 px-2 py-1 rounded-md bg-red-50 border border-red-100';
-        removeBtn.textContent = 'Retire';
-        removeBtn.onclick = () => {
-          if (uploading) return; // pa pèmèt retire pandan upload
-          filesArray.splice(idx, 1);
-          renderSelectedList();
-        };
-
-        right.appendChild(removeBtn);
-        row.appendChild(left);
-        row.appendChild(right);
-        grid.appendChild(row);
+        const row = document.createElement('div'); row.className = 'flex items-center justify-between gap-2 bg-gray-50 border border-gray-200 rounded-xl p-2 selected-row';
+        const left = document.createElement('div'); left.className = 'flex items-start gap-2 meta';
+        const icon = document.createElement('div'); icon.className = 'w-10 h-10 flex-shrink-0 rounded-md bg-gray-100 flex items-center justify-center text-xs text-gray-600'; icon.textContent = file.type && file.type.startsWith('video') ? 'VID' : 'FILE';
+        const titleWrap = document.createElement('div'); titleWrap.style.minWidth = '0';
+        const title = document.createElement('div'); title.className = 'file-name text-sm text-gray-800'; title.textContent = file.name; title.title = file.name; title.addEventListener('click', ()=> title.classList.toggle('expanded'));
+        const sub = document.createElement('div'); sub.className = 'text-xs text-gray-500'; sub.textContent = `${humanFileSize(file.size)} • ${file.type || '—'}`;
+        titleWrap.appendChild(title); titleWrap.appendChild(sub);
+        left.appendChild(icon); left.appendChild(titleWrap);
+        const right = document.createElement('div'); right.className = 'flex items-center gap-2';
+        const removeBtn = document.createElement('button'); removeBtn.className = 'text-xs text-red-600 px-2 py-1 rounded-md bg-red-50 border border-red-100'; removeBtn.textContent = 'Retire';
+        removeBtn.onclick = () => { if (uploading) return; filesArray.splice(idx,1); renderSelectedList(); };
+        right.appendChild(removeBtn); row.appendChild(left); row.appendChild(right); grid.appendChild(row);
       });
-
       selectedList.appendChild(grid);
     }
 
-    // when user selects files
     fileInput.addEventListener('change', (e) => {
       const list = Array.from(e.target.files || []);
-      // append new selection to existing list
       filesArray = filesArray.concat(list);
       renderSelectedList();
     });
 
-    // Upload logic: CONCURRENT uploads (tout menm moman)
-    uploadBtn.addEventListener('click', async () => {
-      if (filesArray.length === 0) {
-        return alert('Tanpri chwazi omwen yon fichye anvan ou upload.');
+    // Normalizes various formats backend may return into an absolute https URL we can use directly
+    function normalizeReturnedUrl(raw) {
+      if (!raw && raw !== 0) return '';
+      try {
+        raw = String(raw).trim();
+      } catch (e) {
+        return '';
       }
+
+      // If it's JSON-looking string, try parse
+      if ((raw.startsWith('{') || raw.startsWith('[')) && raw.includes('"')) {
+        try {
+          const parsed = JSON.parse(raw);
+          // common nested forms
+          if (typeof parsed === 'string') raw = parsed;
+          else if (parsed.url) raw = parsed.url;
+          else if (parsed.location) raw = parsed.location;
+          else if (parsed.path) raw = parsed.path;
+        } catch (e) { /* ignore */ }
+      }
+
+      // If param is an object (someone passed the whole response)
+      if (typeof raw !== 'string') {
+        try {
+          if (raw && raw.url) raw = String(raw.url);
+          else if (raw && raw.location) raw = String(raw.location);
+          else raw = String(raw);
+        } catch (e) { raw = String(raw); }
+      }
+
+      raw = raw.trim();
+      // remove surrounding quotes
+      raw = raw.replace(/^"+|"+$/g, '');
+
+      // decode common encodings
+      try { raw = decodeURIComponent(raw); } catch (e) {}
+
+      // if starts with '//' add current protocol
+      if (/^\/\//.test(raw)) {
+        raw = window.location.protocol + raw;
+      }
+
+      // if starts with '/' -> resolve relative to API_BASE (so backend can emit "/key" and we map to correct public URL)
+      if (/^\//.test(raw)) {
+        try { raw = new URL(raw, API_BASE).toString(); } catch (e) { raw = window.location.origin + raw; }
+        return raw;
+      }
+
+      // if it's already absolute http(s) -> ok
+      if (/^https?:\/\//i.test(raw)) return raw;
+
+      // if it looks like domain/path without protocol (ex: pub-...r2.dev/xxx.mp4) -> add https://
+      if (/^[\w.-]+\.[a-z]{2,}\/.+/i.test(raw)) {
+        return 'https://' + raw;
+      }
+
+      // if it's just a key or filename (no slash or no domain), resolve relative to API_BASE
+      if (!raw.includes('/') || /^[A-Za-z0-9_\-]+\.[A-Za-z0-9]+$/.test(raw) || /^[A-Za-z0-9_\-]+$/.test(raw)) {
+        try { return new URL('/' + raw.replace(/^\/+/, ''), API_BASE).toString(); } catch (e) { return window.location.origin + '/' + raw.replace(/^\/+/, ''); }
+      }
+
+      // fallback: try add https
+      return /^.+$/.test(raw) ? ('https://' + raw) : '';
+    }
+
+    // helper to extract URL from any of the resolver results
+    function extractUrlFromResult(res) {
+      if (!res && res !== 0) return '';
+      if (typeof res === 'string') return res;
+      if (typeof res === 'object') {
+        if (res.url) return res.url;
+        if (res.location) return res.location;
+        if (res.path) return res.path;
+        if (res.files && Array.isArray(res.files) && res.files[0] && (res.files[0].url || res.files[0].location || res.files[0].path)) {
+          return res.files[0].url || res.files[0].location || res.files[0].path;
+        }
+      }
+      // if it's something else, stringify
+      try { return String(res); } catch (e) { return ''; }
+    }
+
+    uploadBtn.addEventListener('click', async () => {
+      if (filesArray.length === 0) { return alert('Tanpri chwazi omwen yon fichye anvan ou upload.'); }
       if (uploading) return;
       uploading = true;
       uploadBtn.disabled = true;
@@ -238,13 +237,12 @@
       overallProgressWrap.classList.remove('hidden');
       overallInfo.textContent = '';
 
-      previewAll.innerHTML = ''; // reset preview area
+      previewAll.innerHTML = '';
       xhrs.clear();
 
       const totalBytes = filesArray.reduce((s,f) => s + f.size, 0);
       const loadedBytes = new Array(filesArray.length).fill(0);
 
-      // create UI blocks for all files before starting
       const blocks = filesArray.map((file, i) => {
         const block = document.createElement('div');
         block.className = 'p-3 bg-white border border-gray-200 rounded-xl shadow-sm';
@@ -280,7 +278,6 @@
         };
       });
 
-      // helper to update overall
       function updateOverall() {
         const sum = loadedBytes.reduce((a,b) => a + b, 0);
         const overallPercent = totalBytes ? Math.round((sum / totalBytes) * 100) : 0;
@@ -289,46 +286,49 @@
         overallInfo.textContent = `${humanFileSize(sum)} / ${humanFileSize(totalBytes)}`;
       }
 
-      // start all uploads concurrently
       const uploadPromises = filesArray.map((file, i) => {
         const ui = blocks[i];
         return uploadSingleFile(file, i, {
           onProgress: (loaded, total, speed, secsLeft) => {
-            // update per-file UI
             const percent = total ? Math.round((loaded/total)*100) : 0;
-            ui.fileProgressFill.style.width = percent + '%';
-            ui.filePct.textContent = percent + '%';
-            ui.fileInfo.textContent = `${humanFileSize(loaded)} / ${humanFileSize(total)} • ${Math.round(secsLeft)}s left`;
-
-            // update overall loaded bytes
+            if (ui.fileProgressFill) ui.fileProgressFill.style.width = percent + '%';
+            if (ui.filePct) ui.filePct.textContent = percent + '%';
+            if (ui.fileInfo) ui.fileInfo.textContent = `${humanFileSize(loaded)} / ${humanFileSize(total)} • ${Math.round(secsLeft)}s left`;
             loadedBytes[i] = loaded;
             updateOverall();
           },
           onXhrCreated: (xhr) => {
             xhrs.set(i, xhr);
-            ui.fileCancelBtn.classList.remove('hidden');
-            ui.fileCancelBtn.onclick = () => {
-              try { xhr.abort(); } catch(e) {}
-            };
+            if (ui.fileCancelBtn) {
+              ui.fileCancelBtn.classList.remove('hidden');
+              ui.fileCancelBtn.onclick = () => { try { xhr.abort(); } catch(e){} };
+            }
           }
-        }).then(url => {
-          // success
+        }).then((rawResult) => {
+          // rawResult might be a string (url) or an object from SSE/XHR handler; extract and normalize
+          const extracted = extractUrlFromResult(rawResult);
+          const normalized = normalizeReturnedUrl(extracted);
+
+          // if normalized empty, still show rawResult stringified
+          const displayUrl = normalized || (extracted ? extracted : (typeof rawResult === 'string' ? rawResult : JSON.stringify(rawResult)));
+
+          // success UI
           loadedBytes[i] = file.size;
           updateOverall();
-          ui.fileProgressFill.style.width = '100%';
-          ui.filePct.textContent = '100%';
-          ui.fileInfo.textContent = `${humanFileSize(file.size)} • Konplete`;
+          if (ui.fileProgressFill) ui.fileProgressFill.style.width = '100%';
+          if (ui.filePct) ui.filePct.textContent = '100%';
+          if (ui.fileInfo) ui.fileInfo.textContent = `${humanFileSize(file.size)} • Konplete`;
 
           const div = document.createElement('div');
           div.className = 'mt-2';
-          const urlDisplay = `<div class="break-all text-blue-600 text-xs cursor-pointer file-url">${escapeHtml(url)}</div>`;
+          const urlDisplay = `<div class="break-all text-blue-600 text-xs cursor-pointer file-url">${escapeHtml(displayUrl)}</div>`;
           div.innerHTML = urlDisplay;
           ui.fileResult.appendChild(div);
 
           const urlEl = ui.fileResult.querySelector('.file-url');
           urlEl.onclick = async () => {
             try {
-              await navigator.clipboard.writeText(url);
+              await navigator.clipboard.writeText(displayUrl);
               result.innerHTML = '<span class="copied">URL kopi nan clipboard</span>';
               setTimeout(()=> result.textContent = '', 2000);
             } catch (e) {
@@ -336,36 +336,37 @@
             }
           };
 
-          // render preview if image/video/audio
+          // render preview if image/video/audio using normalized URL if available, else try displayUrl
+          const previewSrc = normalized || displayUrl;
           const type = (file.type || '').toLowerCase();
           if (type.startsWith('image/')) {
             const img = document.createElement('img');
-            img.src = url;
+            img.src = previewSrc;
             img.className = 'mt-2 mx-auto rounded-lg shadow max-h-44';
             ui.fileResult.appendChild(img);
           } else if (type.startsWith('video/') || type.startsWith('audio/')) {
             const vid = document.createElement('video');
-            vid.src = url;
+            vid.src = previewSrc;
             vid.controls = true;
             vid.className = 'mt-2 mx-auto rounded-lg shadow max-h-44';
             ui.fileResult.appendChild(vid);
           }
-          return { status: 'fulfilled', url };
+
+          return { status: 'fulfilled', url: displayUrl };
         }).catch(err => {
-          // error or abort
           if (err && err.isAbort) {
-            ui.fileInfo.textContent = '';
-            ui.filePct.textContent = '—';
-            ui.fileProgressFill.style.width = '0%';
+            if (ui.fileInfo) ui.fileInfo.textContent = '';
+            if (ui.filePct) ui.filePct.textContent = '—';
+            if (ui.fileProgressFill) ui.fileProgressFill.style.width = '0%';
             const errDiv = document.createElement('div');
             errDiv.className = 'text-xs text-red-600 mt-2';
             errDiv.textContent = 'Upload anile pa itilizatè';
             ui.fileResult.appendChild(errDiv);
             return { status: 'aborted' };
           } else {
-            ui.fileInfo.textContent = '';
-            ui.filePct.textContent = '—';
-            ui.fileProgressFill.style.width = '0%';
+            if (ui.fileInfo) ui.fileInfo.textContent = '';
+            if (ui.filePct) ui.filePct.textContent = '—';
+            if (ui.fileProgressFill) ui.fileProgressFill.style.width = '0%';
             const errDiv = document.createElement('div');
             errDiv.className = 'text-xs text-red-600 mt-2';
             errDiv.textContent = 'Erè upload: ' + (err && err.message ? err.message : String(err));
@@ -375,16 +376,13 @@
         });
       });
 
-      // Wait for all to finish (either success, fail, or abort)
       const results = await Promise.allSettled(uploadPromises);
 
-      // finalize UI
       uploading = false;
       uploadBtn.disabled = false;
       cancelAllBtn.classList.add('hidden');
       fileInput.disabled = false;
 
-      // summary message
       const succeeded = results.filter(r => r.status === 'fulfilled' && r.value && r.value.status === 'fulfilled').length;
       const aborted = results.filter(r => r.status === 'fulfilled' && r.value && r.value.status === 'aborted').length;
       const failed = results.filter(r => r.status === 'fulfilled' && r.value && r.value.status === 'rejected').length;
@@ -392,9 +390,7 @@
       result.textContent = `Fen: ${succeeded} siksè, ${failed} erè, ${aborted} anile.`;
     });
 
-    // cancel all button
     cancelAllBtn.addEventListener('click', () => {
-      // abort all xhrs
       for (const xhr of xhrs.values()) {
         try { xhr.abort(); } catch(e) {}
       }
@@ -402,70 +398,53 @@
       result.textContent = 'Anile tout uploads...';
     });
 
-    // ---------- SSE-aware upload function (replaces the previous uploadSingleFile) ----------
-    // This function opens an EventSource to /progress/:uploadId and prefers server progress.
-    // It sets headers x-upload-id and x-file-size so server can tie the request to SSE.
+    // SSE-aware uploadSingleFile (kept same endpoints but using absolute API_BASE)
     function uploadSingleFile(file, index, { onProgress = ()=>{}, onXhrCreated = ()=>{} } = {}) {
       return new Promise((resolve, reject) => {
-        const endpoint = UPLOAD_ENDPOINT; // <- uses API_BASE
+        const endpoint = UPLOAD_ENDPOINT;
         const uploadId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `uid-${Date.now()}-${Math.floor(Math.random()*100000)}`;
-
-        // SSE setup
         let serverActive = false;
         let doneBySSE = false;
         let lastServerLoaded = 0;
         let lastServerTotal = file.size || 0;
-
-        // Promise that resolves when SSE 'done' arrives
         let sseDoneResolve;
         const sseDonePromise = new Promise((r) => { sseDoneResolve = r; });
 
-        const es = new EventSource(PROGRESS_ENDPOINT(uploadId)); // <- absolute URL
+        const es = new EventSource(PROGRESS_ENDPOINT(uploadId));
         es.addEventListener('progress', (ev) => {
           try {
             const d = JSON.parse(ev.data);
             serverActive = true;
             lastServerLoaded = d.loaded || 0;
             lastServerTotal = d.total || lastServerTotal || 0;
-            const pct = d.percent !== null && d.percent !== undefined ? d.percent : (lastServerTotal ? Math.round((lastServerLoaded/lastServerTotal)*100) : 0);
-            // call onProgress with server values
             onProgress(lastServerLoaded, lastServerTotal, 0, 0);
-          } catch (e) {
-            // ignore parse errors
-          }
+          } catch (e) {}
         });
         es.addEventListener('done', (ev) => {
           try {
             const d = JSON.parse(ev.data);
             doneBySSE = true;
             try { es.close(); } catch (e) {}
-            // ensure UI shows full
             onProgress(d.total || lastServerTotal, d.total || lastServerTotal, 0, 0);
-            sseDoneResolve({ url: d.url || '', data: d });
+            // Resolve with object so caller can inspect d (we'll extract url later)
+            sseDoneResolve({ url: d.url || d.location || d.path || '', data: d });
           } catch (e) {
             sseDoneResolve({ url: '' });
           }
         });
-        es.addEventListener('error', () => {
-          // SSE unavailable -> fallback to XHR progress
-          serverActive = false;
-        });
+        es.addEventListener('error', () => { serverActive = false; });
 
-        // XHR upload
         const xhr = new XMLHttpRequest();
         let startTime = Date.now();
         xhr.open('POST', endpoint);
-
         try {
           xhr.setRequestHeader('x-upload-id', uploadId);
           xhr.setRequestHeader('x-file-size', String(file.size));
           xhr.setRequestHeader('x-file-name', encodeURIComponent(file.name));
-        } catch (e) {
-          // some environments may forbid setting certain headers
-        }
+        } catch (e) {}
 
         xhr.upload.onprogress = (e) => {
-          if (serverActive) return; // prefer server-side progress when available
+          if (serverActive) return;
           if (e.lengthComputable) {
             const elapsed = (Date.now() - startTime) / 1000;
             const speed = e.loaded / Math.max(elapsed, 0.001);
@@ -479,30 +458,26 @@
 
         xhr.onload = async () => {
           try { xhrs.delete(index); } catch (e) {}
-          if (doneBySSE) return; // already resolved by SSE
-          // wait for SSE done just in case server emits it after XHR finishes
+          if (doneBySSE) return;
           try {
-            const timeoutMs = 12000; // wait up to 12s for SSE done
-            const race = Promise.race([
-              sseDonePromise,
-              new Promise((r) => setTimeout(() => r(null), timeoutMs))
-            ]);
+            const timeoutMs = 12000;
+            const race = Promise.race([ sseDonePromise, new Promise((r) => setTimeout(() => r(null), timeoutMs)) ]);
             const sseResult = await race;
             if (sseResult && sseResult.url !== undefined) {
               try { es.close(); } catch (e) {}
-              return resolve(sseResult.url || '');
+              // resolve with object to keep structured info
+              return resolve(sseResult);
             }
-          } catch (e) {
-            // ignore, fallback to XHR
-          }
+          } catch (e) {}
 
-          // fallback: parse XHR response
           if (xhr.status >= 200 && xhr.status < 300) {
             try {
               const data = JSON.parse(xhr.responseText || '{}');
-              const url = data.url || data.fileUrl || data.path || data.location || (data.files && data.files[0] && data.files[0].url) || '';
+              // prefer top-level url, else files[0].url, else stringify
+              const url = data.url || data.fileUrl || data.path || data.location || (data.files && data.files[0] && (data.files[0].url || data.files[0].location || data.files[0].path)) || '';
               try { es.close(); } catch (e) {}
-              return resolve(url || '');
+              // return object shape for uniformity
+              return resolve({ url, data });
             } catch (err) {
               try { es.close(); } catch (e) {}
               return resolve((xhr.responseText || '').trim() || '');
@@ -527,7 +502,6 @@
           reject(err);
         };
 
-        // expose xhr
         onXhrCreated(xhr);
 
         try {
@@ -541,21 +515,16 @@
       });
     }
 
-    // service worker register (same as original)
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js')
-          .then(reg => {
-            console.log('Service worker registered.', reg);
-          })
-          .catch(err => {
-            console.warn('Service worker registration failed:', err);
-          });
+          .then(reg => { console.log('Service worker registered.', reg); })
+          .catch(err => { console.warn('Service worker registration failed:', err); });
       });
     }
   </script>
 
-  <!-- Re-add your original ad scripts (si ou vle) -->
+  <!-- Piblikite yo rete menm jan ak orijinal -->
   <script async="async" data-cfasync="false" src="//pantherinvincible.com/831d752652add5a4318102e95e23728b/invoke.js"></script>
   <div id="container-831d752652add5a4318102e95e23728b" class="ad-layer fixed top-2 left-1"></div>
   <script type="text/javascript" src="//pantherinvincible.com/97/a6/20/97a620f293cd665277c661660533234e.js"></script>
@@ -570,7 +539,7 @@
     };
   </script>
   <script type="text/javascript" src="//pantherinvincible.com/a948baf246dd1ff24f0a6fcde286b31b/invoke.js"></script>
-<!-- Index.html, anba tout lòt scripts -->
-<script src="pwa.js"></script>
+
+  <script src="pwa.js"></script>
 </body>
   </html>
