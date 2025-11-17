@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="ht">
 <head>
@@ -15,7 +16,7 @@
 
   <style>
     body { font-family: 'Segoe UI', sans-serif; background-color: #f8fafc; margin: 0; }
-    .ad-layer { pointer-events: auto; z-index: 9999; } /* piblisite aktive */
+    .ad-layer { pointer-events: auto; z-index: 9999; }
     #mainUI { position: relative; z-index: 10001; }
     #ad-left, #ad-right { width: 90px; max-width: 120px; }
     #ad-top, #ad-bottom { height: 90px; }
@@ -46,17 +47,14 @@
       .ad-layer { display:none; }
     }
 
-    /* ensure long urls break */
     .file-url { word-break: break-all; }
 
-    /* small responsive preview limits */
     img.max-preview, video.max-preview, audio.max-preview { max-height: 180px; max-width: 100%; display:block; margin: 0.5rem auto; }
   </style>
 </head>
 <body class="relative">
   <div id="mainUI" class="flex items-center justify-center min-h-screen p-4">
     <div class="bg-white w-full max-w-2xl rounded-3xl shadow-xl p-6 space-y-5">
-
       <h2 class="text-xl font-bold text-center text-gray-800">TF-Stream</h2>
 
       <input id="fileInput" type="file" accept="*/*" multiple class="block w-full text-sm text-gray-700 bg-gray-100 rounded-xl border border-gray-300 p-2 cursor-pointer" />
@@ -86,14 +84,12 @@
     </div>
   </div>
 
-  <!-- ad-layer placeholders -->
   <div id="ad-top" class="ad-layer fixed top-0 left-0 w-full flex justify-center items-start"></div>
   <div id="ad-left" class="ad-layer fixed top-1/4 left-0 h-1/2 flex items-center"></div>
   <div id="ad-right" class="ad-layer fixed top-1/4 right-0 h-1/2 flex items-center"></div>
   <div id="ad-bottom" class="ad-layer fixed bottom-0 left-0 w-full flex justify-center items-end"></div>
 
   <script>
-    // ---------- Elements ----------
     const fileInput = document.getElementById('fileInput');
     const selectedList = document.getElementById('selectedList');
     const uploadBtn = document.getElementById('uploadBtn');
@@ -107,12 +103,10 @@
 
     const previewAll = document.getElementById('previewAll');
 
-    // ---------- State ----------
     let filesArray = [];
     let xhrs = new Map();
     let uploading = false;
 
-    // ---------- Utilities ----------
     function humanFileSize(bytes) {
       const thresh = 1024;
       if (Math.abs(bytes) < thresh) return bytes + ' B';
@@ -129,7 +123,6 @@
                            .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
     }
 
-    // ---------- New helpers: normalizeUrl + renderPreview ----------
     function normalizeUrl(u) {
       try {
         if (!u) return '';
@@ -139,29 +132,21 @@
       }
     }
 
-    /**
-     * containerOrUi: either the ui object ({ fileResult, ... }) or the DOM element where previews should be appended
-     * file: the original File object (so we can use its type if present)
-     * url: the public URL returned by backend
-     */
     function renderPreview(containerOrUi, file, url) {
       if (!url) return;
       const container = (containerOrUi && containerOrUi.fileResult) ? containerOrUi.fileResult : containerOrUi;
       if (!container) return;
-      // avoid duplicate previews
       if (container.querySelector('img') || container.querySelector('video') || container.querySelector('audio')) return;
 
       const normalized = normalizeUrl(url);
       const type = (file && file.type) ? file.type.toLowerCase() : '';
 
-      // Prefer file.type when available
       if (type.startsWith('image/')) {
         const img = document.createElement('img');
         img.src = normalized;
         img.alt = file && file.name ? file.name : 'image';
         img.className = 'mt-2 mx-auto rounded-lg shadow max-preview';
         img.onerror = () => {
-          // if can’t load (CORS etc) show small message
           const e = document.createElement('div');
           e.className = 'text-xs text-red-600 mt-2';
           e.textContent = 'Pa kapab chaje preview imaj (CORS / URL erè)';
@@ -181,7 +166,6 @@
         aud.className = 'mt-2 mx-auto';
         container.appendChild(aud);
       } else {
-        // fallback: inspect url extension
         try {
           const ext = normalized.split('?')[0].split('.').pop().toLowerCase();
           if (['png','jpg','jpeg','gif','webp','svg'].includes(ext)) {
@@ -197,13 +181,10 @@
             vid.className = 'mt-2 mx-auto rounded-lg shadow max-preview';
             container.appendChild(vid);
           }
-        } catch (e) {
-          // silently ignore
-        }
+        } catch (e) {}
       }
     }
 
-    // ---------- Render selected list ----------
     function renderSelectedList() {
       selectedList.innerHTML = '';
       if (filesArray.length === 0) {
@@ -249,7 +230,6 @@
       renderSelectedList();
     });
 
-    // ---------- Upload flow (batch UploadId + single EventSource) ----------
     uploadBtn.addEventListener('click', async () => {
       if (filesArray.length === 0) return alert('Tanpri chwazi omwen yon fichye anvan ou upload.');
       if (uploading) return;
@@ -266,7 +246,6 @@
       const totalBytes = filesArray.reduce((s,f) => s + f.size, 0);
       const loadedBytes = new Array(filesArray.length).fill(0);
 
-      // create UI blocks
       const blocks = filesArray.map((file, i) => {
         const block = document.createElement('div');
         block.className = 'p-3 bg-white border border-gray-200 rounded-xl shadow-sm';
@@ -310,15 +289,13 @@
         overallInfo.textContent = `${humanFileSize(sum)} / ${humanFileSize(totalBytes)}`;
       }
 
-      // create batchUploadId and single EventSource
       const batchUploadId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `batch-${Date.now()}-${Math.floor(Math.random()*100000)}`;
       const es = new EventSource(`/progress/${batchUploadId}`);
-      es.addEventListener('connected', () => console.log('SSE connected for batch', batchUploadId));
-      es.addEventListener('error', (e) => console.warn('SSE error', e));
+      es.addEventListener('connected', () => {});
+      es.addEventListener('error', (e) => {});
       es.addEventListener('progress', (ev) => {
         try {
           const d = JSON.parse(ev.data);
-          // match by filename (if duplicates exist matching may choose first)
           const idx = filesArray.findIndex(f => f.name === d.filename);
           if (idx === -1) return;
           const ui = blocks[idx];
@@ -350,28 +327,20 @@
 
           const urlEl = ui.fileResult.querySelector('.file-url');
           urlEl.onclick = async () => {
-            try { await navigator.clipboard.writeText(d.url); result.innerHTML = '<span class=\"copied\">URL kopi nan clipboard</span>'; setTimeout(()=> result.textContent = '', 2000); }
+            try { await navigator.clipboard.writeText(d.url); result.innerHTML = '<span class="copied">URL kopi nan clipboard</span>'; setTimeout(()=> result.textContent = '', 2000); }
             catch (e) { result.textContent = 'Pa kapab kopiye: ' + e.message; }
           };
 
-          // <-- IMPORTANT: render preview here -->
-          try { renderPreview(ui, filesArray[idx], d.url); } catch(e) { /* ignore */ }
+          try { renderPreview(ui, filesArray[idx], d.url); } catch(e) {}
         } catch (err) {}
       });
-      es.addEventListener('batch-done', (ev) => {
-        try {
-          const data = JSON.parse(ev.data);
-          console.log('batch-done', data);
-        } catch(e){}
-      });
+      es.addEventListener('batch-done', (ev) => {});
 
-      // launch all uploads concurrently but pass same batchUploadId
       const uploadPromises = filesArray.map((file, i) => {
         const ui = blocks[i];
         return uploadSingleFile(file, i, {
           uploadId: batchUploadId,
           onProgress: (loaded, total, speed, secsLeft) => {
-            // only used if SSE not available for that file
             const percent = total ? Math.round((loaded/total)*100) : 0;
             ui.fileProgressFill.style.width = percent + '%';
             ui.filePct.textContent = percent + '%';
@@ -385,9 +354,7 @@
             ui.fileCancelBtn.onclick = () => { try { xhr.abort(); } catch(e) {} };
           }
         }).then(url => {
-          // resolved URL (sometimes SSE already handled UI)
           if (!url) return { status:'fulfilled', url: '' };
-          // ensure UI shows url if SSE didn't
           const existing = ui.fileResult.querySelector('.file-url');
           if (!existing) {
             const div = document.createElement('div');
@@ -400,8 +367,7 @@
               try { await navigator.clipboard.writeText(url); result.innerHTML = '<span class="copied">URL kopi nan clipboard</span>'; setTimeout(()=> result.textContent = '', 2000); }
               catch (e) { result.textContent = 'Pa kapab kopiye: ' + e.message; }
             };
-            // <-- IMPORTANT: render preview here too -->
-            try { renderPreview(ui, file, url); } catch(e){ /* ignore */ }
+            try { renderPreview(ui, file, url); } catch(e){}
           }
           return { status: 'fulfilled', url };
         }).catch(err => {
@@ -427,35 +393,28 @@
         });
       });
 
-      // wait for all
       const results = await Promise.allSettled(uploadPromises);
 
-      // finalize UI
       uploading = false;
       uploadBtn.disabled = false;
       cancelAllBtn.classList.add('hidden');
       fileInput.disabled = false;
 
-      // summary
       const succeeded = results.filter(r => r.status === 'fulfilled' && r.value && r.value.status === 'fulfilled').length;
       const aborted = results.filter(r => r.status === 'fulfilled' && r.value && r.value.status === 'aborted').length;
       const failed = results.filter(r => r.status === 'fulfilled' && r.value && r.value.status === 'rejected').length;
       overallInfo.textContent = `Konplete: ${humanFileSize(loadedBytes.reduce((a,b)=>a+b,0))}`;
       result.textContent = `Fen: ${succeeded} siksè, ${failed} erè, ${aborted} anile.`;
 
-      // close SSE after short grace period
       setTimeout(() => { try { es.close(); } catch(e) {} }, 2000);
     });
 
-    // cancel all
     cancelAllBtn.addEventListener('click', () => {
       for (const xhr of xhrs.values()) { try { xhr.abort(); } catch(e) {} }
       xhrs.clear();
       result.textContent = 'Anile tout uploads...';
     });
 
-    // ---------- uploadSingleFile (no EventSource inside) ----------
-    // accepts { uploadId, onProgress, onXhrCreated }
     function uploadSingleFile(file, index, { uploadId = null, onProgress = ()=>{}, onXhrCreated = ()=>{} } = {}) {
       return new Promise((resolve, reject) => {
         const endpoint = `/upload`;
@@ -466,7 +425,6 @@
         try {
           if (uploadId) xhr.setRequestHeader('x-upload-id', uploadId);
           xhr.setRequestHeader('x-file-size', String(file.size));
-          // don't rely on custom file-name header; busboy reads filename from multipart
         } catch (e) {}
 
         xhr.upload.onprogress = (e) => {
@@ -486,7 +444,6 @@
           if (xhr.status >= 200 && xhr.status < 300) {
             try {
               const data = JSON.parse(xhr.responseText || '{}');
-              // server may return: { url } or { file: { url } } or { files: [...] }
               const url = data.url || (data.file && data.file.url) || (data.files && data.files[0] && (data.files[0].url || data.files[0].fileUrl || data.files[0].path || data.files[0].location)) || '';
               return resolve(url || '');
             } catch (err) {
@@ -521,31 +478,15 @@
       });
     }
 
-    // service worker register (same as original)
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js')
-          .then(reg => { console.log('Service worker registered.', reg); })
-          .catch(err => { console.warn('Service worker registration failed:', err); });
+          .then(reg => {})
+          .catch(err => {});
       });
     }
   </script>
 
-  <!-- Re-add your original ad scripts (si ou vle) -->
-  <script async="async" data-cfasync="false" src="//pantherinvincible.com/831d752652add5a4318102e95e23728b/invoke.js"></script>
-  <div id="container-831d752652add5a4318102e95e23728b" class="ad-layer fixed top-2 left-1"></div>
-  <script type="text/javascript" src="//pantherinvincible.com/97/a6/20/97a620f293cd665277c661660533234e.js"></script>
-  <script type="text/javascript" src="//pantherinvincible.com/8f/36/29/8f362929c71ab43f93c6d86c43889bfb.js"></script>
-  <script type="text/javascript">
-    atOptions = {
-      'key' : 'a948baf246dd1ff24f0a6fcde286b31b',
-      'format' : 'iframe',
-      'height' : 300,
-      'width' : 160,
-      'params' : {}
-    };
-  </script>
-  <script type="text/javascript" src="//pantherinvincible.com/a948baf246dd1ff24f0a6fcde286b31b/invoke.js"></script>
   <script src="pwa.js"></script>
 </body>
-</html>
+  </html>
