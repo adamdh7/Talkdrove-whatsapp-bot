@@ -1,127 +1,75 @@
-
 <!DOCTYPE html>
 <html lang="ht">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TF Universal Math & Paradox Engine</title>
+    <title>TF Logic Engine</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
-    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
     <style>
-        body { background-color: #000000; color: #e2e8f0; font-family: 'Georgia', serif; }
-        .logic-card { background: #050505; border: 1px solid #1a1a1a; position: relative; }
-        .step-box { border-left: 2px solid #3b82f6; background: rgba(59, 130, 246, 0.05); }
-        .paradox-text { font-style: italic; color: #94a3b8; border-top: 1px solid #1e293b; padding-top: 10px; }
-        .math-res { font-family: 'Courier New', monospace; text-shadow: 0 0 20px rgba(59, 130, 246, 0.5); }
+        body { background: #000; color: #fff; font-family: monospace; }
+        .log-entry { border-left: 2px solid #3b82f6; padding-left: 10px; margin: 10px 0; font-size: 13px; color: #888; }
+        .res-highlight { color: #4ade80; font-weight: bold; }
     </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-4">
 
-    <div class="logic-card w-full max-w-2xl rounded-[3rem] p-10 shadow-2xl">
-        <div class="flex justify-between items-start mb-10">
-            <div>
-                <h1 class="text-blue-500 font-black tracking-widest text-xs uppercase">TF Math Multiverse</h1>
-                <p class="text-[10px] text-zinc-500">Logique, Paradoxes & Analyse Universelle</p>
-            </div>
-            <div id="historik" class="text-[10px] text-zinc-700 font-mono">ID: ARCHIVE_777</div>
-        </div>
+    <div class="w-full max-w-xl bg-[#080808] border border-zinc-900 rounded-3xl p-8">
+        <h2 class="text-blue-500 text-[10px] tracking-widest mb-6 uppercase">Real-Time Logic Parser</h2>
+        
+        <input id="mathIn" type="text" placeholder="Egz: (10 + 5) * 2 / 3" 
+            class="w-full bg-zinc-950 border border-zinc-800 p-5 rounded-2xl outline-none focus:border-blue-600 text-xl mb-6">
 
-        <div class="mb-8">
-            <input id="mainInput" type="text" placeholder="Antre yon kalkil, yon ansanm, oswa yon paradòks..." 
-                class="w-full bg-zinc-900 border border-zinc-800 p-6 rounded-3xl outline-none focus:border-blue-600 transition text-2xl font-bold text-center">
-            <div class="flex gap-2 mt-4 justify-center">
-                <button onclick="process('math')" class="px-4 py-2 bg-zinc-800 rounded-full text-[10px] hover:bg-blue-900 transition">MATEMATIK</button>
-                <button onclick="process('logic')" class="px-4 py-2 bg-zinc-800 rounded-full text-[10px] hover:bg-purple-900 transition">LOGIK</button>
-                <button onclick="process('geo')" class="px-4 py-2 bg-zinc-800 rounded-full text-[10px] hover:bg-green-900 transition">JEWOMETRI</button>
-            </div>
-        </div>
+        <button onclick="runLogic()" class="w-full bg-blue-600 p-4 rounded-xl font-bold hover:bg-blue-500 transition">ANALIZE LOJIK LA</button>
 
-        <div id="displayArea" class="hidden space-y-6">
-            <div id="steps" class="space-y-3"></div>
-            
-            <div class="py-8 bg-zinc-950 rounded-[2.5rem] border border-zinc-900 text-center">
-                <div id="finalVal" class="math-res text-6xl font-black mb-2"></div>
-                <div id="subVal" class="text-blue-400 text-sm font-serif"></div>
+        <div id="console" class="mt-8 space-y-2">
             </div>
-
-            <div id="paradoxContainer" class="paradox-text text-xs text-center"></div>
-        </div>
     </div>
 
     <script>
-        const paradoxes = [
-            "Si de bagay pa gen anyen an komen, yo gen sa an komen ke yo pa gen anyen an komen.",
-            "Nan yon sèk, kòmansman an ak lafen an se menm bagay. (Heraclitus)",
-            "Paradòks Manti a: Sa m ap di la a se yon manti.",
-            "Si ou vwayaje nan 40,000 km nan yon liy dwat sou tè a, w ap wè do w.",
-            "Zeno: Pou w rive nan yon pwen, ou dwe fè mwatye chemen an anvan, epi mwatye mwatye a... ou pap janm rive."
-        ];
-
-        function process(type) {
-            const input = document.getElementById('mainInput').value.trim();
-            const steps = document.getElementById('steps');
-            const finalVal = document.getElementById('finalVal');
-            const subVal = document.getElementById('subVal');
-            const paradoxContainer = document.getElementById('paradoxContainer');
-            const displayArea = document.getElementById('displayArea');
-
-            if(!input) return;
-            displayArea.classList.remove('hidden');
-            steps.innerHTML = "";
-            paradoxContainer.textContent = paradoxes[Math.floor(Math.random() * paradoxes.length)];
+        function runLogic() {
+            const input = document.getElementById('mathIn').value;
+            const consoleArea = document.getElementById('console');
+            consoleArea.innerHTML = "";
 
             try {
-                const res = math.evaluate(input);
-                finalVal.textContent = math.format(res, {precision: 10});
+                // 1. Parsing ekwasyon an pou konprann estrikti a (Lojik tout bon)
+                const node = math.parse(input);
+                const result = math.evaluate(input);
 
-                // 1. ARITHMÉTIQUE & FRACTIONS
-                if(input.includes('/')) {
-                    const f = math.fraction(res);
-                    subVal.textContent = `Fraksyon: ${f.n}/${f.d} (Yon dekoupe pafè)`;
-                    addStep("Arithmétique", "Divizyon se jis yon fason pou n separe linivè an moso.");
-                }
+                // 2. Dekonpoze "Tree" matematik la
+                let stepCount = 1;
+                
+                // Nou pral "Traverse" pyebwa a pou wè chak etap
+                node.traverse(function (node, path, parent) {
+                    if (node.isOperatorNode) {
+                        const op = node.op;
+                        const args = node.args.map(arg => arg.toString());
+                        
+                        let eksplikasyon = "";
+                        if(op === '+') eksplikasyon = `Adisyone ${args[0]} ak ${args[1]}`;
+                        if(op === '-') eksplikasyon = `Soustraye ${args[1]} nan ${args[0]}`;
+                        if(op === '*') eksplikasyon = `Miltipliye ${args[0]} pa ${args[1]}`;
+                        if(op === '/') eksplikasyon = `Divize ${args[0]} an ${args[1]} pati`;
 
-                // 2. THÉORIE DES ENSEMBLES
-                if(input.includes('[') || input.includes('{')) {
-                    addStep("Ensembles", "Zermelo di: 'Yon ansanm se yon koleksyon objè'. Men ki moun k ap kolekte kolektè a?");
-                    subVal.textContent = "Analiz Ansanm fini.";
-                }
+                        consoleArea.innerHTML += `<div class="log-entry">Etap ${stepCount++}: [${op}] -> ${eksplikasyon}</div>`;
+                    }
+                });
 
-                // 3. GÉOMÉTRIE & ESPACE
-                if(type === 'geo') {
-                    addStep("Géométrie", "Nan espas la, liy dwat la se sèlman yon rèv. Tout bagay koube.");
-                    finalVal.textContent = "π ≈ " + Math.PI.toFixed(5);
-                }
+                // 3. Rezilta Final
+                consoleArea.innerHTML += `<div class="mt-6 p-4 bg-zinc-900 rounded-xl">
+                    <span class="text-blue-400">LOG_SUCCESS:</span> Repons lan se <span class="res-highlight">${result}</span>
+                </div>`;
 
-                // 4. ANALYSE & INFINI
-                if(input.includes('infinity') || res > 1000000) {
-                    addStep("Analyse", "Ou touche limit Cantor la. Infini a gen plizyè gwosè.");
-                    subVal.textContent = "Ale pi lwen pase sa posib.";
-                }
-
-                // 5. STATISTIQUES
-                if(input.includes('%')) {
-                    addStep("Stats", "80% nan estatistik yo se manti, rès 20% an se dout.");
-                }
-
-                // 6. LOGIQUE
-                if(type === 'logic') {
-                    addStep("Syllogisme", "Si tout moun se mòtèl e Aristote se yon moun, alò Aristote ap fini nan yon ekwasyon.");
+                // 4. Lojik Ansanm (si gen [ ])
+                if (input.includes('[') || input.includes('{')) {
+                    const set = math.evaluate(input);
+                    consoleArea.innerHTML += `<div class="log-entry text-purple-400">Lojik Ansanm detekte: Koleksyon sa a gen ${set.size ? set.size()[0] : 'plizyè'} eleman.</div>`;
                 }
 
             } catch (e) {
-                finalVal.textContent = "?";
-                addStep("Erreur Logique", "Sa a se yon paradòks ke menm Schrödinger pa ka rezoud.");
+                consoleArea.innerHTML = `<div class="text-red-500 text-xs italic">Erè Lojik: Fòma sa a pa rekonèt nan sistèm nan.</div>`;
             }
-        }
-
-        function addStep(title, text) {
-            const div = document.createElement('div');
-            div.className = "step-box p-4 rounded-xl";
-            div.innerHTML = `<span class="text-[9px] font-bold text-blue-500 uppercase tracking-widest">${title}</span><p class="text-xs text-zinc-400 mt-1">${text}</p>`;
-            document.getElementById('steps').appendChild(div);
         }
     </script>
 </body>
