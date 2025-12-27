@@ -3,73 +3,156 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TF Logic Engine</title>
+    <title>TF Math Engine Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/13.2.0/math.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+            onload="renderMathInElement(document.body, {delimiters: [{left: '$', right: '$', display: false}, {left: '$$', right: '$$', display: true}]});"></script>
     <style>
-        body { background: #000; color: #fff; font-family: monospace; }
-        .log-entry { border-left: 2px solid #3b82f6; padding-left: 10px; margin: 10px 0; font-size: 13px; color: #888; }
-        .res-highlight { color: #4ade80; font-weight: bold; }
+        body { background: #0f172a; color: #f1f5f9; font-family: 'Inter', system-ui, sans-serif; }
+        .card { background: #1e293b; border-radius: 1.5rem; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3); }
+        .input-field { background: #334155; border: 1px solid #475569; }
+        .input-field:focus { border-color: #60a5fa; box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.3); }
+        .symbol-btn { background: #334155; transition: all 0.2s; }
+        .symbol-btn:hover { background: #475569; transform: translateY(-1px); }
+        .step { background: rgba(59, 130, 246, 0.1); border-left: 4px solid #60a5fa; }
+        .result { font-family: 'JetBrains Mono', monospace; }
     </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-4">
 
-    <div class="w-full max-w-xl bg-[#080808] border border-zinc-900 rounded-3xl p-8">
-        <h2 class="text-blue-500 text-[10px] tracking-widest mb-6 uppercase">Real-Time Logic Parser</h2>
-        
-        <input id="mathIn" type="text" placeholder="Egz: (10 + 5) * 2 / 3" 
-            class="w-full bg-zinc-950 border border-zinc-800 p-5 rounded-2xl outline-none focus:border-blue-600 text-xl mb-6">
+    <div class="card w-full max-w-4xl p-10">
+        <h1 class="text-2xl font-bold text-blue-400 text-center mb-2">TF Math Engine Pro</h1>
+        <p class="text-center text-zinc-400 text-sm mb-8">Kalkil egzak • Tout fonksyon • Etap pa etap</p>
 
-        <button onclick="runLogic()" class="w-full bg-blue-600 p-4 rounded-xl font-bold hover:bg-blue-500 transition">ANALIZE LOJIK LA</button>
+        <input id="input" type="text" placeholder="Egz: (x^2 + 2x + 1)/(x + 1)  ou  derivative(x^3 + sin(x), x)"
+               class="w-full input-field p-5 rounded-xl text-xl text-center outline-none text-white placeholder-zinc-500 mb-6">
 
-        <div id="console" class="mt-8 space-y-2">
+        <div class="grid grid-cols-8 gap-3 mb-8">
+            <button class="symbol-btn py-3 rounded-lg font-bold" onclick="insert('+')">+</button>
+            <button class="symbol-btn py-3 rounded-lg font-bold" onclick="insert('-')">−</button>
+            <button class="symbol-btn py-3 rounded-lg font-bold" onclick="insert('*')">×</button>
+            <button class="symbol-btn py-3 rounded-lg font-bold" onclick="insert('/')">÷</button>
+            <button class="symbol-btn py-3 rounded-lg font-bold" onclick="insert('^')">^</button>
+            <button class="symbol-btn py-3 rounded-lg font-bold" onclick="insert('sqrt(')">√</button>
+            <button class="symbol-btn py-3 rounded-lg text-xs" onclick="insert('pi')">π</button>
+            <button class="symbol-btn py-3 rounded-lg text-xs" onclick="insert('e')">e</button>
+            <button class="symbol-btn py-3 rounded-lg text-xs" onclick="insert('sin(')">sin</button>
+            <button class="symbol-btn py-3 rounded-lg text-xs" onclick="insert('cos(')">cos</button>
+            <button class="symbol-btn py-3 rounded-lg text-xs" onclick="insert('tan(')">tan</button>
+            <button class="symbol-btn py-3 rounded-lg text-xs" onclick="insert('log(')">log</button>
+            <button class="symbol-btn py-3 rounded-lg text-xs" onclick="insert('ln(')">ln</button>
+            <button class="symbol-btn py-3 rounded-lg text-xs" onclick="insert('!')">!</button>
+            <button class="symbol-btn py-3 rounded-lg" onclick="insert('(')">(</button>
+            <button class="symbol-btn py-3 rounded-lg" onclick="insert(')')">)</button>
+        </div>
+
+        <div class="text-center mb-8">
+            <button onclick="calculate()" class="px-10 py-4 bg-blue-600 hover:bg-blue-700 rounded-xl font-bold text-lg transition">
+                KALKILE
+            </button>
+        </div>
+
+        <div id="output" class="space-y-8 hidden">
+            <div id="steps" class="space-y-4"></div>
+
+            <div class="bg-slate-800 rounded-2xl p-8 text-center border border-slate-700">
+                <p class="text-zinc-400 text-sm uppercase tracking-wider mb-3">Rezilta</p>
+                <div id="result" class="result text-5xl font-bold mb-4"></div>
+                <div id="extra" class="text-blue-300 text-lg"></div>
             </div>
+
+            <div id="history" class="text-xs text-zinc-500 space-y-1"></div>
+        </div>
     </div>
 
     <script>
-        function runLogic() {
-            const input = document.getElementById('mathIn').value;
-            const consoleArea = document.getElementById('console');
-            consoleArea.innerHTML = "";
+        let history = [];
+
+        function insert(sym) {
+            const input = document.getElementById('input');
+            const start = input.selectionStart;
+            const end = input.selectionEnd;
+            input.value = input.value.slice(0, start) + sym + input.value.slice(end);
+            input.focus();
+            input.selectionStart = input.selectionEnd = start + sym.length;
+        }
+
+        function addStep(title, content) {
+            const steps = document.getElementById('steps');
+            const div = document.createElement('div');
+            div.className = 'step p-5 rounded-xl';
+            div.innerHTML = `<div class="font-bold text-blue-400 text-sm uppercase mb-2">${title}</div>
+                             <div class="text-zinc-300">${content}</div>`;
+            steps.appendChild(div);
+        }
+
+        function calculate() {
+            const input = document.getElementById('input').value.trim();
+            if (!input) return;
+
+            const output = document.getElementById('output');
+            const steps = document.getElementById('steps');
+            const resultDiv = document.getElementById('result');
+            const extraDiv = document.getElementById('extra');
+
+            output.classList.remove('hidden');
+            steps.innerHTML = '';
+            extraDiv.innerHTML = '';
 
             try {
-                // 1. Parsing ekwasyon an pou konprann estrikti a (Lojik tout bon)
-                const node = math.parse(input);
-                const result = math.evaluate(input);
+                const parsed = math.parse(input);
+                const evaluated = math.evaluate(input);
 
-                // 2. Dekonpoze "Tree" matematik la
+                // Affichage du résultat principal en KaTeX
+                const formatted = math.format(evaluated, {precision: 14});
+                resultDiv.innerHTML = katex.renderToString(formatted, {throwOnError: false});
+
+                // Étapes réelles via parcours de l'arbre
                 let stepCount = 1;
-                
-                // Nou pral "Traverse" pyebwa a pou wè chak etap
-                node.traverse(function (node, path, parent) {
+                parsed.traverse((node) => {
                     if (node.isOperatorNode) {
-                        const op = node.op;
-                        const args = node.args.map(arg => arg.toString());
-                        
-                        let eksplikasyon = "";
-                        if(op === '+') eksplikasyon = `Adisyone ${args[0]} ak ${args[1]}`;
-                        if(op === '-') eksplikasyon = `Soustraye ${args[1]} nan ${args[0]}`;
-                        if(op === '*') eksplikasyon = `Miltipliye ${args[0]} pa ${args[1]}`;
-                        if(op === '/') eksplikasyon = `Divize ${args[0]} an ${args[1]} pati`;
-
-                        consoleArea.innerHTML += `<div class="log-entry">Etap ${stepCount++}: [${op}] -> ${eksplikasyon}</div>`;
+                        addStep(`Etap ${stepCount++}: Operasyon`, `${node.op} ant ${node.args[0].toString()} ak ${node.args[1].toString()}`);
+                    } else if (node.isFunctionNode) {
+                        addStep(`Etap ${stepCount++}: Fonksyon`, `${node.name}(${node.args.map(a => a.toString()).join(', ')})`);
+                    } else if (node.isParenthesisNode) {
+                        addStep(`Etap ${stepCount++}: Parantèz`, `Priorite: ${node.content.toString()}`);
                     }
                 });
 
-                // 3. Rezilta Final
-                consoleArea.innerHTML += `<div class="mt-6 p-4 bg-zinc-900 rounded-xl">
-                    <span class="text-blue-400">LOG_SUCCESS:</span> Repons lan se <span class="res-highlight">${result}</span>
-                </div>`;
-
-                // 4. Lojik Ansanm (si gen [ ])
-                if (input.includes('[') || input.includes('{')) {
-                    const set = math.evaluate(input);
-                    consoleArea.innerHTML += `<div class="log-entry text-purple-400">Lojik Ansanm detekte: Koleksyon sa a gen ${set.size ? set.size()[0] : 'plizyè'} eleman.</div>`;
+                // Bonus spécifiques
+                if (input.includes('/')) {
+                    try {
+                        const frac = math.fraction(evaluated);
+                        if (frac.d !== 1) {
+                            extraDiv.innerHTML += `<div>Fraksyon ireductible: ${katex.renderToString(`${frac.n}/${frac.d}`, {throwOnError: false})}</div>`;
+                        }
+                    } catch {}
                 }
 
-            } catch (e) {
-                consoleArea.innerHTML = `<div class="text-red-500 text-xs italic">Erè Lojik: Fòma sa a pa rekonèt nan sistèm nan.</div>`;
+                if (input.includes('derivative')) {
+                    const deriv = math.derivative(parsed.args?.[0] || parsed, 'x');
+                    extraDiv.innerHTML += `<div>Derivativ: ${katex.renderToString(deriv.toString(), {throwOnError: false})}</div>`;
+                }
+
+                if (input.includes('integral')) {
+                    extraDiv.innerHTML += `<div>Entegral endefini disponib nan Math.js (gade dokimantasyon pou +C)</div>`;
+                }
+
+                // Historique
+                history.unshift(`${input} = ${formatted}`);
+                if (history.length > 10) history.pop();
+                document.getElementById('history').innerHTML = '<div class="font-bold text-blue-400 mb-2">Istorik</div>' +
+                    history.map(h => `<div class="bg-slate-700 p-2 rounded">${h}</div>`).join('');
+
+            } catch (err) {
+                resultDiv.textContent = 'Erè';
+                addStep('Erè sintaks', err.message);
             }
+
+            renderMathInElement(document.body);
         }
     </script>
 </body>
