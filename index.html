@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="ht">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TF Calculator Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/13.2.0/math.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+            onload="renderMathInElement(document.body);"></script>
+    <style>
+        body, html { height: 100%; margin: 0; background: #000000; color: #ffffff; font-family: 'JetBrains Mono', monospace; overflow: hidden; }
+        #display { min-height: 120px; font-size: clamp(1.8rem, 5vw, 3.5rem); word-break: break-all; }
+        #input { color: #aaaaaa; font-size: clamp(1.2rem, 3vw, 2rem); }
+        #result { color: #ffffff; font-size: clamp(2.5rem, 6vw, 4rem); }
+        .btn { background: #1a1a1a; border: 1px solid #333333; transition: all 0.2s; }
+        .btn:hover { background: #333333; }
+        .btn:active { background: #444444; transform: scale(0.98); }
+        .btn-op { background: #0d47a1; }
+        .btn-op:hover { background: #1565c0; }
+        .btn-eq { background: #1976d2; }
+        .btn-eq:hover { background: #2196f3; }
+        .btn-clear { background: #d32f2f; }
+        .btn-clear:hover { background: #f44336; }
+        #stepsContainer { max-height: 30vh; font-size: clamp(0.9rem, 2.5vw, 1.2rem); }
+    </style>
+</head>
+<body class="flex flex-col h-screen">
+
+    <!-- Display -->
+    <div class="flex-1 flex flex-col justify-end p-6 text-right overflow-hidden">
+        <div id="input" class="mb-2 opacity-70"></div>
+        <div id="result" class="font-bold"></div>
+    </div>
+
+    <!-- Steps (appears after =) -->
+    <div id="stepsContainer" class="hidden p-4 bg-[#111111] text-left overflow-y-auto border-t border-[#333333]">
+        <div id="steps" class="space-y-3"></div>
+    </div>
+
+    <!-- Buttons Grid -->
+    <div class="grid grid-cols-5 gap-2 p-4 bg-black">
+        <button class="btn btn-clear py-5 text-lg rounded-xl" onclick="clearAll()">C</button>
+        <button class="btn btn-clear py-5 text-lg rounded-xl" onclick="del()">⌫</button>
+        <button class="btn py-5 text-lg rounded-xl" onclick="insert('(')">(</button>
+        <button class="btn py-5 text-lg rounded-xl" onclick="insert(')')">)</button>
+        <button class="btn btn-op py-5 text-lg rounded-xl" onclick="insert('^')">^</button>
+
+        <button class="btn py-5 text-lg rounded-xl" onclick="insert('sqrt(')">√</button>
+        <button class="btn py-5 text-lg rounded-xl" onclick="insert('pi')">π</button>
+        <button class="btn py-5 text-lg rounded-xl" onclick="insert('e')">e</button>
+        <button class="btn py-5 text-lg rounded-xl" onclick="insert('!')">!</button>
+        <button class="btn btn-op py-5 text-lg rounded-xl" onclick="insert('%')">%</button>
+
+        <button class="btn py-5 text-lg rounded-xl" onclick="insert('sin(')">sin</button>
+        <button class="btn py-5 text-lg rounded-xl" onclick="insert('cos(')">cos</button>
+        <button class="btn py-5 text-lg rounded-xl" onclick="insert('tan(')">tan</button>
+        <button class="btn py-5 text-lg rounded-xl" onclick="insert('log(')">log</button>
+        <button class="btn py-5 text-lg rounded-xl" onclick="insert('ln(')">ln</button>
+
+        <button class="btn py-5 text-2xl font-bold rounded-xl" onclick="insert('7')">7</button>
+        <button class="btn py-5 text-2xl font-bold rounded-xl" onclick="insert('8')">8</button>
+        <button class="btn py-5 text-2xl font-bold rounded-xl" onclick="insert('9')">9</button>
+        <button class="btn btn-op py-5 text-2xl font-bold rounded-xl" onclick="insert('/')">÷</button>
+        <button class="btn py-5 text-lg rounded-xl" onclick="insert('[')">[</button>
+
+        <button class="btn py-5 text-2xl font-bold rounded-xl" onclick="insert('4')">4</button>
+        <button class="btn py-5 text-2xl font-bold rounded-xl" onclick="insert('5')">5</button>
+        <button class="btn py-5 text-2xl font-bold rounded-xl" onclick="insert('6')">6</button>
+        <button class="btn btn-op py-5 text-2xl font-bold rounded-xl" onclick="insert('*')">×</button>
+        <button class="btn py-5 text-lg rounded-xl" onclick="insert(']')">]</button>
+
+        <button class="btn py-5 text-2xl font-bold rounded-xl" onclick="insert('1')">1</button>
+        <button class="btn py-5 text-2xl font-bold rounded-xl" onclick="insert('2')">2</button>
+        <button class="btn py-5 text-2xl font-bold rounded-xl" onclick="insert('3')">3</button>
+        <button class="btn btn-op py-5 text-2xl font-bold rounded-xl" onclick="insert('-')">−</button>
+        <button class="btn py-5 text-lg rounded-xl" onclick="insert('{')">{</button>
+
+        <button class="btn py-5 text-2xl font-bold rounded-xl col-span-2" onclick="insert('0')">0</button>
+        <button class="btn py-5 text-2xl font-bold rounded-xl" onclick="insert('.')">.</button>
+        <button class="btn btn-op py-5 text-2xl font-bold rounded-xl" onclick="insert('+')">+</button>
+        <button class="btn py-5 text-lg rounded-xl" onclick="insert('}')">}</button>
+    </div>
+
+    <!-- Big = button (full width) -->
+    <div class="px-4 pb-4">
+        <button class="btn btn-eq w-full py-8 text-3xl font-bold rounded-xl" onclick="calculate()">=</button>
+    </div>
+
+    <script>
+        let currentInput = '';
+
+        function insert(val) {
+            currentInput += val;
+            updateDisplay();
+        }
+
+        function clearAll() {
+            currentInput = '';
+            updateDisplay();
+            document.getElementById('stepsContainer').classList.add('hidden');
+        }
+
+        function del() {
+            currentInput = currentInput.slice(0, -1);
+            updateDisplay();
+        }
+
+        function updateDisplay() {
+            document.getElementById('input').textContent = currentInput || '0';
+            document.getElementById('result').innerHTML = '';
+        }
+
+        function addStep(title, content, isLatex = false) {
+            const steps = document.getElementById('steps');
+            const div = document.createElement('div');
+            div.innerHTML = `<strong class="text-blue-400">${title}</strong>`;
+            const p = document.createElement('div');
+            if (isLatex) {
+                p.innerHTML = content; // KaTeX will render it
+            } else {
+                p.textContent = content;
+            }
+            div.appendChild(p);
+            steps.appendChild(div);
+        }
+
+        function calculate() {
+            if (!currentInput) return;
+
+            const stepsContainer = document.getElementById('stepsContainer');
+            const steps = document.getElementById('steps');
+            steps.innerHTML = '';
+            stepsContainer.classList.remove('hidden');
+
+            try {
+                const parsed = math.parse(currentInput);
+                const result = math.evaluate(currentInput);
+                const formatted = math.format(result, {precision: 14});
+
+                // Show original
+                addStep('Ekspresyon:', currentInput);
+
+                // Show order of operations with full parentheses + LaTeX
+                const parenthesized = parsed.toString({parenthesis: 'all'});
+                addStep('Ordre operasyon (PEMDAS):', parenthesized);
+
+                // LaTeX version (beautiful math rendering)
+                const latex = parsed.toTex();
+                addStep('Fòmil matematik:', `$$${latex}$$`, true);
+
+                // Result
+                document.getElementById('result').innerHTML = katex.renderToString(formatted, {throwOnError: false});
+
+                // Allow chaining
+                currentInput = formatted;
+
+            } catch (err) {
+                document.getElementById('result').textContent = 'Erè';
+                addStep('Erè:', err.message);
+            }
+
+            renderMathInElement(document.body);
+        }
+
+        // Keyboard support
+        window.addEventListener('keydown', (e) => {
+            const key = e.key;
+            if (/[0-9.+\-*/%^()[\]{}]/.test(key)) {
+                insert(key);
+                e.preventDefault();
+            } else if (key === 'Enter' || key === '=') {
+                calculate();
+                e.preventDefault();
+            } else if (key === 'Backspace') {
+                del();
+                e.preventDefault();
+            } else if (key === 'Escape' || key === 'Delete') {
+                clearAll();
+                e.preventDefault();
+            }
+        });
+
+        updateDisplay();
+    </script>
+</body>
+</html>
