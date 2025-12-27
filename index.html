@@ -2,158 +2,140 @@
 <html lang="ht">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TF Math Engine Pro</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TF Calculator Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/13.2.0/math.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
-            onload="renderMathInElement(document.body, {delimiters: [{left: '$', right: '$', display: false}, {left: '$$', right: '$$', display: true}]});"></script>
+            onload="renderMathInElement(document.body);"></script>
     <style>
-        body { background: #0f172a; color: #f1f5f9; font-family: 'Inter', system-ui, sans-serif; }
-        .card { background: #1e293b; border-radius: 1.5rem; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3); }
-        .input-field { background: #334155; border: 1px solid #475569; }
-        .input-field:focus { border-color: #60a5fa; box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.3); }
-        .symbol-btn { background: #334155; transition: all 0.2s; }
-        .symbol-btn:hover { background: #475569; transform: translateY(-1px); }
-        .step { background: rgba(59, 130, 246, 0.1); border-left: 4px solid #60a5fa; }
-        .result { font-family: 'JetBrains Mono', monospace; }
+        body, html { height: 100%; margin: 0; background: #000000; color: #ffffff; font-family: 'JetBrains Mono', monospace; overflow: hidden; }
+        #display { min-height: 120px; font-size: 2.5rem; word-break: break-all; }
+        .btn { background: #1a1a1a; border: 1px solid #333333; transition: all 0.2s; }
+        .btn:hover { background: #333333; }
+        .btn:active { background: #444444; transform: scale(0.98); }
+        .btn-op { background: #0d47a1; }
+        .btn-op:hover { background: #1565c0; }
+        .btn-eq { background: #1976d2; }
+        .btn-eq:hover { background: #2196f3; }
+        .btn-clear { background: #d32f2f; }
+        .btn-clear:hover { background: #f44336; }
+        #input { color: #aaaaaa; font-size: 1.5rem; }
+        #result { color: #ffffff; font-size: 3rem; }
     </style>
 </head>
-<body class="min-h-screen flex items-center justify-center p-4">
+<body class="flex flex-col h-screen">
 
-    <div class="card w-full max-w-4xl p-10">
-        <h1 class="text-2xl font-bold text-blue-400 text-center mb-2">TF Math Engine Pro</h1>
-        <p class="text-center text-zinc-400 text-sm mb-8">Kalkil egzak • Tout fonksyon • Etap pa etap</p>
+    <!-- Display -->
+    <div class="flex-1 flex flex-col justify-end p-6 text-right">
+        <div id="input" class="mb-2 opacity-70"></div>
+        <div id="result" class="font-bold"></div>
+    </div>
 
-        <input id="input" type="text" placeholder="Egz: (x^2 + 2x + 1)/(x + 1)  ou  derivative(x^3 + sin(x), x)"
-               class="w-full input-field p-5 rounded-xl text-xl text-center outline-none text-white placeholder-zinc-500 mb-6">
+    <!-- Buttons Grid -->
+    <div class="grid grid-cols-5 gap-2 p-4 bg-black">
+        <!-- Row 1 -->
+        <button class="btn btn-clear col-span-1 py-6 text-xl font-bold rounded-xl" onclick="clearAll()">C</button>
+        <button class="btn btn-clear py-6 text-xl font-bold rounded-xl" onclick="del()">⌫</button>
+        <button class="btn py-6 text-xl rounded-xl" onclick="insert('(')">(</button>
+        <button class="btn py-6 text-xl rounded-xl" onclick="insert(')')">)</button>
+        <button class="btn btn-op py-6 text-xl rounded-xl" onclick="insert('^')">^</button>
 
-        <div class="grid grid-cols-8 gap-3 mb-8">
-            <button class="symbol-btn py-3 rounded-lg font-bold" onclick="insert('+')">+</button>
-            <button class="symbol-btn py-3 rounded-lg font-bold" onclick="insert('-')">−</button>
-            <button class="symbol-btn py-3 rounded-lg font-bold" onclick="insert('*')">×</button>
-            <button class="symbol-btn py-3 rounded-lg font-bold" onclick="insert('/')">÷</button>
-            <button class="symbol-btn py-3 rounded-lg font-bold" onclick="insert('^')">^</button>
-            <button class="symbol-btn py-3 rounded-lg font-bold" onclick="insert('sqrt(')">√</button>
-            <button class="symbol-btn py-3 rounded-lg text-xs" onclick="insert('pi')">π</button>
-            <button class="symbol-btn py-3 rounded-lg text-xs" onclick="insert('e')">e</button>
-            <button class="symbol-btn py-3 rounded-lg text-xs" onclick="insert('sin(')">sin</button>
-            <button class="symbol-btn py-3 rounded-lg text-xs" onclick="insert('cos(')">cos</button>
-            <button class="symbol-btn py-3 rounded-lg text-xs" onclick="insert('tan(')">tan</button>
-            <button class="symbol-btn py-3 rounded-lg text-xs" onclick="insert('log(')">log</button>
-            <button class="symbol-btn py-3 rounded-lg text-xs" onclick="insert('ln(')">ln</button>
-            <button class="symbol-btn py-3 rounded-lg text-xs" onclick="insert('!')">!</button>
-            <button class="symbol-btn py-3 rounded-lg" onclick="insert('(')">(</button>
-            <button class="symbol-btn py-3 rounded-lg" onclick="insert(')')">)</button>
-        </div>
+        <!-- Row 2 -->
+        <button class="btn py-6 text-xl rounded-xl" onclick="insert('sqrt(')">√</button>
+        <button class="btn py-6 text-xl rounded-xl" onclick="insert('pi')">π</button>
+        <button class="btn py-6 text-xl rounded-xl" onclick="insert('e')">e</button>
+        <button class="btn py-6 text-xl rounded-xl" onclick="insert('!')">!</button>
+        <button class="btn btn-op py-6 text-xl rounded-xl" onclick="insert('%')">%</button>
 
-        <div class="text-center mb-8">
-            <button onclick="calculate()" class="px-10 py-4 bg-blue-600 hover:bg-blue-700 rounded-xl font-bold text-lg transition">
-                KALKILE
-            </button>
-        </div>
+        <!-- Row 3 -->
+        <button class="btn py-6 text-xl rounded-xl" onclick="insert('sin(')">sin</button>
+        <button class="btn py-6 text-xl rounded-xl" onclick="insert('cos(')">cos</button>
+        <button class="btn py-6 text-xl rounded-xl" onclick="insert('tan(')">tan</button>
+        <button class="btn py-6 text-xl rounded-xl" onclick="insert('log(')">log</button>
+        <button class="btn py-6 text-xl rounded-xl" onclick="insert('ln(')">ln</button>
 
-        <div id="output" class="space-y-8 hidden">
-            <div id="steps" class="space-y-4"></div>
+        <!-- Row 4 -->
+        <button class="btn py-6 text-2xl font-bold rounded-xl" onclick="insert('7')">7</button>
+        <button class="btn py-6 text-2xl font-bold rounded-xl" onclick="insert('8')">8</button>
+        <button class="btn py-6 text-2xl font-bold rounded-xl" onclick="insert('9')">9</button>
+        <button class="btn btn-op py-6 text-2xl font-bold rounded-xl" onclick="insert('/')">÷</button>
+        <button class="btn py-6 text-xl rounded-xl" onclick="insert('[')">[</button>
 
-            <div class="bg-slate-800 rounded-2xl p-8 text-center border border-slate-700">
-                <p class="text-zinc-400 text-sm uppercase tracking-wider mb-3">Rezilta</p>
-                <div id="result" class="result text-5xl font-bold mb-4"></div>
-                <div id="extra" class="text-blue-300 text-lg"></div>
-            </div>
+        <!-- Row 5 -->
+        <button class="btn py-6 text-2xl font-bold rounded-xl" onclick="insert('4')">4</button>
+        <button class="btn py-6 text-2xl font-bold rounded-xl" onclick="insert('5')">5</button>
+        <button class="btn py-6 text-2xl font-bold rounded-xl" onclick="insert('6')">6</button>
+        <button class="btn btn-op py-6 text-2xl font-bold rounded-xl" onclick="insert('*')">×</button>
+        <button class="btn py-6 text-xl rounded-xl" onclick="insert(']')">]</button>
 
-            <div id="history" class="text-xs text-zinc-500 space-y-1"></div>
-        </div>
+        <!-- Row 6 -->
+        <button class="btn py-6 text-2xl font-bold rounded-xl" onclick="insert('1')">1</button>
+        <button class="btn py-6 text-2xl font-bold rounded-xl" onclick="insert('2')">2</button>
+        <button class="btn py-6 text-2xl font-bold rounded-xl" onclick="insert('3')">3</button>
+        <button class="btn btn-op py-6 text-2xl font-bold rounded-xl" onclick="insert('-')">−</button>
+        <button class="btn py-6 text-xl rounded-xl" onclick="insert('{')">{</button>
+
+        <!-- Row 7 -->
+        <button class="btn py-6 text-2xl font-bold rounded-xl col-span-2" onclick="insert('0')">0</button>
+        <button class="btn py-6 text-2xl font-bold rounded-xl" onclick="insert('.')">.</button>
+        <button class="btn btn-op py-6 text-2xl font-bold rounded-xl" onclick="insert('+')">+</button>
+        <button class="btn py-6 text-xl rounded-xl" onclick="insert('}')">}</button>
+
+        <!-- Row 8 - Big = button -->
+        <button class="btn btn-eq col-span-4 py-8 text-3xl font-bold rounded-xl" onclick="calculate()">=</button>
+        <button class="btn py-8 text-xl rounded-xl" onclick="toggleFullscreen()">⛶</button>
     </div>
 
     <script>
-        let history = [];
+        let currentInput = '';
 
-        function insert(sym) {
-            const input = document.getElementById('input');
-            const start = input.selectionStart;
-            const end = input.selectionEnd;
-            input.value = input.value.slice(0, start) + sym + input.value.slice(end);
-            input.focus();
-            input.selectionStart = input.selectionEnd = start + sym.length;
+        function insert(val) {
+            currentInput += val;
+            updateDisplay();
         }
 
-        function addStep(title, content) {
-            const steps = document.getElementById('steps');
-            const div = document.createElement('div');
-            div.className = 'step p-5 rounded-xl';
-            div.innerHTML = `<div class="font-bold text-blue-400 text-sm uppercase mb-2">${title}</div>
-                             <div class="text-zinc-300">${content}</div>`;
-            steps.appendChild(div);
+        function clearAll() {
+            currentInput = '';
+            updateDisplay();
+        }
+
+        function del() {
+            currentInput = currentInput.slice(0, -1);
+            updateDisplay();
+        }
+
+        function updateDisplay() {
+            document.getElementById('input').textContent = currentInput || '0';
+            document.getElementById('result').innerHTML = '';
         }
 
         function calculate() {
-            const input = document.getElementById('input').value.trim();
-            if (!input) return;
-
-            const output = document.getElementById('output');
-            const steps = document.getElementById('steps');
-            const resultDiv = document.getElementById('result');
-            const extraDiv = document.getElementById('extra');
-
-            output.classList.remove('hidden');
-            steps.innerHTML = '';
-            extraDiv.innerHTML = '';
-
+            if (!currentInput) return;
             try {
-                const parsed = math.parse(input);
-                const evaluated = math.evaluate(input);
-
-                // Affichage du résultat principal en KaTeX
-                const formatted = math.format(evaluated, {precision: 14});
-                resultDiv.innerHTML = katex.renderToString(formatted, {throwOnError: false});
-
-                // Étapes réelles via parcours de l'arbre
-                let stepCount = 1;
-                parsed.traverse((node) => {
-                    if (node.isOperatorNode) {
-                        addStep(`Etap ${stepCount++}: Operasyon`, `${node.op} ant ${node.args[0].toString()} ak ${node.args[1].toString()}`);
-                    } else if (node.isFunctionNode) {
-                        addStep(`Etap ${stepCount++}: Fonksyon`, `${node.name}(${node.args.map(a => a.toString()).join(', ')})`);
-                    } else if (node.isParenthesisNode) {
-                        addStep(`Etap ${stepCount++}: Parantèz`, `Priorite: ${node.content.toString()}`);
-                    }
-                });
-
-                // Bonus spécifiques
-                if (input.includes('/')) {
-                    try {
-                        const frac = math.fraction(evaluated);
-                        if (frac.d !== 1) {
-                            extraDiv.innerHTML += `<div>Fraksyon ireductible: ${katex.renderToString(`${frac.n}/${frac.d}`, {throwOnError: false})}</div>`;
-                        }
-                    } catch {}
-                }
-
-                if (input.includes('derivative')) {
-                    const deriv = math.derivative(parsed.args?.[0] || parsed, 'x');
-                    extraDiv.innerHTML += `<div>Derivativ: ${katex.renderToString(deriv.toString(), {throwOnError: false})}</div>`;
-                }
-
-                if (input.includes('integral')) {
-                    extraDiv.innerHTML += `<div>Entegral endefini disponib nan Math.js (gade dokimantasyon pou +C)</div>`;
-                }
-
-                // Historique
-                history.unshift(`${input} = ${formatted}`);
-                if (history.length > 10) history.pop();
-                document.getElementById('history').innerHTML = '<div class="font-bold text-blue-400 mb-2">Istorik</div>' +
-                    history.map(h => `<div class="bg-slate-700 p-2 rounded">${h}</div>`).join('');
-
+                const result = math.evaluate(currentInput);
+                const formatted = math.format(result, {precision: 14});
+                document.getElementById('result').innerHTML = katex.renderToString(formatted, {throwOnError: false});
+                currentInput = formatted; // Allow chaining
             } catch (err) {
-                resultDiv.textContent = 'Erè';
-                addStep('Erè sintaks', err.message);
+                document.getElementById('result').textContent = 'Erè';
+                currentInput = '';
             }
-
             renderMathInElement(document.body);
         }
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        // Initial display
+        updateDisplay();
     </script>
 </body>
 </html>
