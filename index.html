@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ht">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TF Math Logic</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #000000; color: #ffffff; font-family: 'Courier New', Courier, monospace; }
+        .math-box { background: #0a0a0a; border: 1px solid #1a1a1a; }
+        .step-line { border-left: 2px solid #2563eb; padding-left: 15px; margin-bottom: 10px; }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <div class="math-box w-full max-w-lg rounded-3xl p-8 shadow-2xl">
+        <h1 class="text-blue-500 text-sm mb-6 tracking-tighter uppercase font-bold text-center">Laboratwa Matematik</h1>
+        
+        <div class="space-y-4">
+            <input id="formula" type="text" placeholder="Egz: sqrt(25) oswa 20/4" 
+                class="w-full bg-zinc-900 border border-zinc-800 p-5 rounded-2xl outline-none focus:border-blue-600 transition text-2xl text-center">
+            
+            <button onclick="analizeMatematik()" 
+                class="w-full bg-blue-600 hover:bg-blue-500 py-4 rounded-2xl font-black text-white transition-all transform active:scale-95">
+                DEKONPOZE
+            </button>
+        </div>
+
+        <div id="output" class="mt-10 space-y-6 hidden">
+            <div>
+                <span class="text-zinc-500 text-xs block mb-1 underline">OPERASYON:</span>
+                <div id="op_orig" class="text-xl"></div>
+            </div>
+
+            <div>
+                <span class="text-zinc-500 text-xs block mb-2 underline">CHEMIN MATEMATIK:</span>
+                <div id="op_steps" class="space-y-3"></div>
+            </div>
+
+            <div class="pt-4 border-t border-zinc-900">
+                <span class="text-blue-500 text-xs block mb-1">REZIPA FINAL:</span>
+                <div id="op_res" class="text-4xl font-bold text-green-500"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function analizeMatematik() {
+            const val = document.getElementById('formula').value.trim().toLowerCase();
+            const output = document.getElementById('output');
+            const stepsDiv = document.getElementById('op_steps');
+            const resDiv = document.getElementById('op_res');
+            const origDiv = document.getElementById('op_orig');
+
+            stepsDiv.innerHTML = "";
+            output.classList.remove('hidden');
+            origDiv.textContent = val;
+
+            // --- DEKONPOZE RASIN KARE (sqrt) ---
+            if (val.startsWith('sqrt(')) {
+                const num = parseFloat(val.replace('sqrt(', '').replace(')', ''));
+                const res = Math.sqrt(num);
+                
+                if (Number.isInteger(res)) {
+                    stepsDiv.innerHTML += `<div class="step-line">√${num} = √(${res} × ${res})</div>`;
+                    stepsDiv.innerHTML += `<div class="step-line">√(${res}²)</div>`;
+                    resDiv.textContent = res;
+                } else {
+                    resDiv.textContent = res.toFixed(3);
+                }
+            } 
+
+            // --- DEKONPOZE DIVIZYON (/) ---
+            else if (val.includes('/')) {
+                const parts = val.split('/');
+                const a = parseFloat(parts[0]);
+                const b = parseFloat(parts[1]);
+                const res = a / b;
+
+                stepsDiv.innerHTML += `<div class="step-line">${a} ÷ ${b}</div>`;
+                stepsDiv.innerHTML += `<div class="step-line">Konbyen fwa ${b} antre nan ${a}?</div>`;
+                
+                let adisyon = [];
+                for(let i=0; i<res; i++) adisyon.push(b);
+                
+                if (Number.isInteger(res) && res < 50) {
+                    stepsDiv.innerHTML += `<div class="step-line">${adisyon.join(' + ')} = ${a}</div>`;
+                    stepsDiv.innerHTML += `<div class="step-line">Repetisyon: ${res} fwa</div>`;
+                }
+                resDiv.textContent = res;
+            }
+
+            // --- DEKONPOZE PWISANS (^) ---
+            else if (val.includes('^')) {
+                const parts = val.split('^');
+                const baz = parseFloat(parts[0]);
+                const exp = parseFloat(parts[1]);
+                const res = Math.pow(baz, exp);
+
+                let milti = [];
+                for(let i=0; i<exp; i++) milti.push(baz);
+
+                stepsDiv.innerHTML += `<div class="step-line">${baz} miltipliye pa li menm ${exp} fwa</div>`;
+                stepsDiv.innerHTML += `<div class="step-line">${milti.join(' × ')}</div>`;
+                resDiv.textContent = res;
+            }
+
+            else {
+                resDiv.textContent = eval(val);
+                stepsDiv.innerHTML = "Operasyon senp.";
+            }
+        }
+    </script>
+</body>
+</html>
