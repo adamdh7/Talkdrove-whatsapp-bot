@@ -3,95 +3,129 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Foto an PDF - TF Tool</title>
+    <title>Foto an PDF - Dark Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        body { background-color: #000000; color: #ffffff; }
+        .glass-card { background: #111111; border: 1px solid #222222; }
+    </style>
 </head>
-<body class="bg-slate-50 min-h-screen flex items-center justify-center p-4">
+<body class="min-h-screen flex items-center justify-center p-4">
 
-    <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl p-8 space-y-6">
+    <div class="glass-card w-full max-w-md rounded-3xl shadow-2xl p-8 space-y-6">
         <div class="text-center">
-            <h1 class="text-2xl font-bold text-gray-800">Foto ➔ PDF</h1>
-            <p class="text-gray-500 text-sm">Chwazi yon foto pou w transfòme l</p>
+            <h1 class="text-2xl font-bold text-white">Foto ➔ PDF</h1>
+            <p class="text-gray-400 text-sm">Dark Mode Edition</p>
         </div>
 
-        <div class="relative border-2 border-dashed border-blue-200 rounded-2xl p-6 bg-blue-50 hover:bg-blue-100 transition cursor-pointer text-center">
-            <input type="file" id="imageInput" accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer">
-            <div id="previewText">
-                <span class="text-blue-600 font-medium">Klike la pou chwazi foto a</span>
+        <div class="relative border-2 border-dashed border-zinc-800 rounded-2xl p-6 bg-zinc-900 hover:bg-zinc-800 transition cursor-pointer text-center">
+            <input type="file" id="imageInput" accept="image/*" multiple class="absolute inset-0 opacity-0 cursor-pointer">
+            <div id="previewContainer" class="space-y-4">
+                <div id="previewText">
+                    <div class="bg-blue-600/10 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2">
+                        <svg class="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                        </svg>
+                    </div>
+                    <span class="text-blue-400 font-medium">Chwazi foto yo</span>
+                </div>
+                <div id="thumbnails" class="grid grid-cols-4 gap-2 justify-center"></div>
             </div>
-            <img id="imagePreview" class="hidden max-h-48 mx-auto rounded-lg shadow-sm" />
         </div>
 
-        <button id="convertBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-2xl shadow-lg shadow-blue-200 transition-all transform active:scale-95 flex items-center justify-center gap-2">
-            Telechaje PDF la
+        <button id="convertBtn" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-2xl shadow-lg shadow-blue-900/20 transition-all transform active:scale-95 flex items-center justify-center gap-2">
+            Jenere PDF
         </button>
 
-        <p id="status" class="text-center text-xs text-gray-400 italic"></p>
+        <div id="status" class="text-center text-xs text-zinc-500 font-mono"></div>
     </div>
 
     <script>
         const { jsPDF } = window.jspdf;
         const imageInput = document.getElementById('imageInput');
-        const imagePreview = document.getElementById('imagePreview');
+        const thumbnails = document.getElementById('thumbnails');
         const previewText = document.getElementById('previewText');
         const convertBtn = document.getElementById('convertBtn');
         const status = document.getElementById('status');
 
-        let imageData = null;
+        let filesList = [];
 
-        // Lè itilizatè a chwazi yon foto
         imageInput.addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(event) {
-                    imageData = event.target.result;
-                    imagePreview.src = imageData;
-                    imagePreview.classList.remove('hidden');
-                    previewText.classList.add('hidden');
-                    status.textContent = "Foto chaje ak siksè!";
-                };
-                reader.readAsDataURL(file);
+            filesList = Array.from(e.target.files);
+            thumbnails.innerHTML = '';
+            
+            if (filesList.length > 0) {
+                previewText.classList.add('hidden');
+                status.textContent = `${filesList.length} FOTO CHWAZI`;
+
+                filesList.forEach(file => {
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        const div = document.createElement('div');
+                        div.className = "relative group";
+                        div.innerHTML = `
+                            <img src="${event.target.result}" class="w-full h-16 object-cover rounded-lg border border-zinc-700 shadow-md">
+                            <div class="absolute inset-0 bg-black/40 rounded-lg opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-[10px] text-white">OK</div>
+                        `;
+                        thumbnails.appendChild(div);
+                    };
+                    reader.readAsDataURL(file);
+                });
             }
         });
 
-        // Lè li klike sou bouton konvèti a
-        convertBtn.addEventListener('click', function() {
-            if (!imageData) {
-                alert("Tanpri chwazi yon foto anvan!");
+        convertBtn.addEventListener('click', async function() {
+            if (filesList.length === 0) {
+                status.textContent = "ERÈ: PA GEN FOTO";
+                status.classList.add('text-red-500');
                 return;
             }
 
-            status.textContent = "Ap prepare PDF la...";
-
+            status.textContent = "PWOSEZIS AP KOURI...";
+            status.classList.remove('text-red-500');
+            
             const pdf = new jsPDF();
-            
-            // Nou kreye yon objè Image pou nou ka konnen lajè ak wotè foto a
-            const img = new Image();
-            img.src = imageData;
-            
-            img.onload = function() {
-                const imgWidth = img.width;
-                const imgHeight = img.height;
-                
-                // Kalkile dimansyon pou foto a anfòm nan paj PDF la (A4)
-                const pageWidth = pdf.internal.pageSize.getWidth();
-                const pageHeight = pdf.internal.pageSize.getHeight();
-                const ratio = Math.min(pageWidth / imgWidth, pageHeight / imgHeight);
-                
-                const finalWidth = imgWidth * ratio;
-                const finalHeight = imgHeight * ratio;
-                const xMargin = (pageWidth - finalWidth) / 2;
-                const yMargin = (pageHeight - finalHeight) / 2;
 
-                pdf.addImage(imageData, 'JPEG', xMargin, yMargin, finalWidth, finalHeight);
-                pdf.save("foto-konvèti.pdf");
+            for (let i = 0; i < filesList.length; i++) {
+                const file = filesList[i];
+                const imageData = await readFileAsDataURL(file);
                 
-                status.textContent = "Konvèsyon fini!";
-                setTimeout(() => { status.textContent = ""; }, 3000);
-            };
+                const img = new Image();
+                img.src = imageData;
+
+                await new Promise(resolve => {
+                    img.onload = () => {
+                        const pageWidth = pdf.internal.pageSize.getWidth();
+                        const pageHeight = pdf.internal.pageSize.getHeight();
+                        
+                        const ratio = Math.min(pageWidth / img.width, pageHeight / img.height);
+                        const finalWidth = img.width * ratio;
+                        const finalHeight = img.height * ratio;
+                        const xMargin = (pageWidth - finalWidth) / 2;
+                        const yMargin = (pageHeight - finalHeight) / 2;
+
+                        if (i > 0) pdf.addPage();
+                        pdf.addImage(imageData, 'JPEG', xMargin, yMargin, finalWidth, finalHeight);
+                        resolve();
+                    };
+                });
+            }
+
+            pdf.save(`TF_DOC_${Date.now()}.pdf`);
+            status.textContent = "KONPLEKTE!";
+            setTimeout(() => { status.textContent = ""; }, 3000);
         });
+
+        function readFileAsDataURL(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
     </script>
 </body>
 </html>
+
