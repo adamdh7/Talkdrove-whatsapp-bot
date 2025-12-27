@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ht">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TF Math Step</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-[#000000] text-white min-h-screen flex items-center justify-center p-6">
+
+    <div class="w-full max-w-md bg-[#111111] border border-zinc-800 p-6 rounded-3xl shadow-2xl">
+        <h2 class="text-blue-500 font-mono text-xs mb-4 uppercase tracking-widest">Calcul Décomposition</h2>
+        
+        <div class="space-y-4">
+            <input id="inputMath" type="text" placeholder="Exemple: 25 / 5" 
+                class="w-full bg-zinc-900 border border-zinc-800 p-4 rounded-2xl outline-none focus:border-blue-600 transition text-xl font-mono">
+            
+            <button onclick="kalkileDekonpoze()" 
+                class="w-full bg-blue-600 hover:bg-blue-500 py-4 rounded-2xl font-bold transition-all active:scale-95">
+                KALKILE
+            </button>
+        </div>
+
+        <div id="displayArea" class="mt-8 p-4 bg-zinc-950 rounded-2xl border border-zinc-900 hidden">
+            <div class="text-zinc-500 text-xs font-mono mb-2">REZILTA FINAL: <span id="finalRes" class="text-white"></span></div>
+            <div class="text-zinc-500 text-xs font-mono mb-1">CHEMIN:</div>
+            <div id="stepRes" class="text-green-500 font-mono break-all leading-relaxed text-lg"></div>
+        </div>
+    </div>
+
+    <script>
+        function kalkileDekonpoze() {
+            const input = document.getElementById('inputMath').value;
+            const displayArea = document.getElementById('displayArea');
+            const finalRes = document.getElementById('finalRes');
+            const stepRes = document.getElementById('stepRes');
+
+            try {
+                // 1. Nou evalye kalkil la (egz: 25 / 5 = 5)
+                // Atansyon: eval() se pou tès rapid, nan pwojè serye nou itilize yon parser.
+                const rezilta = eval(input);
+                
+                // 2. Nou jwenn divizè a (nan 25 / 5, se 5)
+                // Nou itilize yon ti regex pou n separe chif yo
+                const patiYo = input.split('/');
+                const dezyemChif = parseFloat(patiYo[1]);
+
+                if (input.includes('/') && !isNaN(dezyemChif)) {
+                    // 3. Kreye chemin an (egz: 5+5+5+5+5)
+                    // Nou repete chif rezilta a, "dezyemChif" fwa.
+                    let chemin = Array(dezyemChif).fill(rezilta).join(' + ');
+                    
+                    finalRes.textContent = rezilta;
+                    stepRes.textContent = chemin;
+                    displayArea.classList.remove('hidden');
+                } else {
+                    finalRes.textContent = rezilta;
+                    stepRes.textContent = "Kalkil sa a pa bezwen dekonpozisyon adisyon.";
+                    displayArea.classList.remove('hidden');
+                }
+
+            } catch (e) {
+                alert("Kalkil la pa valid! Sèvi ak fòma: 25 / 5");
+            }
+        }
+    </script>
+</body>
+</html>
