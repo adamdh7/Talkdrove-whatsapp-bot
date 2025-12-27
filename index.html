@@ -15,16 +15,13 @@
         #display { min-height: 50vh; }
         #input { font-size: clamp(1.5rem, 4vw, 2.5rem); user-select: none; }
         #result { font-size: clamp(3rem, 8vw, 6rem); user-select: text; }
-        .btn { background: #1a1a1a; transition: all 0.2s; border-radius: 1rem; }
-        .btn:active { background: #333333; transform: scale(0.95); }
-        .btn-op { background: #0d47a1; }
-        .btn-op:active { background: #1565c0; }
-        .btn-eq { background: #1976d2; }
-        .btn-eq:active { background: #2196f3; }
-        .btn-clear { background: #d32f2f; }
-        .btn-clear:active { background: #f44336; }
-        .btn-toggle { background: #333333; }
-        .btn-toggle:active { background: #444444; }
+        .btn { transition: all 0.2s; }
+        .btn-num { background: #333333; color: #ffffff; }
+        .btn-num:active { background: #1a1a1a; }
+        .btn-function { background: #a5a5a5; color: #000000; }
+        .btn-function:active { background: #8e8e8e; }
+        .btn-op { background: #ff9500; color: #ffffff; }
+        .btn-op:active { background: #d87f00; }
     </style>
 </head>
 <body class="flex flex-col h-screen">
@@ -36,60 +33,53 @@
     </div>
 
     <!-- Advanced panel (hidden by default) -->
-    <div id="advancedPanel" class="hidden grid grid-cols-5 gap-3 px-4">
-        <button class="btn py-5 text-lg" onclick="insert('sin(')">sin</button>
-        <button class="btn py-5 text-lg" onclick="insert('cos(')">cos</button>
-        <button class="btn py-5 text-lg" onclick="insert('tan(')">tan</button>
-        <button class="btn py-5 text-lg" onclick="insert('log(')">log</button>
-        <button class="btn py-5 text-lg" onclick="insert('ln(')">ln</button>
+    <div id="advancedPanel" class="hidden grid grid-cols-4 gap-3 px-4">
+        <button class="btn btn-function aspect-square flex items-center justify-center rounded-full text-lg" onclick="insert('sin(')">sin</button>
+        <button class="btn btn-function aspect-square flex items-center justify-center rounded-full text-lg" onclick="insert('cos(')">cos</button>
+        <button class="btn btn-function aspect-square flex items-center justify-center rounded-full text-lg" onclick="insert('tan(')">tan</button>
+        <button class="btn btn-function aspect-square flex items-center justify-center rounded-full text-lg" onclick="insert('log(')">log</button>
 
-        <button class="btn py-5 text-lg" onclick="insert('sqrt(')">√</button>
-        <button class="btn py-5 text-lg" onclick="insert('^')">^</button>
-        <button class="btn py-5 text-lg" onclick="insert('pi')">π</button>
-        <button class="btn py-5 text-lg" onclick="insert('e')">e</button>
-        <button class="btn py-5 text-lg" onclick="insert('!')">!</button>
+        <button class="btn btn-function aspect-square flex items-center justify-center rounded-full text-lg" onclick="insert('ln(')">ln</button>
+        <button class="btn btn-function aspect-square flex items-center justify-center rounded-full text-lg" onclick="insert('sqrt(')">√</button>
+        <button class="btn btn-function aspect-square flex items-center justify-center rounded-full text-lg" onclick="insert('^')">^</button>
+        <button class="btn btn-function aspect-square flex items-center justify-center rounded-full text-lg" onclick="insert('pi')">π</button>
+
+        <button class="btn btn-function aspect-square flex items-center justify-center rounded-full text-lg" onclick="insert('e')">e</button>
+        <button class="btn btn-function aspect-square flex items-center justify-center rounded-full text-lg" onclick="insert('!')">!</button>
+        <button class="btn btn-function aspect-square flex items-center justify-center rounded-full text-lg" onclick="insert('(')">(</button>
+        <button class="btn btn-function aspect-square flex items-center justify-center rounded-full text-lg" onclick="insert(')')">)</button>
     </div>
 
     <!-- Basic buttons (always visible) -->
-    <div class="grid grid-cols-5 gap-3 px-4 py-4">
-        <button class="btn btn-clear py-5 text-xl" onclick="clearAll()">C</button>
-        <button class="btn btn-clear py-5 text-xl" onclick="del()">⌫</button>
-        <button class="btn py-5 text-xl" onclick="insert('(')">(</button>
-        <button class="btn py-5 text-xl" onclick="insert(')')">)</button>
-        <button class="btn btn-toggle py-5 text-xl" onclick="toggleAdvanced()" id="toggleBtn">Plis</button>
+    <div class="grid grid-cols-4 gap-3 px-4 py-4">
+        <button class="btn btn-function aspect-square flex items-center justify-center rounded-full text-xl" onclick="clearAll()">AC</button>
+        <button class="btn btn-function aspect-square flex items-center justify-center rounded-full text-xl" onclick="toggleAdvanced()" id="toggleBtn">Plis</button>
+        <button class="btn btn-function aspect-square flex items-center justify-center rounded-full text-xl" onclick="insert('%')">%</button>
+        <button class="btn btn-op aspect-square flex items-center justify-center rounded-full text-2xl font-bold" onclick="insert('/')">÷</button>
 
-        <button class="btn py-5 text-2xl font-bold" onclick="insert('7')">7</button>
-        <button class="btn py-5 text-2xl font-bold" onclick="insert('8')">8</button>
-        <button class="btn py-5 text-2xl font-bold" onclick="insert('9')">9</button>
-        <button class="btn btn-op py-5 text-2xl font-bold basic-op" onclick="insert('/')">÷</button>
-        <button class="btn btn-op py-5 text-2xl font-bold basic-op" onclick="insert('%')">%</button>
+        <button class="btn btn-num aspect-square flex items-center justify-center rounded-full text-2xl font-bold" onclick="insert('7')">7</button>
+        <button class="btn btn-num aspect-square flex items-center justify-center rounded-full text-2xl font-bold" onclick="insert('8')">8</button>
+        <button class="btn btn-num aspect-square flex items-center justify-center rounded-full text-2xl font-bold" onclick="insert('9')">9</button>
+        <button class="btn btn-op aspect-square flex items-center justify-center rounded-full text-2xl font-bold" onclick="insert('*')">×</button>
 
-        <button class="btn py-5 text-2xl font-bold" onclick="insert('4')">4</button>
-        <button class="btn py-5 text-2xl font-bold" onclick="insert('5')">5</button>
-        <button class="btn py-5 text-2xl font-bold" onclick="insert('6')">6</button>
-        <button class="btn btn-op py-5 text-2xl font-bold basic-op" onclick="insert('*')">×</button>
-        <button class="btn py-5 text-xl col-span-1 hidden basic-op"></button> <!-- empty for alignment -->
+        <button class="btn btn-num aspect-square flex items-center justify-center rounded-full text-2xl font-bold" onclick="insert('4')">4</button>
+        <button class="btn btn-num aspect-square flex items-center justify-center rounded-full text-2xl font-bold" onclick="insert('5')">5</button>
+        <button class="btn btn-num aspect-square flex items-center justify-center rounded-full text-2xl font-bold" onclick="insert('6')">6</button>
+        <button class="btn btn-op aspect-square flex items-center justify-center rounded-full text-2xl font-bold" onclick="insert('-')">−</button>
 
-        <button class="btn py-5 text-2xl font-bold" onclick="insert('1')">1</button>
-        <button class="btn py-5 text-2xl font-bold" onclick="insert('2')">2</button>
-        <button class="btn py-5 text-2xl font-bold" onclick="insert('3')">3</button>
-        <button class="btn btn-op py-5 text-2xl font-bold basic-op" onclick="insert('-')">−</button>
-        <button class="btn py-5 text-xl col-span-1 hidden basic-op"></button>
+        <button class="btn btn-num aspect-square flex items-center justify-center rounded-full text-2xl font-bold" onclick="insert('1')">1</button>
+        <button class="btn btn-num aspect-square flex items-center justify-center rounded-full text-2xl font-bold" onclick="insert('2')">2</button>
+        <button class="btn btn-num aspect-square flex items-center justify-center rounded-full text-2xl font-bold" onclick="insert('3')">3</button>
+        <button class="btn btn-op aspect-square flex items-center justify-center rounded-full text-2xl font-bold" onclick="insert('+')">+</button>
 
-        <button class="btn py-5 text-2xl font-bold col-span-2" onclick="insert('0')">0</button>
-        <button class="btn py-5 text-2xl font-bold" onclick="insert('.')">.</button>
-        <button class="btn btn-op py-5 text-2xl font-bold basic-op" onclick="insert('+')">+</button>
-        <button class="btn py-5 text-xl col-span-1 hidden basic-op"></button>
-    </div>
-
-    <!-- Big = button full width -->
-    <div class="px-4 pb-6">
-        <button class="btn btn-eq w-full py-10 text-4xl font-bold rounded-2xl" onclick="calculate()">=</button>
+        <button class="btn btn-num aspect-square col-span-2 flex items-center justify-center rounded-full text-2xl font-bold" onclick="insert('0')">0</button>
+        <button class="btn btn-num aspect-square flex items-center justify-center rounded-full text-2xl font-bold" onclick="insert('.')">.</button>
+        <button class="btn btn-op aspect-square flex items-center justify-center rounded-full text-2xl font-bold" onclick="calculate()">=</button>
     </div>
 
     <script>
         let currentInput = '';
-        let advancedShown = false;
+        let startX;
 
         function insert(val) {
             currentInput += val;
@@ -112,15 +102,10 @@
         }
 
         function toggleAdvanced() {
-            advancedShown = !advancedShown;
             const panel = document.getElementById('advancedPanel');
             const btn = document.getElementById('toggleBtn');
-            const basicOps = document.querySelectorAll('.basic-op');
-            panel.classList.toggle('hidden', !advancedShown);
-            btn.textContent = advancedShown ? 'Mwens' : 'Plis';
-            basicOps.forEach(op => {
-                op.classList.toggle('hidden', advancedShown);
-            });
+            panel.classList.toggle('hidden');
+            btn.textContent = panel.classList.contains('hidden') ? 'Plis' : 'Mwens';
         }
 
         function autoCloseParentheses(input) {
@@ -143,12 +128,11 @@
                 evaluated = math.evaluate(toEval);
             } catch (err) {
                 error = err;
-                // Try auto-closing parentheses if parenthesis-related error
                 if (err.message.includes('parenthesis') || err.message.includes('Unexpected end')) {
                     toEval = autoCloseParentheses(toEval);
                     try {
                         evaluated = math.evaluate(toEval);
-                        currentInput = toEval; // Update with closed version
+                        currentInput = toEval;
                         error = null;
                     } catch {}
                 }
@@ -157,7 +141,7 @@
             if (evaluated !== null) {
                 const formatted = math.format(evaluated, {precision: 14});
                 document.getElementById('result').innerHTML = katex.renderToString(formatted, {throwOnError: false});
-                currentInput = '' + evaluated; // Chain calculations
+                currentInput = '' + evaluated;
             } else {
                 document.getElementById('result').textContent = 'Erè';
             }
@@ -165,6 +149,18 @@
             updateDisplay();
             renderMathInElement(document.body);
         }
+
+        // Swipe to delete on display
+        document.getElementById('display').addEventListener('touchstart', (e) => {
+            startX = e.touches[0].clientX;
+        });
+
+        document.getElementById('display').addEventListener('touchend', (e) => {
+            const endX = e.changedTouches[0].clientX;
+            if (Math.abs(startX - endX) > 50) {
+                del();
+            }
+        });
 
         // Keyboard support
         window.addEventListener('keydown', (e) => {
