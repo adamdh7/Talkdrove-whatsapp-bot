@@ -3,113 +3,126 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TF Math Logic</title>
+    <title>TF Math Engine Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
     <style>
-        body { background-color: #000000; color: #ffffff; font-family: 'Courier New', Courier, monospace; }
-        .math-box { background: #0a0a0a; border: 1px solid #1a1a1a; }
-        .step-line { border-left: 2px solid #2563eb; padding-left: 15px; margin-bottom: 10px; }
+        body { background-color: #000000; color: #ffffff; font-family: 'Menlo', monospace; }
+        .math-box { background: #070707; border: 1px solid #151515; position: relative; overflow: hidden; }
+        .math-box::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; hieght: 2px; background: linear-gradient(90deg, transparent, #2563eb, transparent); animation: scan 3s linear infinite; }
+        @keyframes scan { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+        .step-line { border-left: 2px solid #1e40af; padding-left: 15px; margin-bottom: 12px; font-size: 0.9rem; color: #a1a1aa; }
+        .glow-text { text-shadow: 0 0 10px rgba(37, 99, 235, 0.5); }
     </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-4">
 
-    <div class="math-box w-full max-w-lg rounded-3xl p-8 shadow-2xl">
-        <h1 class="text-blue-500 text-sm mb-6 tracking-tighter uppercase font-bold text-center">Laboratwa Matematik</h1>
+    <div class="math-box w-full max-w-lg rounded-[2rem] p-8 shadow-2xl">
+        <div class="flex justify-between items-center mb-8">
+            <h1 class="text-blue-500 text-[10px] tracking-[0.4em] font-black uppercase">Core Math v2.0</h1>
+            <div class="flex gap-1">
+                <div class="w-2 h-2 rounded-full bg-red-500/20 border border-red-500"></div>
+                <div class="w-2 h-2 rounded-full bg-yellow-500/20 border border-yellow-500"></div>
+                <div class="w-2 h-2 rounded-full bg-green-500/20 border border-green-500"></div>
+            </div>
+        </div>
         
         <div class="space-y-4">
-            <input id="formula" type="text" placeholder="Egz: sqrt(25) oswa 20/4" 
-                class="w-full bg-zinc-900 border border-zinc-800 p-5 rounded-2xl outline-none focus:border-blue-600 transition text-2xl text-center">
+            <input id="formula" type="text" placeholder="Antre fòmil la (ex: 50 / 2 + 10)" 
+                class="w-full bg-[#0a0a0a] border border-zinc-800 p-6 rounded-2xl outline-none focus:border-blue-600 transition text-2xl text-center font-bold tracking-wider">
             
-            <button onclick="analizeMatematik()" 
-                class="w-full bg-blue-600 hover:bg-blue-500 py-4 rounded-2xl font-black text-white transition-all transform active:scale-95">
-                DEKONPOZE
+            <button onclick="engineTF()" 
+                class="w-full bg-blue-700 hover:bg-blue-600 py-5 rounded-2xl font-black text-white transition-all transform active:scale-95 shadow-lg shadow-blue-900/20">
+                EKZEKITE ANALIZ
             </button>
         </div>
 
-        <div id="output" class="mt-10 space-y-6 hidden">
-            <div>
-                <span class="text-zinc-500 text-xs block mb-1 underline">OPERASYON:</span>
-                <div id="op_orig" class="text-xl"></div>
+        <div id="output" class="mt-10 space-y-6 hidden border-t border-zinc-900 pt-6">
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <span class="text-zinc-600 text-[9px] uppercase font-bold block mb-1">Status</span>
+                    <div class="text-green-500 text-xs font-bold">READY_TO_PROCESS</div>
+                </div>
+                <div class="text-right">
+                    <span class="text-zinc-600 text-[9px] uppercase font-bold block mb-1">Original</span>
+                    <div id="op_orig" class="text-xs text-zinc-400 truncate"></div>
+                </div>
             </div>
 
-            <div>
-                <span class="text-zinc-500 text-xs block mb-2 underline">CHEMIN MATEMATIK:</span>
-                <div id="op_steps" class="space-y-3"></div>
+            <div class="bg-black/50 p-4 rounded-xl border border-zinc-900">
+                <span class="text-blue-500 text-[10px] font-bold block mb-4 uppercase">Chimen Lojik</span>
+                <div id="op_steps" class="space-y-1"></div>
             </div>
 
-            <div class="pt-4 border-t border-zinc-900">
-                <span class="text-blue-500 text-xs block mb-1">REZIPA FINAL:</span>
-                <div id="op_res" class="text-4xl font-bold text-green-500"></div>
+            <div class="text-center py-4 bg-blue-600/5 rounded-2xl border border-blue-900/20">
+                <span class="text-zinc-500 text-[10px] block mb-1 uppercase">Repons Final</span>
+                <div id="op_res" class="text-5xl font-black text-white glow-text"></div>
             </div>
         </div>
     </div>
 
     <script>
-        function analizeMatematik() {
-            const val = document.getElementById('formula').value.trim().toLowerCase();
+        function engineTF() {
+            const input = document.getElementById('formula').value.trim();
             const output = document.getElementById('output');
             const stepsDiv = document.getElementById('op_steps');
             const resDiv = document.getElementById('op_res');
             const origDiv = document.getElementById('op_orig');
 
+            if(!input) return;
+
             stepsDiv.innerHTML = "";
             output.classList.remove('hidden');
-            origDiv.textContent = val;
+            origDiv.textContent = input;
 
-            // --- DEKONPOZE RASIN KARE (sqrt) ---
-            if (val.startsWith('sqrt(')) {
-                const num = parseFloat(val.replace('sqrt(', '').replace(')', ''));
-                const res = Math.sqrt(num);
+            try {
+                // Sèvi ak Math.js pou kalkile tout bagay
+                const result = math.evaluate(input);
+                resDiv.textContent = Number.isInteger(result) ? result : result.toFixed(4);
+
+                // --- SMART DECOMPOSITION LOGIC ---
                 
-                if (Number.isInteger(res)) {
-                    stepsDiv.innerHTML += `<div class="step-line">√${num} = √(${res} × ${res})</div>`;
-                    stepsDiv.innerHTML += `<div class="step-line">√(${res}²)</div>`;
-                    resDiv.textContent = res;
-                } else {
-                    resDiv.textContent = res.toFixed(3);
+                // 1. Si se yon Divizyon
+                if (input.includes('/')) {
+                    const [a, b] = input.split('/').map(n => parseFloat(n.trim()));
+                    stepsDiv.innerHTML += `<div class="step-line">Analyse: Divize ${a} an ${b} pati egal.</div>`;
+                    if(b !== 0 && result < 20) {
+                        stepsDiv.innerHTML += `<div class="step-line">Expansion: ${Array(Math.floor(result)).fill(b).join(' + ')} = ${a}</div>`;
+                    }
                 }
-            } 
 
-            // --- DEKONPOZE DIVIZYON (/) ---
-            else if (val.includes('/')) {
-                const parts = val.split('/');
-                const a = parseFloat(parts[0]);
-                const b = parseFloat(parts[1]);
-                const res = a / b;
-
-                stepsDiv.innerHTML += `<div class="step-line">${a} ÷ ${b}</div>`;
-                stepsDiv.innerHTML += `<div class="step-line">Konbyen fwa ${b} antre nan ${a}?</div>`;
-                
-                let adisyon = [];
-                for(let i=0; i<res; i++) adisyon.push(b);
-                
-                if (Number.isInteger(res) && res < 50) {
-                    stepsDiv.innerHTML += `<div class="step-line">${adisyon.join(' + ')} = ${a}</div>`;
-                    stepsDiv.innerHTML += `<div class="step-line">Repetisyon: ${res} fwa</div>`;
+                // 2. Si se yon Miltiplikasyon
+                else if (input.includes('*') || input.toLowerCase().includes('x')) {
+                    const cleanIn = input.replace('x', '*');
+                    const [a, b] = cleanIn.split('*').map(n => parseFloat(n.trim()));
+                    stepsDiv.innerHTML += `<div class="step-line">Lojik: Repete ${a}, ${b} fwa.</div>`;
+                    if(b < 20) stepsDiv.innerHTML += `<div class="step-line">Calcul: ${Array(Math.floor(b)).fill(a).join(' + ')} = ${a*b}</div>`;
                 }
-                resDiv.textContent = res;
-            }
 
-            // --- DEKONPOZE PWISANS (^) ---
-            else if (val.includes('^')) {
-                const parts = val.split('^');
-                const baz = parseFloat(parts[0]);
-                const exp = parseFloat(parts[1]);
-                const res = Math.pow(baz, exp);
+                // 3. Si se Rasin Kare
+                else if (input.includes('sqrt')) {
+                    const num = parseFloat(input.match(/\d+/)[0]);
+                    stepsDiv.innerHTML += `<div class="step-line">Propriété: Chèche yon chif ki miltipliye pa li menm ki bay ${num}.</div>`;
+                    stepsDiv.innerHTML += `<div class="step-line">Vérification: ${result} × ${result} = ${num}</div>`;
+                }
 
-                let milti = [];
-                for(let i=0; i<exp; i++) milti.push(baz);
+                // 4. Si se Pwisans
+                else if (input.includes('^')) {
+                    const [baz, exp] = input.split('^').map(n => parseFloat(n.trim()));
+                    stepsDiv.innerHTML += `<div class="step-line">Pwisans: ${baz} miltipliye pa li menm ${exp} fwa.</div>`;
+                    stepsDiv.innerHTML += `<div class="step-line">Détail: ${Array(Math.floor(exp)).fill(baz).join(' × ')}</div>`;
+                }
 
-                stepsDiv.innerHTML += `<div class="step-line">${baz} miltipliye pa li menm ${exp} fwa</div>`;
-                stepsDiv.innerHTML += `<div class="step-line">${milti.join(' × ')}</div>`;
-                resDiv.textContent = res;
-            }
+                else {
+                    stepsDiv.innerHTML += `<div class="step-line">Analiz senp dekonpoze: ${input} = ${result}</div>`;
+                }
 
-            else {
-                resDiv.textContent = eval(val);
-                stepsDiv.innerHTML = "Operasyon senp.";
+            } catch (err) {
+                resDiv.textContent = "ERROR";
+                stepsDiv.innerHTML = `<div class="text-red-500 text-xs">Fòma pa valid. Sèvi ak senbòl nòmal yo (+, -, *, /, ^, sqrt).</div>`;
             }
         }
     </script>
 </body>
 </html>
+
