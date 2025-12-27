@@ -54,58 +54,91 @@
     <div class="grid grid-cols-4 gap-3 px-4 py-4">
         <button class="btn btn-function aspect-square flex items-center justify-center rounded-full text-xl" onclick="clearAll()">AC</button>
         <button class="btn btn-function aspect-square flex items-center justify-center rounded-full text-xl" onclick="toggleAdvanced()" id="toggleBtn">Plis</button>
-        <button class="btn btn-function aspect-square flex items-center justify-center rounded-full text-xl" onclick="insert('%')">%</button>
-        <button class="btn btn-op aspect-square flex items-center justify-center rounded-full text-2xl font-bold" onclick="insert('/')">÷</button>
+        <button class="btn btn-function aspect-square flex items-center justify-center rounded-full text-xl basic-op" onclick="insert('%')">%</button>
+        <button class="btn btn-op aspect-square flex items-center justify-center rounded-full text-2xl font-bold basic-op" onclick="insert('/')">÷</button>
 
         <button class="btn btn-num aspect-square flex items-center justify-center rounded-full text-2xl font-bold" onclick="insert('7')">7</button>
         <button class="btn btn-num aspect-square flex items-center justify-center rounded-full text-2xl font-bold" onclick="insert('8')">8</button>
         <button class="btn btn-num aspect-square flex items-center justify-center rounded-full text-2xl font-bold" onclick="insert('9')">9</button>
-        <button class="btn btn-op aspect-square flex items-center justify-center rounded-full text-2xl font-bold" onclick="insert('*')">×</button>
+        <button class="btn btn-op aspect-square flex items-center justify-center rounded-full text-2xl font-bold basic-op" onclick="insert('*')">×</button>
 
         <button class="btn btn-num aspect-square flex items-center justify-center rounded-full text-2xl font-bold" onclick="insert('4')">4</button>
         <button class="btn btn-num aspect-square flex items-center justify-center rounded-full text-2xl font-bold" onclick="insert('5')">5</button>
         <button class="btn btn-num aspect-square flex items-center justify-center rounded-full text-2xl font-bold" onclick="insert('6')">6</button>
-        <button class="btn btn-op aspect-square flex items-center justify-center rounded-full text-2xl font-bold" onclick="insert('-')">−</button>
+        <button class="btn btn-op aspect-square flex items-center justify-center rounded-full text-2xl font-bold basic-op" onclick="insert('-')">−</button>
 
         <button class="btn btn-num aspect-square flex items-center justify-center rounded-full text-2xl font-bold" onclick="insert('1')">1</button>
         <button class="btn btn-num aspect-square flex items-center justify-center rounded-full text-2xl font-bold" onclick="insert('2')">2</button>
         <button class="btn btn-num aspect-square flex items-center justify-center rounded-full text-2xl font-bold" onclick="insert('3')">3</button>
-        <button class="btn btn-op aspect-square flex items-center justify-center rounded-full text-2xl font-bold" onclick="insert('+')">+</button>
+        <button class="btn btn-op aspect-square flex items-center justify-center rounded-full text-2xl font-bold basic-op" onclick="insert('+')">+</button>
 
-        <button class="btn btn-num aspect-square col-span-2 flex items-center justify-center rounded-full text-2xl font-bold" onclick="insert('0')">0</button>
+        <button class="btn btn-num col-span-2 rounded-full flex items-center justify-center text-2xl font-bold" onclick="insert('0')">0</button>
         <button class="btn btn-num aspect-square flex items-center justify-center rounded-full text-2xl font-bold" onclick="insert('.')">.</button>
         <button class="btn btn-op aspect-square flex items-center justify-center rounded-full text-2xl font-bold" onclick="calculate()">=</button>
     </div>
 
     <script>
         let currentInput = '';
+        let isFinal = false;
         let startX;
+        let advancedShown = false;
 
         function insert(val) {
+            if (isFinal) {
+                isFinal = false;
+                if (!/[\+\-\*\/\%^]/.test(val)) {
+                    currentInput = '';
+                }
+            }
             currentInput += val;
             updateDisplay();
         }
 
         function clearAll() {
             currentInput = '';
+            isFinal = false;
             updateDisplay();
         }
 
         function del() {
             currentInput = currentInput.slice(0, -1);
+            isFinal = false;
             updateDisplay();
         }
 
         function updateDisplay() {
-            document.getElementById('input').textContent = currentInput || '0';
-            // Result stays until new calculation
+            if (isFinal) {
+                document.getElementById('input').textContent = '';
+            } else {
+                document.getElementById('input').textContent = currentInput || '0';
+            }
+            document.getElementById('result').innerHTML = '';
+            document.getElementById('result').classList.remove('opacity-60');
+            document.getElementById('result').style.fontSize = 'clamp(3rem, 8vw, 6rem)';
+            if (currentInput && !isFinal) {
+                try {
+                    let evaluated = math.evaluate(currentInput);
+                    let formatted = math.format(evaluated, {precision: 14});
+                    document.getElementById('result').innerHTML = katex.renderToString(formatted, {throwOnError: false});
+                    document.getElementById('result').classList.add('opacity-60');
+                    document.getElementById('result').style.fontSize = 'clamp(1.5rem, 4vw, 2.5rem)';
+                } catch {}
+            } else if (isFinal) {
+                // Already set in calculate
+            }
+            renderMathInElement(document.body);
         }
 
         function toggleAdvanced() {
+            advancedShown = !advancedShown;
             const panel = document.getElementById('advancedPanel');
             const btn = document.getElementById('toggleBtn');
-            panel.classList.toggle('hidden');
-            btn.textContent = panel.classList.contains('hidden') ? 'Plis' : 'Mwens';
+            const basicOps = document.querySelectorAll('.basic-op');
+            panel.classList.toggle('hidden', !advancedShown);
+            btn.textContent = advancedShown ? 'Mwens' : 'Plis';
+            basicOps.forEach(op => {
+                op.classList.toggle('invisible', advancedShown);
+            });
         }
 
         function autoCloseParentheses(input) {
@@ -141,7 +174,8 @@
             if (evaluated !== null) {
                 const formatted = math.format(evaluated, {precision: 14});
                 document.getElementById('result').innerHTML = katex.renderToString(formatted, {throwOnError: false});
-                currentInput = '' + evaluated;
+                currentInput = formatted;
+                isFinal = true;
             } else {
                 document.getElementById('result').textContent = 'Erè';
             }
