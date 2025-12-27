@@ -11,10 +11,10 @@
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
             onload="renderMathInElement(document.body);"></script>
     <style>
-        body, html { height: 100%; margin: 0; background: #000000; color: #ffffff; font-family: 'JetBrains Mono', monospace; overflow: hidden; }
+        body, html { height: 100%; margin: 0; background: #000000; color: #ffffff; font-family: 'JetBrains Mono', monospace; overflow: hidden; user-select: none; }
         #display { min-height: 50vh; }
         #input { font-size: clamp(1.5rem, 4vw, 2.5rem); user-select: none; }
-        #result { font-size: clamp(3rem, 8vw, 6rem); }
+        #result { font-size: clamp(3rem, 8vw, 6rem); user-select: text; }
         .btn { background: #1a1a1a; transition: all 0.2s; border-radius: 1rem; }
         .btn:active { background: #333333; transform: scale(0.95); }
         .btn-op { background: #0d47a1; }
@@ -61,25 +61,25 @@
         <button class="btn py-5 text-2xl font-bold" onclick="insert('7')">7</button>
         <button class="btn py-5 text-2xl font-bold" onclick="insert('8')">8</button>
         <button class="btn py-5 text-2xl font-bold" onclick="insert('9')">9</button>
-        <button class="btn btn-op py-5 text-2xl font-bold" onclick="insert('/')">÷</button>
-        <button class="btn btn-op py-5 text-2xl font-bold" onclick="insert('%')">%</button>
+        <button class="btn btn-op py-5 text-2xl font-bold basic-op" onclick="insert('/')">÷</button>
+        <button class="btn btn-op py-5 text-2xl font-bold basic-op" onclick="insert('%')">%</button>
 
         <button class="btn py-5 text-2xl font-bold" onclick="insert('4')">4</button>
         <button class="btn py-5 text-2xl font-bold" onclick="insert('5')">5</button>
         <button class="btn py-5 text-2xl font-bold" onclick="insert('6')">6</button>
-        <button class="btn btn-op py-5 text-2xl font-bold" onclick="insert('*')">×</button>
-        <button class="btn py-5 text-xl col-span-1 hidden"></button> <!-- empty for alignment -->
+        <button class="btn btn-op py-5 text-2xl font-bold basic-op" onclick="insert('*')">×</button>
+        <button class="btn py-5 text-xl col-span-1 hidden basic-op"></button> <!-- empty for alignment -->
 
         <button class="btn py-5 text-2xl font-bold" onclick="insert('1')">1</button>
         <button class="btn py-5 text-2xl font-bold" onclick="insert('2')">2</button>
         <button class="btn py-5 text-2xl font-bold" onclick="insert('3')">3</button>
-        <button class="btn btn-op py-5 text-2xl font-bold" onclick="insert('-')">−</button>
-        <button class="btn py-5 text-xl col-span-1 hidden"></button>
+        <button class="btn btn-op py-5 text-2xl font-bold basic-op" onclick="insert('-')">−</button>
+        <button class="btn py-5 text-xl col-span-1 hidden basic-op"></button>
 
         <button class="btn py-5 text-2xl font-bold col-span-2" onclick="insert('0')">0</button>
         <button class="btn py-5 text-2xl font-bold" onclick="insert('.')">.</button>
-        <button class="btn btn-op py-5 text-2xl font-bold" onclick="insert('+')">+</button>
-        <button class="btn py-5 text-xl col-span-1 hidden"></button>
+        <button class="btn btn-op py-5 text-2xl font-bold basic-op" onclick="insert('+')">+</button>
+        <button class="btn py-5 text-xl col-span-1 hidden basic-op"></button>
     </div>
 
     <!-- Big = button full width -->
@@ -89,6 +89,7 @@
 
     <script>
         let currentInput = '';
+        let advancedShown = false;
 
         function insert(val) {
             currentInput += val;
@@ -111,10 +112,15 @@
         }
 
         function toggleAdvanced() {
+            advancedShown = !advancedShown;
             const panel = document.getElementById('advancedPanel');
             const btn = document.getElementById('toggleBtn');
-            panel.classList.toggle('hidden');
-            btn.textContent = panel.classList.contains('hidden') ? 'Plis' : 'Mwens';
+            const basicOps = document.querySelectorAll('.basic-op');
+            panel.classList.toggle('hidden', !advancedShown);
+            btn.textContent = advancedShown ? 'Mwens' : 'Plis';
+            basicOps.forEach(op => {
+                op.classList.toggle('hidden', advancedShown);
+            });
         }
 
         function autoCloseParentheses(input) {
