@@ -2,226 +2,215 @@
 <html lang="ht">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TF Calculator Pro</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/13.2.0/math.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
-    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
-            onload="renderMathInElement(document.body);"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editeur Foto ak Videyo Senp nan Navigatè</title>
     <style>
-        body, html { height: 100%; margin: 0; background: #000000; color: #ffffff; font-family: 'JetBrains Mono', monospace; overflow: hidden; user-select: none; }
-        #display { min-height: 50vh; }
-        #input { font-size: clamp(1.5rem, 4vw, 2.5rem); user-select: none; white-space: normal; word-wrap: break-word; overflow-wrap: break-word; }
-        #result { font-size: clamp(3rem, 8vw, 6rem); user-select: text; }
-        .btn { transition: all 0.2s; }
-        .btn-num { background: #333333; color: #ffffff; }
-        .btn-num:active { background: #1a1a1a; }
-        .btn-function { background: #a5a5a5; color: #000000; }
-        .btn-function:active { background: #8e8e8e; }
-        .btn-op { background: #ff9500; color: #ffffff; }
-        .btn-op:active { background: #d87f00; }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        #container {
+            width: 100%;
+            max-width: 1200px;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        #upload-section, #edit-section {
+            margin-bottom: 20px;
+            width: 100%;
+        }
+        #preview {
+            width: 100%;
+            max-height: 400px;
+            border: 1px solid #ccc;
+            background-color: #fff;
+        }
+        button, input {
+            margin: 5px;
+            padding: 10px;
+            font-size: 16px;
+        }
+        #text-input, #filter-select {
+            width: 200px;
+        }
+        /* Responsive design */
+        @media (max-width: 768px) {
+            button, input {
+                width: 100%;
+                margin: 10px 0;
+            }
+            #preview {
+                max-height: 300px;
+            }
+        }
+        @media (max-width: 480px) {
+            #container {
+                padding: 10px;
+            }
+            #preview {
+                max-height: 200px;
+            }
+        }
     </style>
 </head>
-<body class="flex flex-col h-screen">
-
-    <!-- Display (always shows result big, expression gray non-copyable) -->
-    <div id="display" class="flex-1 flex flex-col justify-end p-8 text-right">
-        <div id="input" class="opacity-60 mb-4"></div>
-        <div id="result" class="font-bold"></div>
-    </div>
-
-    <!-- Advanced panel (hidden by default) -->
-    <div id="advancedPanel" class="hidden grid grid-cols-4 gap-3 px-4">
-        <button class="btn btn-function aspect-square flex items-center justify-center rounded-full text-lg" onclick="insert('sin(')">sin</button>
-        <button class="btn btn-function aspect-square flex items-center justify-center rounded-full text-lg" onclick="insert('cos(')">cos</button>
-        <button class="btn btn-function aspect-square flex items-center justify-center rounded-full text-lg" onclick="insert('tan(')">tan</button>
-        <button class="btn btn-function aspect-square flex items-center justify-center rounded-full text-lg" onclick="insert('log(')">log</button>
-
-        <button class="btn btn-function aspect-square flex items-center justify-center rounded-full text-lg" onclick="insert('ln(')">ln</button>
-        <button class="btn btn-function aspect-square flex items-center justify-center rounded-full text-lg" onclick="insert('sqrt(')">√</button>
-        <button class="btn btn-function aspect-square flex items-center justify-center rounded-full text-lg" onclick="insert('^')">^</button>
-        <button class="btn btn-function aspect-square flex items-center justify-center rounded-full text-lg" onclick="insert('pi')">π</button>
-
-        <button class="btn btn-function aspect-square flex items-center justify-center rounded-full text-lg" onclick="insert('e')">e</button>
-        <button class="btn btn-function aspect-square flex items-center justify-center rounded-full text-lg" onclick="insert('!')">!</button>
-        <button class="btn btn-function aspect-square flex items-center justify-center rounded-full text-lg" onclick="insert('(')">(</button>
-        <button class="btn btn-function aspect-square flex items-center justify-center rounded-full text-lg" onclick="insert(')')">)</button>
-    </div>
-
-    <!-- Basic buttons (always visible) -->
-    <div class="grid grid-cols-4 gap-3 px-4 py-4">
-        <button class="btn btn-function aspect-square flex items-center justify-center rounded-full text-xl" onclick="clearAll()">AC</button>
-        <button class="btn btn-function aspect-square flex items-center justify-center rounded-full text-xl" onclick="toggleAdvanced()" id="toggleBtn">Plis</button>
-        <button class="btn btn-function aspect-square flex items-center justify-center rounded-full text-xl basic-op" onclick="insert('%')">%</button>
-        <button class="btn btn-op aspect-square flex items-center justify-center rounded-full text-2xl font-bold basic-op" onclick="insert('/')">÷</button>
-
-        <button class="btn btn-num aspect-square flex items-center justify-center rounded-full text-2xl font-bold" onclick="insert('7')">7</button>
-        <button class="btn btn-num aspect-square flex items-center justify-center rounded-full text-2xl font-bold" onclick="insert('8')">8</button>
-        <button class="btn btn-num aspect-square flex items-center justify-center rounded-full text-2xl font-bold" onclick="insert('9')">9</button>
-        <button class="btn btn-op aspect-square flex items-center justify-center rounded-full text-2xl font-bold basic-op" onclick="insert('*')">×</button>
-
-        <button class="btn btn-num aspect-square flex items-center justify-center rounded-full text-2xl font-bold" onclick="insert('4')">4</button>
-        <button class="btn btn-num aspect-square flex items-center justify-center rounded-full text-2xl font-bold" onclick="insert('5')">5</button>
-        <button class="btn btn-num aspect-square flex items-center justify-center rounded-full text-2xl font-bold" onclick="insert('6')">6</button>
-        <button class="btn btn-op aspect-square flex items-center justify-center rounded-full text-2xl font-bold basic-op" onclick="insert('-')">−</button>
-
-        <button class="btn btn-num aspect-square flex items-center justify-center rounded-full text-2xl font-bold" onclick="insert('1')">1</button>
-        <button class="btn btn-num aspect-square flex items-center justify-center rounded-full text-2xl font-bold" onclick="insert('2')">2</button>
-        <button class="btn btn-num aspect-square flex items-center justify-center rounded-full text-2xl font-bold" onclick="insert('3')">3</button>
-        <button class="btn btn-op aspect-square flex items-center justify-center rounded-full text-2xl font-bold basic-op" onclick="insert('+')">+</button>
-
-        <button class="btn btn-num col-span-2 rounded-full flex items-center justify-center text-2xl font-bold" onclick="insert('0')">0</button>
-        <button class="btn btn-num aspect-square flex items-center justify-center rounded-full text-2xl font-bold" onclick="insert('.')">.</button>
-        <button class="btn btn-op aspect-square flex items-center justify-center rounded-full text-2xl font-bold" onclick="calculate()">=</button>
+<body>
+    <div id="container">
+        <h1>Editeur Foto ak Videyo Senp (San Backend)</h1>
+        <p>Sa se yon egzanp senp ki ka edite foto oswa videyo nan navigatè a. Li ka fè edisyon debaz tankou koupe videyo, ajoute tèks, aplike filtè senp, ak ekspòte. Limite pa resous navigatè a.</p>
+        
+        <div id="upload-section">
+            <input type="file" id="file-input" accept="image/*,video/*">
+            <button onclick="loadMedia()">Chaje Medya</button>
+        </div>
+        
+        <div id="edit-section" style="display: none;">
+            <video id="video-preview" controls style="display: none; width: 100%;"></video>
+            <canvas id="canvas-preview" style="display: none; width: 100%;"></canvas>
+            
+            <!-- Pou videyo: Koupe -->
+            <div id="video-controls" style="display: none;">
+                <label>Debut (segond): <input type="number" id="start-time" value="0" min="0"></label>
+                <label>Fin (segond): <input type="number" id="end-time" value="10" min="1"></label>
+                <button onclick="trimVideo()">Koupe Videyo</button>
+            </div>
+            
+            <!-- Pou foto/videyo: Ajoute tèks -->
+            <label>Tèks: <input type="text" id="text-input" placeholder="Ajoute tèks"></label>
+            <button onclick="addText()">Ajoute Tèks</button>
+            
+            <!-- Filtè senp -->
+            <label>Filtè: 
+                <select id="filter-select">
+                    <option value="none">Pa genyen</option>
+                    <option value="grayscale">Grayscale</option>
+                    <option value="sepia">Sepia</option>
+                    <option value="invert">Invert</option>
+                </select>
+            </label>
+            <button onclick="applyFilter()">Aplike Filtè</button>
+            
+            <button onclick="exportMedia()">Ekspòte</button>
+        </div>
     </div>
 
     <script>
-        let currentInput = '';
-        let isFinal = false;
-        let startX;
-        let advancedShown = false;
+        let mediaType = null; // 'image' oswa 'video'
+        let originalMedia = null; // URL oswa blob
+        let canvas = document.getElementById('canvas-preview');
+        let ctx = canvas.getContext('2d');
+        let video = document.getElementById('video-preview');
+        let editedBlob = null;
 
-        function insert(val) {
-            if (isFinal) {
-                isFinal = false;
-                if (!/[\+\-\*\/\%^]/.test(val)) {
-                    currentInput = '';
-                }
-            }
-            currentInput += val;
-            updateDisplay();
-        }
-
-        function clearAll() {
-            currentInput = '';
-            isFinal = false;
-            updateDisplay();
-        }
-
-        function del() {
-            currentInput = currentInput.slice(0, -1);
-            isFinal = false;
-            updateDisplay();
-        }
-
-        function updateDisplay() {
-            if (isFinal) {
-                document.getElementById('input').textContent = '';
+        function loadMedia() {
+            const file = document.getElementById('file-input').files[0];
+            if (!file) return alert('Chwazi yon fichye');
+            
+            originalMedia = URL.createObjectURL(file);
+            mediaType = file.type.startsWith('video') ? 'video' : 'image';
+            
+            document.getElementById('edit-section').style.display = 'block';
+            
+            if (mediaType === 'video') {
+                video.src = originalMedia;
+                video.style.display = 'block';
+                canvas.style.display = 'none';
+                document.getElementById('video-controls').style.display = 'block';
+                video.onloadedmetadata = () => {
+                    document.getElementById('end-time').max = video.duration;
+                    document.getElementById('end-time').value = video.duration;
+                };
             } else {
-                document.getElementById('input').textContent = currentInput || '0';
+                const img = new Image();
+                img.src = originalMedia;
+                img.onload = () => {
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    ctx.drawImage(img, 0, 0);
+                    canvas.style.display = 'block';
+                    video.style.display = 'none';
+                    document.getElementById('video-controls').style.display = 'none';
+                };
             }
-            document.getElementById('result').innerHTML = '';
-            document.getElementById('result').classList.remove('opacity-60');
-            document.getElementById('result').style.fontSize = 'clamp(3rem, 8vw, 6rem)';
-            if (currentInput && !isFinal) {
-                try {
-                    let evaluated = math.evaluate(currentInput);
-                    let formatted = math.format(evaluated, {precision: 14});
-                    document.getElementById('result').innerHTML = katex.renderToString(formatted, {throwOnError: false});
-                    document.getElementById('result').classList.add('opacity-60');
-                    document.getElementById('result').style.fontSize = 'clamp(1.5rem, 4vw, 2.5rem)';
-                } catch {}
-            } else if (isFinal) {
-                // Already set in calculate
-            }
-            renderMathInElement(document.body);
         }
 
-        function toggleAdvanced() {
-            advancedShown = !advancedShown;
-            const panel = document.getElementById('advancedPanel');
-            const btn = document.getElementById('toggleBtn');
-            const basicOps = document.querySelectorAll('.basic-op');
-            panel.classList.toggle('hidden', !advancedShown);
-            btn.textContent = advancedShown ? 'Mwens' : 'Plis';
-            basicOps.forEach(op => {
-                op.classList.toggle('invisible', advancedShown);
-            });
+        function trimVideo() {
+            const start = parseFloat(document.getElementById('start-time').value);
+            const end = parseFloat(document.getElementById('end-time').value);
+            if (start >= end || start < 0 || end > video.duration) return alert('Tan envalid');
+            
+            // Itilize MediaRecorder pou koupe (senp, men pa pafè)
+            video.currentTime = start;
+            video.play();
+            const chunks = [];
+            const stream = video.captureStream();
+            const recorder = new MediaRecorder(stream);
+            recorder.ondataavailable = e => chunks.push(e.data);
+            recorder.onstop = () => {
+                editedBlob = new Blob(chunks, { type: 'video/mp4' });
+                video.src = URL.createObjectURL(editedBlob);
+            };
+            recorder.start();
+            setTimeout(() => {
+                recorder.stop();
+                video.pause();
+            }, (end - start) * 1000);
         }
 
-        function autoCloseParentheses(input) {
-            let open = (input.match(/\(/g) || []).length;
-            let close = (input.match(/\)/g) || []).length;
-            if (open > close) {
-                return input + ')'.repeat(open - close);
-            }
-            return input;
-        }
-
-        function calculate() {
-            if (!currentInput) return;
-
-            let toEval = currentInput;
-            let evaluated = null;
-            let error = null;
-
-            try {
-                evaluated = math.evaluate(toEval);
-            } catch (err) {
-                error = err;
-                if (err.message.includes('parenthesis') || err.message.includes('Unexpected end')) {
-                    toEval = autoCloseParentheses(toEval);
-                    try {
-                        evaluated = math.evaluate(toEval);
-                        currentInput = toEval;
-                        error = null;
-                    } catch {}
-                }
-            }
-
-            if (evaluated !== null) {
-                const formatted = math.format(evaluated, {precision: 14});
-                document.getElementById('result').innerHTML = katex.renderToString(formatted, {throwOnError: false});
-                currentInput = formatted;
-                isFinal = true;
+        function addText() {
+            const text = document.getElementById('text-input').value;
+            if (!text) return;
+            
+            if (mediaType === 'image') {
+                ctx.font = '30px Arial';
+                ctx.fillStyle = 'red';
+                ctx.fillText(text, 50, 50);
             } else {
-                document.getElementById('result').textContent = 'Erè';
+                alert('Ajoute tèks sou videyo egzije plis konplèksite; sa se senp egzanp.');
             }
-
-            updateDisplay();
-            renderMathInElement(document.body);
         }
 
-        // Swipe to delete on display
-        document.getElementById('display').addEventListener('touchstart', (e) => {
-            startX = e.touches[0].clientX;
-        });
-
-        document.getElementById('display').addEventListener('touchend', (e) => {
-            const endX = e.changedTouches[0].clientX;
-            if (Math.abs(startX - endX) > 50) {
-                del();
+        function applyFilter() {
+            const filter = document.getElementById('filter-select').value;
+            if (mediaType === 'image') {
+                const img = new Image();
+                img.src = originalMedia;
+                img.onload = () => {
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    ctx.drawImage(img, 0, 0);
+                    ctx.filter = filter;
+                    ctx.drawImage(canvas, 0, 0); // Re-desen pou aplike filtè
+                };
+            } else {
+                video.style.filter = filter === 'none' ? '' : filter + '(100%)';
             }
-        });
+        }
 
-        // Keyboard support
-        window.addEventListener('keydown', (e) => {
-            const key = e.key;
-            if (/[0-9.+\-*/%^().]/.test(key)) {
-                insert(key === '*' ? '*' : key === '/' ? '/' : key);
-            } else if (key === 'Enter' || key === '=') {
-                calculate();
-                e.preventDefault();
-            } else if (key === 'Backspace') {
-                del();
-                e.preventDefault();
-            } else if (key === 'Escape') {
-                clearAll();
-                e.preventDefault();
+        function exportMedia() {
+            if (mediaType === 'image') {
+                canvas.toBlob(blob => {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'edited-image.png';
+                    a.click();
+                });
+            } else if (editedBlob) {
+                const url = URL.createObjectURL(editedBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'edited-video.mp4';
+                a.click();
+            } else {
+                alert('Fè edisyon anvan ekspòte');
             }
-        });
-
-        // Warn before refresh/close (result will be lost)
-        window.addEventListener('beforeunload', (e) => {
-            if (currentInput || document.getElementById('result').innerHTML) {
-                e.preventDefault();
-                e.returnValue = '';
-            }
-        });
-
-        updateDisplay();
+        }
     </script>
 </body>
 </html>
