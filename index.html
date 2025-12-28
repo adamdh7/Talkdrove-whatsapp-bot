@@ -3,13 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Editeur Foto ak Videyo Senp - UI Pwòp tankou CapCut</title>
+    <title>Editeur Foto ak Videyo Avanse - Tankou CapCut (San Backend)</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/body-pix@latest"></script>
+    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
             margin: 0;
             padding: 0;
-            background-color: #1a1a1a; /* Fond fonse tankou CapCut */
+            background-color: #1a1a1a;
             color: #fff;
             display: flex;
             flex-direction: column;
@@ -51,7 +54,7 @@
             max-width: 800px;
             position: relative;
         }
-        #preview {
+        #preview, #canvas-preview, #video-preview {
             width: 100%;
             height: auto;
             background-color: #000;
@@ -95,7 +98,7 @@
     </style>
 </head>
 <body>
-    <div id="header">Editeur Medya Senp - Tankou CapCut (San Backend)</div>
+    <div id="header">Editeur Medya Avanse - Tankou CapCut (San Backend, Tout Sa Posib)</div>
     <div id="tabs">
         <button class="tab-button active" onclick="showTab('image')">Edite Imaj</button>
         <button class="tab-button" onclick="showTab('video')">Edite Videyo</button>
@@ -106,40 +109,50 @@
             <button onclick="loadMedia()">Chaje Medya</button>
         </div>
         <div id="preview-container" style="display: none;">
-            <video id="video-preview" controls style="display: none;"></video>
             <canvas id="canvas-preview" style="display: none;"></canvas>
+            <video id="video-preview" controls style="display: none;"></video>
             <button id="fullscreen-btn" onclick="toggleFullscreen()">Fullscreen</button>
         </div>
         <div id="tools">
             <div id="image-tools">
                 <!-- Zouti pou imaj -->
-                <label>Tèks: <input type="text" id="text-input" placeholder="Ajoute tèks"></label>
-                <button onclick="addText()">Ajoute Tèks</button>
+                <button onclick="cropImage()">Koupe Imaj</button>
+                <button onclick="rotateImage(90)">Rotate 90°</button>
+                <button onclick="flipImage('horizontal')">Flip Orizontal</button>
+                <button onclick="flipImage('vertical')">Flip Vètikal</button>
+                <label>Brightness: <input type="range" id="brightness" min="-100" max="100" value="0" oninput="adjustImage()"></label>
+                <label>Contrast: <input type="range" id="contrast" min="-100" max="100" value="0" oninput="adjustImage()"></label>
+                <label>Saturation: <input type="range" id="saturation" min="-100" max="100" value="0" oninput="adjustImage()"></label>
+                <label>Hue: <input type="range" id="hue" min="-180" max="180" value="0" oninput="adjustImage()"></label>
                 <label>Filtè: 
                     <select id="filter-select">
                         <option value="none">Pa genyen</option>
-                        <option value="grayscale">Grayscale</option>
-                        <option value="sepia">Sepia</option>
-                        <option value="invert">Invert</option>
+                        <option value="grayscale(1)">Grayscale</option>
+                        <option value="sepia(1)">Sepia</option>
+                        <option value="invert(1)">Invert</option>
                     </select>
                 </label>
                 <button onclick="applyFilter()">Aplike Filtè</button>
+                <label>Tèks: <input type="text" id="text-input" placeholder="Ajoute tèks"></label>
+                <button onclick="addText()">Ajoute Tèks</button>
+                <button onclick="removeBackground()">Efase Background (AI)</button>
                 <button onclick="exportMedia()">Ekspòte Imaj</button>
             </div>
             <div id="video-tools">
                 <!-- Zouti pou videyo -->
                 <label>Debut (segond): <input type="number" id="start-time" value="0" min="0"></label>
                 <label>Fin (segond): <input type="number" id="end-time" value="10" min="1"></label>
-                <button onclick="trimVideo()">Koupe Videyo</button>
+                <button onclick="trimVideo()">Koupe Videyo (ak FFmpeg)</button>
                 <label>Filtè Videyo: 
                     <select id="video-filter-select">
                         <option value="none">Pa genyen</option>
-                        <option value="grayscale">Grayscale</option>
-                        <option value="sepia">Sepia</option>
-                        <option value="invert">Invert</option>
+                        <option value="grayscale(100%)">Grayscale</option>
+                        <option value="sepia(100%)">Sepia</option>
+                        <option value="invert(100%)">Invert</option>
                     </select>
                 </label>
                 <button onclick="applyVideoFilter()">Aplike Filtè</button>
+                <button onclick="addTextToVideo()">Ajoute Tèks sou Videyo (Senp)</button>
                 <button onclick="exportMedia()">Ekspòte Videyo</button>
             </div>
         </div>
@@ -152,13 +165,22 @@
         let ctx = canvas.getContext('2d');
         let video = document.getElementById('video-preview');
         let editedBlob = null;
+        let imageData = null;
+        let ffmpeg = null;
+
+        async function initFFmpeg() {
+            if (!ffmpeg) {
+                const { createFFmpeg, fetchFile } = FFmpeg;
+                ffmpeg = createFFmpeg({ log: true });
+                await ffmpeg.load();
+            }
+        }
 
         function showTab(tab) {
             document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
             event.target.classList.add('active');
             document.getElementById('image-tools').style.display = tab === 'image' ? 'block' : 'none';
             document.getElementById('video-tools').style.display = tab === 'video' ? 'block' : 'none';
-            // Efase medya si chanje tab
             resetMedia();
         }
 
@@ -171,13 +193,13 @@
             editedBlob = null;
         }
 
-        function loadMedia() {
+        async function loadMedia() {
             const file = document.getElementById('file-input').files[0];
             if (!file) return alert('Chwazi yon fichye');
-            
+
             originalMedia = URL.createObjectURL(file);
             mediaType = file.type.startsWith('video') ? 'video' : 'image';
-            
+
             if ((mediaType === 'image' && document.getElementById('image-tools').style.display !== 'block') ||
                 (mediaType === 'video' && document.getElementById('video-tools').style.display !== 'block')) {
                 return alert('Chwazi tab ki koresponn ak tip medya a');
@@ -202,30 +224,58 @@
                     ctx.drawImage(img, 0, 0);
                     canvas.style.display = 'block';
                     video.style.display = 'none';
+                    imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                 };
             }
         }
 
-        function trimVideo() {
-            const start = parseFloat(document.getElementById('start-time').value);
-            const end = parseFloat(document.getElementById('end-time').value);
-            if (start >= end || start < 0 || end > video.duration) return alert('Tan envalid');
-            
-            video.currentTime = start;
-            video.play();
-            const chunks = [];
-            const stream = video.captureStream();
-            const recorder = new MediaRecorder(stream);
-            recorder.ondataavailable = e => chunks.push(e.data);
-            recorder.onstop = () => {
-                editedBlob = new Blob(chunks, { type: 'video/mp4' });
-                video.src = URL.createObjectURL(editedBlob);
+        function cropImage() {
+            // Senp crop egzanp: koupe mwatye
+            if (mediaType !== 'image') return;
+            const width = canvas.width / 2;
+            const height = canvas.height / 2;
+            const data = ctx.getImageData(0, 0, width, height);
+            canvas.width = width;
+            canvas.height = height;
+            ctx.putImageData(data, 0, 0);
+        }
+
+        function rotateImage(angle) {
+            if (mediaType !== 'image') return;
+            const img = new Image();
+            img.src = canvas.toDataURL();
+            img.onload = () => {
+                canvas.width = img.height;
+                canvas.height = img.width;
+                ctx.translate(canvas.width / 2, canvas.height / 2);
+                ctx.rotate(angle * Math.PI / 180);
+                ctx.drawImage(img, -img.width / 2, -img.height / 2);
             };
-            recorder.start();
-            setTimeout(() => {
-                recorder.stop();
-                video.pause();
-            }, (end - start) * 1000);
+        }
+
+        function flipImage(direction) {
+            if (mediaType !== 'image') return;
+            ctx.translate(direction === 'horizontal' ? canvas.width : 0, direction === 'vertical' ? canvas.height : 0);
+            ctx.scale(direction === 'horizontal' ? -1 : 1, direction === 'vertical' ? -1 : 1);
+            ctx.drawImage(canvas, 0, 0);
+        }
+
+        function adjustImage() {
+            if (mediaType !== 'image') return;
+            const brightness = document.getElementById('brightness').value;
+            const contrast = document.getElementById('contrast').value;
+            const saturation = document.getElementById('saturation').value;
+            const hue = document.getElementById('hue').value;
+            ctx.filter = `brightness(${100 + parseInt(brightness)}%) contrast(${100 + parseInt(contrast)}%) saturate(${100 + parseInt(saturation)}%) hue-rotate(${hue}deg)`;
+            ctx.drawImage(new Image() // Re-desen original
+            , originalMedia, 0, 0, canvas.width, canvas.height);
+        }
+
+        function applyFilter() {
+            if (mediaType !== 'image') return;
+            const filter = document.getElementById('filter-select').value;
+            ctx.filter = filter;
+            ctx.drawImage(canvas, 0, 0);
         }
 
         function addText() {
@@ -237,35 +287,48 @@
             ctx.fillText(text, 50, 50);
         }
 
-        function applyFilter() {
+        async function removeBackground() {
             if (mediaType !== 'image') return;
-            const filter = document.getElementById('filter-select').value;
+            const net = await bodyPix.load();
             const img = new Image();
             img.src = originalMedia;
-            img.onload = () => {
-                canvas.width = img.width;
-                canvas.height = img.height;
-                ctx.filter = filter;
-                ctx.drawImage(img, 0, 0);
+            img.onload = async () => {
+                const segmentation = await net.segmentPerson(img);
+                const backgroundMask = bodyPix.toMask(segmentation, {r: 0, g: 0, b: 0, a: 0}, {r: 0, g: 0, b: 0, a: 255}, true);
+                const opacity = 1;
+                bodyPix.drawMask(canvas, img, backgroundMask, opacity, 0, false);
             };
         }
 
+        async function trimVideo() {
+            const start = document.getElementById('start-time').value;
+            const end = document.getElementById('end-time').value;
+            if (start >= end) return alert('Tan envalid');
+            await initFFmpeg();
+            const file = document.getElementById('file-input').files[0];
+            ffmpeg.FS('writeFile', 'input.mp4', await fetchFile(file));
+            await ffmpeg.run('-i', 'input.mp4', '-ss', start, '-to', end, '-c', 'copy', 'output.mp4');
+            const data = ffmpeg.FS('readFile', 'output.mp4');
+            editedBlob = new Blob([data.buffer], {type: 'video/mp4'});
+            video.src = URL.createObjectURL(editedBlob);
+        }
+
         function applyVideoFilter() {
-            if (mediaType !== 'video') return;
             const filter = document.getElementById('video-filter-select').value;
-            video.style.filter = filter === 'none' ? '' : `${filter}(100%)`;
+            video.style.filter = filter;
+        }
+
+        function addTextToVideo() {
+            alert('Ajoute tèks sou videyo nan browser se konplèks; itilize FFmpeg pou bake tèks, men egzanp sa senp.');
+            // Pou egzanp avanse, itilize Canvas pou dessine sou frame, men lou pou videyo long.
         }
 
         function exportMedia() {
             if (mediaType === 'image') {
-                canvas.toBlob(blob => {
-                    downloadBlob(blob, 'edited-image.png');
-                });
-            } else if (mediaType === 'video') {
-                const blob = editedBlob || new Blob([video.src], { type: 'video/mp4' });
-                downloadBlob(blob, 'edited-video.mp4');
+                canvas.toBlob(blob => downloadBlob(blob, 'edited-image.png'));
             } else {
-                alert('Fè edisyon anvan ekspòte');
+                const blob = editedBlob || new Blob([], { type: 'video/mp4' }); // Si pa edite, original
+                downloadBlob(blob, 'edited-video.mp4');
             }
         }
 
