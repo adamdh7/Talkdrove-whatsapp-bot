@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Editeur Senp - Efase Fond & Modifye Fòm/Tay (Tankou CapCut)</title>
+    <title>Editeur Senp - Efase Fond (Tankou CapCut)</title>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/body-pix@latest"></script>
     <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
@@ -16,6 +16,8 @@
             color: #fff;
             display: flex;
             flex-direction: column;
+            align-items: center;
+            justify-content: center;
             height: 100vh;
             overflow: hidden;
         }
@@ -24,114 +26,94 @@
             padding: 10px;
             text-align: center;
             font-size: 24px;
-        }
-        #tabs {
-            display: flex;
-            justify-content: center;
-            background-color: #222;
-        }
-        .tab-button {
-            padding: 10px 20px;
-            background-color: #444;
-            border: none;
-            color: #fff;
-            cursor: pointer;
-            margin: 5px;
-        }
-        .tab-button.active {
-            background-color: #666;
+            width: 100%;
         }
         #content {
             flex: 1;
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 20px;
-            overflow: auto;
+            justify-content: center;
+            width: 100%;
+        }
+        #round-button {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background-color: #555;
+            color: #fff;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+        #round-button:hover {
+            background-color: #666;
+        }
+        #file-input {
+            display: none;
         }
         #preview-container {
+            display: none;
             width: 100%;
             max-width: 800px;
             position: relative;
+            margin-top: 20px;
         }
-        #preview, #canvas-preview, #video-preview {
+        #canvas-preview, #video-preview {
             width: 100%;
             height: auto;
             background-color: #000;
             border: 1px solid #555;
+        }
+        #tools {
+            margin-top: 20px;
+            display: none;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        button {
+            margin: 5px;
+            padding: 10px 20px;
+            background-color: #555;
+            color: #fff;
+            border: 1px solid #777;
+            border-radius: 5px;
+            cursor: pointer;
         }
         #fullscreen-btn {
             position: absolute;
             top: 10px;
             right: 10px;
             background-color: rgba(0,0,0,0.5);
-            color: #fff;
-            border: none;
             padding: 5px;
-            cursor: pointer;
-        }
-        #tools {
-            margin-top: 20px;
-            width: 100%;
-            max-width: 800px;
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-        }
-        button, input, select {
-            margin: 5px;
-            padding: 10px;
-            background-color: #555;
-            color: #fff;
-            border: 1px solid #777;
-            border-radius: 5px;
-        }
-        #image-tools, #video-tools {
-            display: none;
         }
         /* Responsive */
         @media (max-width: 768px) {
-            #tools {
-                flex-direction: column;
+            #round-button {
+                width: 120px;
+                height: 120px;
+                font-size: 16px;
             }
         }
     </style>
 </head>
 <body>
-    <div id="header">Editeur Senp - Efase Fond & Modifye Fòm/Tay (San Backend)</div>
-    <div id="tabs">
-        <button class="tab-button active" onclick="showTab('image')">Imaj</button>
-        <button class="tab-button" onclick="showTab('video')">Videyo</button>
-    </div>
+    <div id="header">Editeur Senp - Efase Fond</div>
     <div id="content">
-        <div id="upload-section">
-            <input type="file" id="file-input" accept="image/*,video/*">
-            <button onclick="loadMedia()">Chaje Medya</button>
-        </div>
-        <div id="preview-container" style="display: none;">
-            <canvas id="canvas-preview" style="display: none;"></canvas>
-            <video id="video-preview" controls style="display: none;"></video>
-            <button id="fullscreen-btn" onclick="toggleFullscreen()">Fullscreen</button>
-        </div>
-        <div id="tools">
-            <div id="image-tools">
-                <!-- Zouti pou imaj: Efase fond & modifye fòm/tay -->
-                <button onclick="removeBackground()">Efase Fond (AI)</button>
-                <button onclick="cropImage()">Koupe Imaj (Modifye Fòm)</button>
-                <label>Nouvèl Tay: <input type="number" id="new-width" placeholder="Lajè" min="1"></label>
-                <label><input type="number" id="new-height" placeholder="Wotè" min="1"></label>
-                <button onclick="resizeImage()">Resize Imaj</button>
-                <button onclick="exportMedia()">Ekspòte</button>
-            </div>
-            <div id="video-tools">
-                <!-- Zouti pou videyo: Efase fond & modifye fòm/tay -->
-                <button onclick="removeVideoBackground()">Efase Fond Videyo (Senp Frame-by-Frame)</button>
-                <label>Debut: <input type="number" id="start-time" value="0" min="0"></label>
-                <label>Fin: <input type="number" id="end-time" value="10" min="1"></label>
-                <button onclick="trimVideo()">Koupe Videyo (Modifye Tay)</button>
-                <button onclick="exportMedia()">Ekspòte</button>
-            </div>
-        </div>
+        <button id="round-button" onclick="document.getElementById('file-input').click()">Chwazi Imaj oswa Videyo</button>
+        <input type="file" id="file-input" accept="image/*,video/*" onchange="loadMedia()">
+    </div>
+    <div id="preview-container">
+        <canvas id="canvas-preview" style="display: none;"></canvas>
+        <video id="video-preview" controls style="display: none;"></video>
+        <button id="fullscreen-btn" onclick="toggleFullscreen()">Fullscreen</button>
+    </div>
+    <div id="tools">
+        <button id="remove-bg-btn" onclick="removeBackground()">Efase Plan Dèyè</button>
     </div>
 
     <script>
@@ -141,55 +123,26 @@
         let ctx = canvas.getContext('2d');
         let video = document.getElementById('video-preview');
         let editedBlob = null;
-        let ffmpeg = null;
+        let removeBtn = document.getElementById('remove-bg-btn');
 
-        async function initFFmpeg() {
-            if (!ffmpeg) {
-                const { createFFmpeg, fetchFile } = FFmpeg;
-                ffmpeg = createFFmpeg({ log: true });
-                await ffmpeg.load();
-            }
-        }
-
-        function showTab(tab) {
-            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
-            document.getElementById('image-tools').style.display = tab === 'image' ? 'block' : 'none';
-            document.getElementById('video-tools').style.display = tab === 'video' ? 'block' : 'none';
-            resetMedia();
-        }
-
-        function resetMedia() {
-            video.style.display = 'none';
-            canvas.style.display = 'none';
-            document.getElementById('preview-container').style.display = 'none';
-            mediaType = null;
-            originalMedia = null;
-            editedBlob = null;
-        }
-
-        async function loadMedia() {
+        function loadMedia() {
             const file = document.getElementById('file-input').files[0];
-            if (!file) return alert('Chwazi yon fichye');
+            if (!file) return;
 
             originalMedia = URL.createObjectURL(file);
             mediaType = file.type.startsWith('video') ? 'video' : 'image';
 
-            if ((mediaType === 'image' && document.getElementById('image-tools').style.display !== 'block') ||
-                (mediaType === 'video' && document.getElementById('video-tools').style.display !== 'block')) {
-                return alert('Chwazi tab ki koresponn');
-            }
+            // Simile redireksyon ak hash (eg: #imaj oswa #videyo)
+            window.location.hash = mediaType === 'image' ? 'imaj' : 'videyo';
 
+            document.getElementById('round-button').style.display = 'none';
             document.getElementById('preview-container').style.display = 'block';
+            document.getElementById('tools').style.display = 'flex';
 
             if (mediaType === 'video') {
                 video.src = originalMedia;
                 video.style.display = 'block';
                 canvas.style.display = 'none';
-                video.onloadedmetadata = () => {
-                    document.getElementById('end-time').max = video.duration;
-                    document.getElementById('end-time').value = video.duration;
-                };
             } else {
                 const img = new Image();
                 img.src = originalMedia;
@@ -204,87 +157,67 @@
         }
 
         async function removeBackground() {
-            if (mediaType !== 'image') return;
-            const net = await bodyPix.load();
-            const img = new Image();
-            img.src = originalMedia;
-            img.onload = async () => {
-                const segmentation = await net.segmentPerson(img);
-                const backgroundMask = bodyPix.toMask(segmentation, {r: 0, g: 0, b: 0, a: 0}, {r: 0, g: 0, b: 0, a: 255}, true);
-                bodyPix.drawMask(canvas, img, backgroundMask, 1, 0, false);
-            };
+            removeBtn.disabled = true;
+            removeBtn.textContent = 'Ap Pwosese...';
+
+            if (mediaType === 'image') {
+                const net = await bodyPix.load();
+                const img = new Image();
+                img.src = originalMedia;
+                img.onload = async () => {
+                    const segmentation = await net.segmentPerson(img);
+                    const foregroundColor = {r: 0, g: 0, b: 0, a: 255}; // Kenbe imaj
+                    const backgroundColor = {r: 0, g: 0, b: 0, a: 0}; // Transparan
+                    const mask = bodyPix.toMask(segmentation, foregroundColor, backgroundColor, true);
+                    bodyPix.drawMask(canvas, img, mask, 1, 0, false);
+                    changeToDownload();
+                };
+            } else if (mediaType === 'video') {
+                alert('Efase fond videyo se lou; sa ap pran tan. Itilize frame-by-frame ak BodyPix.');
+                const net = await bodyPix.load();
+                video.pause();
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = video.videoWidth;
+                tempCanvas.height = video.videoHeight;
+                const tempCtx = tempCanvas.getContext('2d');
+                const chunks = [];
+                const stream = tempCanvas.captureStream();
+                const recorder = new MediaRecorder(stream);
+                recorder.ondataavailable = e => chunks.push(e.data);
+                recorder.onstop = () => {
+                    editedBlob = new Blob(chunks, { type: 'video/webm' });
+                    video.src = URL.createObjectURL(editedBlob);
+                    video.style.display = 'block';
+                    changeToDownload();
+                };
+                recorder.start();
+                let currentTime = 0;
+                const frameRate = 30; // Asime 30fps
+                const interval = 1000 / frameRate;
+                const processFrame = async () => {
+                    if (currentTime >= video.duration) {
+                        recorder.stop();
+                        return;
+                    }
+                    video.currentTime = currentTime;
+                    await new Promise(resolve => video.onseeked = resolve);
+                    tempCtx.drawImage(video, 0, 0);
+                    const segmentation = await net.segmentPerson(tempCanvas);
+                    const foregroundColor = {r: 0, g: 0, b: 0, a: 255};
+                    const backgroundColor = {r: 0, g: 0, b: 0, a: 0};
+                    const mask = bodyPix.toMask(segmentation, foregroundColor, backgroundColor, true);
+                    bodyPix.drawMask(tempCanvas, tempCanvas, mask, 1, 0, false);
+                    currentTime += interval / 1000;
+                    setTimeout(processFrame, 0);
+                };
+                processFrame();
+            }
         }
 
-        function cropImage() {
-            if (mediaType !== 'image') return;
-            // Koupe senp: mwatye tay
-            const width = canvas.width / 2;
-            const height = canvas.height / 2;
-            const data = ctx.getImageData(0, 0, width, height);
-            canvas.width = width;
-            canvas.height = height;
-            ctx.putImageData(data, 0, 0);
-        }
-
-        function resizeImage() {
-            if (mediaType !== 'image') return;
-            const newWidth = parseInt(document.getElementById('new-width').value) || canvas.width;
-            const newHeight = parseInt(document.getElementById('new-height').value) || canvas.height;
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = newWidth;
-            tempCanvas.height = newHeight;
-            tempCanvas.getContext('2d').drawImage(canvas, 0, 0, newWidth, newHeight);
-            canvas.width = newWidth;
-            canvas.height = newHeight;
-            ctx.drawImage(tempCanvas, 0, 0);
-        }
-
-        async function removeVideoBackground() {
-            if (mediaType !== 'video') return;
-            alert('Efase fond videyo se lou; sa ap pran tan. Itilize frame-by-frame ak BodyPix.');
-            const net = await bodyPix.load();
-            // Pou videyo, pwosesis frame-by-frame (senp demo, pa optimal)
-            video.pause();
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = video.videoWidth;
-            tempCanvas.height = video.videoHeight;
-            const tempCtx = tempCanvas.getContext('2d');
-            const chunks = [];
-            const recorder = new MediaRecorder(tempCanvas.captureStream());
-            recorder.ondataavailable = e => chunks.push(e.data);
-            recorder.onstop = () => {
-                editedBlob = new Blob(chunks, { type: 'video/mp4' });
-                video.src = URL.createObjectURL(editedBlob);
-            };
-            recorder.start();
-            let time = 0;
-            const interval = setInterval(async () => {
-                if (time >= video.duration * 1000) {
-                    recorder.stop();
-                    clearInterval(interval);
-                    return;
-                }
-                video.currentTime = time / 1000;
-                await new Promise(r => setTimeout(r, 100)); // Tann frame
-                tempCtx.drawImage(video, 0, 0);
-                const segmentation = await net.segmentPerson(tempCanvas);
-                const mask = bodyPix.toMask(segmentation, {r: 0, g: 0, b: 0, a: 0}, {r: 0, g: 0, b: 0, a: 255}, true);
-                bodyPix.drawMask(tempCanvas, tempCanvas, mask, 1, 0, false);
-                time += 100; // Chak 0.1 segond
-            }, 100);
-        }
-
-        async function trimVideo() {
-            const start = document.getElementById('start-time').value;
-            const end = document.getElementById('end-time').value;
-            if (start >= end) return alert('Tan envalid');
-            await initFFmpeg();
-            const file = document.getElementById('file-input').files[0];
-            ffmpeg.FS('writeFile', 'input.mp4', await fetchFile(file));
-            await ffmpeg.run('-i', 'input.mp4', '-ss', start, '-to', end, '-c', 'copy', 'output.mp4');
-            const data = ffmpeg.FS('readFile', 'output.mp4');
-            editedBlob = new Blob([data.buffer], {type: 'video/mp4'});
-            video.src = URL.createObjectURL(editedBlob);
+        function changeToDownload() {
+            removeBtn.textContent = 'Telechaje';
+            removeBtn.onclick = exportMedia;
+            removeBtn.disabled = false;
         }
 
         function exportMedia() {
@@ -293,15 +226,14 @@
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     a.href = url;
-                    a.download = 'edited-image.png';
+                    a.download = 'imaj-san-fond.png';
                     a.click();
-                });
+                }, 'image/png');
             } else {
-                const blob = editedBlob || new Blob([originalMedia], { type: 'video/mp4' });
-                const url = URL.createObjectURL(blob);
+                const url = URL.createObjectURL(editedBlob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = 'edited-video.mp4';
+                a.download = 'videyo-san-fond.webm';
                 a.click();
             }
         }
@@ -309,7 +241,7 @@
         function toggleFullscreen() {
             const elem = document.getElementById('preview-container');
             if (!document.fullscreenElement) {
-                elem.requestFullscreen().catch(err => alert('Pa ka'));
+                elem.requestFullscreen().catch(err => alert('Pa ka ale fullscreen'));
             } else {
                 document.exitFullscreen();
             }
