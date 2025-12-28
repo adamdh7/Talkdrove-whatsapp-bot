@@ -3,109 +3,173 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Editeur Foto ak Videyo Senp nan Navigatè</title>
+    <title>Editeur Foto ak Videyo Senp - UI Pwòp tankou CapCut</title>
     <style>
         body {
             font-family: Arial, sans-serif;
             margin: 0;
             padding: 0;
-            background-color: #f4f4f4;
+            background-color: #1a1a1a; /* Fond fonse tankou CapCut */
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #header {
+            background-color: #333;
+            padding: 10px;
+            text-align: center;
+            font-size: 24px;
+        }
+        #tabs {
+            display: flex;
+            justify-content: center;
+            background-color: #222;
+        }
+        .tab-button {
+            padding: 10px 20px;
+            background-color: #444;
+            border: none;
+            color: #fff;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .tab-button.active {
+            background-color: #666;
+        }
+        #content {
+            flex: 1;
             display: flex;
             flex-direction: column;
             align-items: center;
-            min-height: 100vh;
-        }
-        #container {
-            width: 100%;
-            max-width: 1200px;
             padding: 20px;
-            box-sizing: border-box;
+            overflow: auto;
         }
-        #upload-section, #edit-section {
-            margin-bottom: 20px;
+        #preview-container {
             width: 100%;
+            max-width: 800px;
+            position: relative;
         }
         #preview {
             width: 100%;
-            max-height: 400px;
-            border: 1px solid #ccc;
-            background-color: #fff;
+            height: auto;
+            background-color: #000;
+            border: 1px solid #555;
         }
-        button, input {
+        #fullscreen-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: rgba(0,0,0,0.5);
+            color: #fff;
+            border: none;
+            padding: 5px;
+            cursor: pointer;
+        }
+        #tools {
+            margin-top: 20px;
+            width: 100%;
+            max-width: 800px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        button, input, select {
             margin: 5px;
             padding: 10px;
-            font-size: 16px;
+            background-color: #555;
+            color: #fff;
+            border: 1px solid #777;
+            border-radius: 5px;
         }
-        #text-input, #filter-select {
-            width: 200px;
+        #image-tools, #video-tools {
+            display: none;
         }
-        /* Responsive design */
+        /* Responsive */
         @media (max-width: 768px) {
-            button, input {
-                width: 100%;
-                margin: 10px 0;
-            }
-            #preview {
-                max-height: 300px;
-            }
-        }
-        @media (max-width: 480px) {
-            #container {
-                padding: 10px;
-            }
-            #preview {
-                max-height: 200px;
+            #tools {
+                flex-direction: column;
             }
         }
     </style>
 </head>
 <body>
-    <div id="container">
-        <h1>Editeur Foto ak Videyo Senp (San Backend)</h1>
-        <p>Sa se yon egzanp senp ki ka edite foto oswa videyo nan navigatè a. Li ka fè edisyon debaz tankou koupe videyo, ajoute tèks, aplike filtè senp, ak ekspòte. Limite pa resous navigatè a.</p>
-        
+    <div id="header">Editeur Medya Senp - Tankou CapCut (San Backend)</div>
+    <div id="tabs">
+        <button class="tab-button active" onclick="showTab('image')">Edite Imaj</button>
+        <button class="tab-button" onclick="showTab('video')">Edite Videyo</button>
+    </div>
+    <div id="content">
         <div id="upload-section">
             <input type="file" id="file-input" accept="image/*,video/*">
             <button onclick="loadMedia()">Chaje Medya</button>
         </div>
-        
-        <div id="edit-section" style="display: none;">
-            <video id="video-preview" controls style="display: none; width: 100%;"></video>
-            <canvas id="canvas-preview" style="display: none; width: 100%;"></canvas>
-            
-            <!-- Pou videyo: Koupe -->
-            <div id="video-controls" style="display: none;">
+        <div id="preview-container" style="display: none;">
+            <video id="video-preview" controls style="display: none;"></video>
+            <canvas id="canvas-preview" style="display: none;"></canvas>
+            <button id="fullscreen-btn" onclick="toggleFullscreen()">Fullscreen</button>
+        </div>
+        <div id="tools">
+            <div id="image-tools">
+                <!-- Zouti pou imaj -->
+                <label>Tèks: <input type="text" id="text-input" placeholder="Ajoute tèks"></label>
+                <button onclick="addText()">Ajoute Tèks</button>
+                <label>Filtè: 
+                    <select id="filter-select">
+                        <option value="none">Pa genyen</option>
+                        <option value="grayscale">Grayscale</option>
+                        <option value="sepia">Sepia</option>
+                        <option value="invert">Invert</option>
+                    </select>
+                </label>
+                <button onclick="applyFilter()">Aplike Filtè</button>
+                <button onclick="exportMedia()">Ekspòte Imaj</button>
+            </div>
+            <div id="video-tools">
+                <!-- Zouti pou videyo -->
                 <label>Debut (segond): <input type="number" id="start-time" value="0" min="0"></label>
                 <label>Fin (segond): <input type="number" id="end-time" value="10" min="1"></label>
                 <button onclick="trimVideo()">Koupe Videyo</button>
+                <label>Filtè Videyo: 
+                    <select id="video-filter-select">
+                        <option value="none">Pa genyen</option>
+                        <option value="grayscale">Grayscale</option>
+                        <option value="sepia">Sepia</option>
+                        <option value="invert">Invert</option>
+                    </select>
+                </label>
+                <button onclick="applyVideoFilter()">Aplike Filtè</button>
+                <button onclick="exportMedia()">Ekspòte Videyo</button>
             </div>
-            
-            <!-- Pou foto/videyo: Ajoute tèks -->
-            <label>Tèks: <input type="text" id="text-input" placeholder="Ajoute tèks"></label>
-            <button onclick="addText()">Ajoute Tèks</button>
-            
-            <!-- Filtè senp -->
-            <label>Filtè: 
-                <select id="filter-select">
-                    <option value="none">Pa genyen</option>
-                    <option value="grayscale">Grayscale</option>
-                    <option value="sepia">Sepia</option>
-                    <option value="invert">Invert</option>
-                </select>
-            </label>
-            <button onclick="applyFilter()">Aplike Filtè</button>
-            
-            <button onclick="exportMedia()">Ekspòte</button>
         </div>
     </div>
 
     <script>
-        let mediaType = null; // 'image' oswa 'video'
-        let originalMedia = null; // URL oswa blob
+        let mediaType = null;
+        let originalMedia = null;
         let canvas = document.getElementById('canvas-preview');
         let ctx = canvas.getContext('2d');
         let video = document.getElementById('video-preview');
         let editedBlob = null;
+
+        function showTab(tab) {
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById('image-tools').style.display = tab === 'image' ? 'block' : 'none';
+            document.getElementById('video-tools').style.display = tab === 'video' ? 'block' : 'none';
+            // Efase medya si chanje tab
+            resetMedia();
+        }
+
+        function resetMedia() {
+            video.style.display = 'none';
+            canvas.style.display = 'none';
+            document.getElementById('preview-container').style.display = 'none';
+            mediaType = null;
+            originalMedia = null;
+            editedBlob = null;
+        }
 
         function loadMedia() {
             const file = document.getElementById('file-input').files[0];
@@ -114,13 +178,17 @@
             originalMedia = URL.createObjectURL(file);
             mediaType = file.type.startsWith('video') ? 'video' : 'image';
             
-            document.getElementById('edit-section').style.display = 'block';
-            
+            if ((mediaType === 'image' && document.getElementById('image-tools').style.display !== 'block') ||
+                (mediaType === 'video' && document.getElementById('video-tools').style.display !== 'block')) {
+                return alert('Chwazi tab ki koresponn ak tip medya a');
+            }
+
+            document.getElementById('preview-container').style.display = 'block';
+
             if (mediaType === 'video') {
                 video.src = originalMedia;
                 video.style.display = 'block';
                 canvas.style.display = 'none';
-                document.getElementById('video-controls').style.display = 'block';
                 video.onloadedmetadata = () => {
                     document.getElementById('end-time').max = video.duration;
                     document.getElementById('end-time').value = video.duration;
@@ -134,7 +202,6 @@
                     ctx.drawImage(img, 0, 0);
                     canvas.style.display = 'block';
                     video.style.display = 'none';
-                    document.getElementById('video-controls').style.display = 'none';
                 };
             }
         }
@@ -144,7 +211,6 @@
             const end = parseFloat(document.getElementById('end-time').value);
             if (start >= end || start < 0 || end > video.duration) return alert('Tan envalid');
             
-            // Itilize MediaRecorder pou koupe (senp, men pa pafè)
             video.currentTime = start;
             video.play();
             const chunks = [];
@@ -163,52 +229,60 @@
         }
 
         function addText() {
+            if (mediaType !== 'image') return;
             const text = document.getElementById('text-input').value;
             if (!text) return;
-            
-            if (mediaType === 'image') {
-                ctx.font = '30px Arial';
-                ctx.fillStyle = 'red';
-                ctx.fillText(text, 50, 50);
-            } else {
-                alert('Ajoute tèks sou videyo egzije plis konplèksite; sa se senp egzanp.');
-            }
+            ctx.font = '30px Arial';
+            ctx.fillStyle = 'red';
+            ctx.fillText(text, 50, 50);
         }
 
         function applyFilter() {
+            if (mediaType !== 'image') return;
             const filter = document.getElementById('filter-select').value;
-            if (mediaType === 'image') {
-                const img = new Image();
-                img.src = originalMedia;
-                img.onload = () => {
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-                    ctx.drawImage(img, 0, 0);
-                    ctx.filter = filter;
-                    ctx.drawImage(canvas, 0, 0); // Re-desen pou aplike filtè
-                };
-            } else {
-                video.style.filter = filter === 'none' ? '' : filter + '(100%)';
-            }
+            const img = new Image();
+            img.src = originalMedia;
+            img.onload = () => {
+                canvas.width = img.width;
+                canvas.height = img.height;
+                ctx.filter = filter;
+                ctx.drawImage(img, 0, 0);
+            };
+        }
+
+        function applyVideoFilter() {
+            if (mediaType !== 'video') return;
+            const filter = document.getElementById('video-filter-select').value;
+            video.style.filter = filter === 'none' ? '' : `${filter}(100%)`;
         }
 
         function exportMedia() {
             if (mediaType === 'image') {
                 canvas.toBlob(blob => {
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = 'edited-image.png';
-                    a.click();
+                    downloadBlob(blob, 'edited-image.png');
                 });
-            } else if (editedBlob) {
-                const url = URL.createObjectURL(editedBlob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'edited-video.mp4';
-                a.click();
+            } else if (mediaType === 'video') {
+                const blob = editedBlob || new Blob([video.src], { type: 'video/mp4' });
+                downloadBlob(blob, 'edited-video.mp4');
             } else {
                 alert('Fè edisyon anvan ekspòte');
+            }
+        }
+
+        function downloadBlob(blob, filename) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+        }
+
+        function toggleFullscreen() {
+            const elem = document.getElementById('preview-container');
+            if (!document.fullscreenElement) {
+                elem.requestFullscreen().catch(err => alert('Pa ka ale fullscreen'));
+            } else {
+                document.exitFullscreen();
             }
         }
     </script>
