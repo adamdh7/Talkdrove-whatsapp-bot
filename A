@@ -93,27 +93,43 @@ export default {
       });
     }
 
-    let pathname = url.pathname;
-    if (pathname.startsWith('/v/')) {
-      pathname = pathname.slice(3); // Remove '/v/' prefix
-    } else {
-      // Optional: Redirect old .mp4 links to new format or handle gracefully
-      return new Response('Invalid path', { status: 404 });
-    }
-
-    const filename = pathname + '.mp4'; // Append .mp4 for the internal source
-    const titleParts = pathname.split('-').slice(1).join('-').replace(/_/g, ' ');
+    const pathname = url.pathname;
+    const filename = pathname.split('/').pop();
+    const titleParts = filename.split('-').slice(1).join('-').replace('.mp4', '').replace(/_/g, ' ');
     const pageTitle = titleParts || 'Custom Player';
 
-    const targetUrl = "https://pub-6801bec6f6414c08995c6708f70f99c2.r2.dev/" + filename;
+    const targetUrl = "https://pub-6801bec6f6414c08995c6708f70f99c2.r2.dev" + pathname;
+    const accept = request.headers.get('accept') || '';
     
-    const playerHtml = `
+    if (accept.includes('text/html')) {
+      const playerHtml = `
 <!doctype html>
 <html lang="fr">
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>${pageTitle}</title>
+<!-- Open Graph / Facebook Meta Tags -->
+<meta property="og:type" content="video.other" />
+<meta property="og:title" content="${pageTitle}" />
+<meta property="og:description" content="Regardez ${pageTitle} sur Adam_D’H7" />
+<meta property="og:video" content="${targetUrl}" />
+<meta property="og:video:secure_url" content="${targetUrl}" />
+<meta property="og:video:type" content="video/mp4" />
+<meta property="og:video:width" content="1280" />
+<meta property="og:video:height" content="720" />
+<meta property="og:image" content="https://res.cloudinary.com/dckwrqrur/image/upload/v1757205404/tf-stream-url/Screenshot_20250906_202106_Chrome_go9vhu.png" />
+<!-- Twitter / X Card Meta Tags -->
+<meta name="twitter:card" content="player" />
+<meta name="twitter:site" content="@adam_dh7" />
+<meta name="twitter:title" content="${pageTitle}" />
+<meta name="twitter:description" content="Regardez ${pageTitle} sur Adam_D’H7" />
+<meta name="twitter:player" content="${request.url}" />
+<meta name="twitter:player:width" content="1280" />
+<meta name="twitter:player:height" content="720" />
+<meta name="twitter:player:stream" content="${targetUrl}" />
+<meta name="twitter:player:stream:content_type" content="video/mp4" />
+<meta name="twitter:image" content="https://res.cloudinary.com/dckwrqrur/image/upload/v1757205404/tf-stream-url/Screenshot_20250906_202106_Chrome_go9vhu.png" />
 <link rel="manifest" href="manifest.json" />
 <meta name="theme-color" content="#000000" />
 <meta name="mobile-web-app-capable" content="yes" />
@@ -123,7 +139,7 @@ export default {
 <link rel="apple-touch-icon" href="https://res.cloudinary.com/dckwrqrur/image/upload/v1757205404/tf-stream-url/Screenshot_20250906_202106_Chrome_go9vhu.png" />
 <style>
   :root{
-    --bg:transparent;
+    --bg:#000;
     --muted:#9aa0a6;
     --accent:#fff;
     --seek-height:8px;
@@ -131,12 +147,12 @@ export default {
     --box-border: rgba(255,255,255,0.03);
   }
   *{box-sizing:border-box}
-  html,body{height:100%;margin:0;padding:0;background:var(--bg);color:var(--accent);font-family:Inter,system-ui,Arial,sans-serif}
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--accent);font-family:Inter,system-ui,Arial,sans-serif}
   .wrap, .video-card, .controls-wrap, .inside-mini-controls, .menu-overlay, .lang-overlay { user-select:none; -webkit-user-select:none; -ms-user-select:none; -moz-user-select:none; }
 
-  .wrap{width:100%;height:100%;margin:0;padding:0;}
+  .wrap{max-width:1100px;margin:28px auto;padding:12px;width:95%}
 
-  .video-card{position:relative;border-radius:0;overflow:hidden;background:#000;aspect-ratio:16/9;width:100%;height:100%;touch-action:none}
+  .video-card{position:relative;border-radius:12px;overflow:hidden;background:#000;aspect-ratio:16/9;max-height:68vh;min-height:180px;touch-action:none}
   video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;background:#000;transition:filter .08s linear}
   video.contain{ object-fit:contain; background:#000; }
 
@@ -155,17 +171,17 @@ export default {
     position:absolute;
     left:12px;
     right:12px;
-    top:50%;
-    transform:translateY(-50%);
+    bottom:92px;
     z-index:13;
     display:flex;
     justify-content:center;
     gap:14px;
     pointer-events:auto;
-    transition:opacity .18s ease;
+    transition:bottom .18s ease, opacity .18s ease;
   }
   .inside-hidden{opacity:0;pointer-events:none}
   .inside-visible{opacity:1;pointer-events:auto}
+  .video-card.landscape-mode .inside-mini-controls{ bottom:160px; }
 
   .inside-item{
     min-width:86px;
@@ -744,8 +760,11 @@ export default {
 </html>
       `;
 
-    return new Response(playerHtml, {
-      headers: { "content-type": "text/html;charset=UTF-8" },
-    });
+      return new Response(playerHtml, {
+        headers: { "content-type": "text/html;charset=UTF-8" },
+      });
+    } else {
+      return fetch(targetUrl);
+    }
   },
 };
