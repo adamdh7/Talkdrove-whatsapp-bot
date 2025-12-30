@@ -93,12 +93,19 @@ export default {
       });
     }
 
-    const pathname = url.pathname;
-    const filename = pathname.split('/').pop();
-    const titleParts = filename.split('-').slice(1).join('-').replace('.mp4', '').replace(/_/g, ' ');
+    let pathname = url.pathname;
+    if (pathname.startsWith('/v/')) {
+      pathname = pathname.slice(3); // Remove '/v/' prefix
+    } else {
+      // Optional: Redirect old .mp4 links to new format or handle gracefully
+      return new Response('Invalid path', { status: 404 });
+    }
+
+    const filename = pathname + '.mp4'; // Append .mp4 for the internal source
+    const titleParts = pathname.split('-').slice(1).join('-').replace(/_/g, ' ');
     const pageTitle = titleParts || 'Custom Player';
 
-    const targetUrl = "https://pub-6801bec6f6414c08995c6708f70f99c2.r2.dev" + pathname;
+    const targetUrl = "https://pub-6801bec6f6414c08995c6708f70f99c2.r2.dev/" + filename;
     
     const playerHtml = `
 <!doctype html>
