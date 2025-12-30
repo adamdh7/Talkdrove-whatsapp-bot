@@ -93,18 +93,17 @@ export default {
       });
     }
 
-    // Pour les chemins comme /1767029664626-Naruto_Shippuden_-_Saison_1_Ep1 (sans .mp4)
+    // Vérifier si le path finit par .dh7
     let pathname = url.pathname;
-    if (pathname.endsWith('.mp4')) {
-      pathname = pathname.slice(0, -4);  // Enlève .mp4 si présent, pour compatibilité
-    }
-    const filename = pathname.split('/').pop() + '.mp4';  // Ajoute .mp4 pour R2
-    const titleParts = pathname.split('-').slice(1).join('-').replace(/_/g, ' ');
-    const pageTitle = titleParts || 'Custom Player';
+    if (pathname.endsWith('.dh7')) {
+      pathname = pathname.slice(0, -4);  // Enlever .dh7
+      const filename = pathname.split('/').pop() + '.mp4';  // Ajouter .mp4 pour R2 (ou changer en .mkv/.mov si besoin, mais assume .mp4 pour l'instant)
+      const titleParts = pathname.split('-').slice(1).join('-').replace(/_/g, ' ');
+      const pageTitle = titleParts || 'Custom Player';
 
-    const targetUrl = "https://pub-6801bec6f6414c08995c6708f70f99c2.r2.dev/" + filename;
-    
-    const playerHtml = `
+      const targetUrl = "https://pub-6801bec6f6414c08995c6708f70f99c2.r2.dev/" + filename;
+
+      const playerHtml = `
 <!doctype html>
 <html lang="fr">
 <head>
@@ -247,7 +246,7 @@ export default {
   .error{position:absolute;left:12px;right:12px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.6);padding:16px;border-radius:10px;color:#ff9b9b;display:none;text-align:center;z-index:20}
   .error a{color:#fff;text-decoration:underline}
 
-  .menu-overlay, .lang-overlay {
+  .menu-overlay {
     position:fixed;
     inset:0;
     display:flex;
@@ -259,9 +258,9 @@ export default {
     visibility:hidden;
     transition:opacity .14s ease, visibility .14s;
   }
-  .menu-overlay.show, .lang-overlay.show { opacity:1; visibility:visible; }
-  .menu-backdrop, .lang-backdrop { position:absolute; inset:0; z-index:99990; background:rgba(0,0,0,0.5); } 
-  .menu-sheet, .lang-sheet {
+  .menu-overlay.show { opacity:1; visibility:visible; }
+  .menu-backdrop { position:absolute; inset:0; z-index:99990; background:rgba(0,0,0,0.5); } 
+  .menu-sheet {
     position:relative;
     z-index:99999;
     min-width:280px;
@@ -283,11 +282,6 @@ export default {
   .menu-item{padding:12px;border-radius:10px;background:rgba(255,255,255,0.01);cursor:pointer;border:1px solid rgba(255,255,255,0.02);display:flex;align-items:center;justify-content:space-between}
   .menu-item:hover{background:rgba(255,255,255,0.03)}
   .menu-item strong{font-weight:700}
-
-  .lang-list{display:flex;flex-direction:column;gap:8px;margin-top:8px}
-  .lang-item{padding:12px;border-radius:10px;background:rgba(255,255,255,0.01);cursor:pointer;border:1px solid rgba(255,255,255,0.02);display:flex;align-items:center;justify-content:space-between}
-  .lang-item:hover{background:rgba(255,255,255,0.03)}
-  .bold{font-weight:800}
 </style>
 </head>
 <body>
@@ -332,10 +326,6 @@ export default {
     <div class="menu-backdrop" id="menuBackdrop"></div>
     <div class="menu-sheet" role="document" aria-label="Menu player">
       <div class="menu-header">
-        <button class="back-btn" id="menuBackBtn" title="Retour" aria-label="Retour" style="display:none">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="color:var(--muted)"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          Retour
-        </button>
         <strong style="font-weight:700">Options</strong>
         <button class="close-btn" id="menuCloseBtn" title="Fermer" aria-label="Fermer">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="color:var(--muted)"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -343,35 +333,10 @@ export default {
       </div>
 
       <div class="menu-list" id="menuList">
-        <div class="menu-item" id="menuLang" role="button" tabindex="0">
-          <span>Langue</span>
-          <span aria-hidden="true">›</span>
-        </div>
         <div class="menu-item" id="menuPip" role="button" tabindex="0">
           <span>Mode PIP</span>
           <span id="pipStatus" style="opacity:.8;font-size:13px">Activer</span>
         </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="lang-overlay" id="langOverlay" aria-hidden="true" role="dialog" aria-modal="true">
-    <div class="lang-backdrop" id="langBackdrop"></div>
-    <div class="lang-sheet" role="document" aria-label="Langue settings">
-      <div class="menu-header">
-        <button class="back-btn" id="langBackBtn" title="Retour" aria-label="Retour">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="color:var(--muted)"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          Retour
-        </button>
-        <strong style="font-weight:700">Langue</strong>
-        <button class="close-btn" id="langCloseBtn" title="Fermer" aria-label="Fermer">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="color:var(--muted)"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </button>
-      </div>
-
-      <div class="lang-list">
-        <div class="lang-item"><strong class="bold">Audio</strong><span style="opacity:.8">Français</span></div>
-        <div class="lang-item"><strong class="bold">Sous-titre</strong><span style="opacity:.8">Français</span></div>
       </div>
     </div>
   </div>
@@ -403,15 +368,8 @@ export default {
   const menuOverlay = document.getElementById('menuOverlay');
   const menuBackdrop = document.getElementById('menuBackdrop');
   const menuCloseBtn = document.getElementById('menuCloseBtn');
-  const menuBackBtn = document.getElementById('menuBackBtn');
-  const menuLang = document.getElementById('menuLang');
   const menuPip = document.getElementById('menuPip');
   const pipStatus = document.getElementById('pipStatus');
-
-  const langOverlay = document.getElementById('langOverlay');
-  const langBackdrop = document.getElementById('langBackdrop');
-  const langCloseBtn = document.getElementById('langCloseBtn');
-  const langBackBtn = document.getElementById('langBackBtn');
 
   const svgBrightness = `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="22" height="22"><path d="M12 4V2M12 22v-2M4.93 4.93L3.51 3.51M20.49 20.49l-1.42-1.42M4 12H2M22 12h-2M4.93 19.07l-1.42 1.42M20.49 3.51l-1.42 1.42M12 8a4 4 0 100 8 4 4 0 000-8z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   const svgVolume = `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="22" height="22"><path d="M11 5L6 9H2v6h4l5 4V5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 9a5 5 0 010 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
@@ -561,7 +519,6 @@ export default {
       video.classList.remove('contain');
       showAll();
       if(menuOverlay.parentNode === card) document.body.appendChild(menuOverlay);
-      if(langOverlay.parentNode === card) document.body.appendChild(langOverlay);
     }
   });
 
@@ -630,8 +587,6 @@ export default {
   });
   function showError(msg){ const errTxt = document.getElementById('errTxt'); if(errTxt) errTxt.textContent = msg; const eb = document.getElementById('errorBox'); if(eb) eb.style.display='block'; }
 
-  let menuWasOpenBeforeLang = false;
-
   function placeOverlayInsideCard(overlay){
     if(overlay.parentNode !== card) card.appendChild(overlay);
     overlay.style.position = 'absolute';
@@ -650,8 +605,6 @@ export default {
     placeOverlayInsideCard(menuOverlay);
     menuOverlay.classList.add('show');
     menuOverlay.setAttribute('aria-hidden','false');
-    langOverlay.classList.remove('show');
-    langOverlay.setAttribute('aria-hidden','true');
     hideAll();
   }
   function closeMenuOverlay(){
@@ -661,29 +614,6 @@ export default {
     if(!allowOverlayNow()) placeOverlayBackToBody(menuOverlay);
   }
 
-  function openLangOverlay(){
-    if(!allowOverlayNow()) return;
-    menuWasOpenBeforeLang = menuOverlay.classList.contains('show');
-    placeOverlayInsideCard(langOverlay);
-    menuOverlay.classList.remove('show');
-    menuOverlay.setAttribute('aria-hidden','true');
-    langOverlay.classList.add('show');
-    langOverlay.setAttribute('aria-hidden','false');
-    hideAll();
-  }
-  function closeLangOverlay(){
-    langOverlay.classList.remove('show');
-    langOverlay.setAttribute('aria-hidden','true');
-    if(menuWasOpenBeforeLang){
-      menuOverlay.classList.add('show');
-      menuOverlay.setAttribute('aria-hidden','false');
-      menuWasOpenBeforeLang = false;
-    } else {
-      showAll();
-    }
-    if(!allowOverlayNow()) placeOverlayBackToBody(langOverlay);
-  }
-
   menuBtn.addEventListener('click', (e)=>{
     e.stopPropagation();
     openMenuOverlay();
@@ -691,10 +621,7 @@ export default {
 
   if(menuCloseBtn) menuCloseBtn.addEventListener('click', (e)=>{ e.stopPropagation(); closeMenuOverlay(); });
   if(menuBackdrop) menuBackdrop.addEventListener('click', ()=>{ closeMenuOverlay(); });
-  if(langCloseBtn) langCloseBtn.addEventListener('click', (e)=>{ e.stopPropagation(); closeLangOverlay(); });
-  if(langBackdrop) langBackdrop.addEventListener('click', ()=>{ closeLangOverlay(); });
 
-  if(menuLang) menuLang.addEventListener('click', (e)=>{ e.stopPropagation(); openLangOverlay(); });
   if(menuPip) menuPip.addEventListener('click', async (e)=>{
     e.stopPropagation();
     try {
@@ -724,44 +651,41 @@ export default {
     }
   });
 
-  if(langBackBtn) langBackBtn.addEventListener('click', (e)=>{ e.stopPropagation(); closeLangOverlay(); });
-
   window.addEventListener('keydown', (e)=>{
     if(e.key === 'Escape'){
-      if(langOverlay.classList.contains('show')) closeLangOverlay();
-      else if(menuOverlay.classList.contains('show')) closeMenuOverlay();
+      if(menuOverlay.classList.contains('show')) closeMenuOverlay();
     }
   });
 
   window.addEventListener('orientationchange', ()=>{
     if(!allowOverlayNow()){
       if(menuOverlay.classList.contains('show')) closeMenuOverlay();
-      if(langOverlay.classList.contains('show')) closeLangOverlay();
       placeOverlayBackToBody(menuOverlay);
-      placeOverlayBackToBody(langOverlay);
     }
   });
   window.addEventListener('resize', ()=>{
     if(!allowOverlayNow()){
       if(menuOverlay.classList.contains('show')) closeMenuOverlay();
-      if(langOverlay.classList.contains('show')) closeLangOverlay();
       placeOverlayBackToBody(menuOverlay);
-      placeOverlayBackToBody(langOverlay);
     }
   });
 
   tryAutoplay();
   showAll();
 
-  window.__player = { video, openMenuOverlay, closeMenuOverlay, openLangOverlay, closeLangOverlay, allowOverlayNow };
+  window.__player = { video, openMenuOverlay, closeMenuOverlay, allowOverlayNow };
 })();
 </script>
 </body>
 </html>
-    `;
+      `;
 
-    return new Response(playerHtml, {
-      headers: { "content-type": "text/html;charset=UTF-8" },
-    });
+      return new Response(playerHtml, {
+        headers: { "content-type": "text/html;charset=UTF-8" },
+      });
+    } else {
+      // Pour tout autre path (inconnu, .mp4, .mkv, etc.) → Erreur 404
+      return new Response('Erreur : Lien invalide ou extension non supportée. Utilisez .dh7 pour le player custom.', { status: 404 });
+    }
   },
-};
+}; 
