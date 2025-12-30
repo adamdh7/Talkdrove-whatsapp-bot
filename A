@@ -93,23 +93,24 @@ export default {
       });
     }
 
-    const pathname = url.pathname;
-    const filename = pathname.split('/').pop();
-    const titleParts = filename.split('-').slice(1).join('-').replace('.mp4', '').replace(/_/g, ' ');
+    // Pour les chemins comme /1767029664626-Naruto_Shippuden_-_Saison_1_Ep1 (sans .mp4)
+    let pathname = url.pathname;
+    if (pathname.endsWith('.mp4')) {
+      pathname = pathname.slice(0, -4);  // Enlève .mp4 si présent, pour compatibilité
+    }
+    const filename = pathname.split('/').pop() + '.mp4';  // Ajoute .mp4 pour R2
+    const titleParts = pathname.split('-').slice(1).join('-').replace(/_/g, ' ');
     const pageTitle = titleParts || 'Custom Player';
 
-    const targetUrl = "https://pub-6801bec6f6414c08995c6708f70f99c2.r2.dev" + pathname;
-    const accept = request.headers.get('accept') || '';
+    const targetUrl = "https://pub-6801bec6f6414c08995c6708f70f99c2.r2.dev/" + filename;
     
-    if (accept.includes('text/html')) {
-      const playerHtml = `
+    const playerHtml = `
 <!doctype html>
 <html lang="fr">
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>${pageTitle}</title>
-<!-- Open Graph / Facebook Meta Tags -->
 <meta property="og:type" content="video.other" />
 <meta property="og:title" content="${pageTitle}" />
 <meta property="og:description" content="Regardez ${pageTitle} sur Adam_D’H7" />
@@ -119,12 +120,11 @@ export default {
 <meta property="og:video:width" content="1280" />
 <meta property="og:video:height" content="720" />
 <meta property="og:image" content="https://res.cloudinary.com/dckwrqrur/image/upload/v1757205404/tf-stream-url/Screenshot_20250906_202106_Chrome_go9vhu.png" />
-<!-- Twitter / X Card Meta Tags -->
 <meta name="twitter:card" content="player" />
 <meta name="twitter:site" content="@adam_dh7" />
 <meta name="twitter:title" content="${pageTitle}" />
 <meta name="twitter:description" content="Regardez ${pageTitle} sur Adam_D’H7" />
-<meta name="twitter:player" content="${request.url}" />
+<meta name="twitter:player" content="${url.href}" />
 <meta name="twitter:player:width" content="1280" />
 <meta name="twitter:player:height" content="720" />
 <meta name="twitter:player:stream" content="${targetUrl}" />
@@ -150,9 +150,9 @@ export default {
   html,body{height:100%;margin:0;background:var(--bg);color:var(--accent);font-family:Inter,system-ui,Arial,sans-serif}
   .wrap, .video-card, .controls-wrap, .inside-mini-controls, .menu-overlay, .lang-overlay { user-select:none; -webkit-user-select:none; -ms-user-select:none; -moz-user-select:none; }
 
-  .wrap{max-width:1100px;margin:28px auto;padding:12px;width:95%}
+  .wrap{width:100%;height:100%;margin:0;padding:0;}
 
-  .video-card{position:relative;border-radius:12px;overflow:hidden;background:#000;aspect-ratio:16/9;max-height:68vh;min-height:180px;touch-action:none}
+  .video-card{position:relative;border-radius:0;overflow:hidden;background:#000;width:100%;height:100%;aspect-ratio:16/9;touch-action:none}
   video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;background:#000;transition:filter .08s linear}
   video.contain{ object-fit:contain; background:#000; }
 
@@ -171,17 +171,17 @@ export default {
     position:absolute;
     left:12px;
     right:12px;
-    bottom:92px;
+    top:50%;
+    transform:translateY(-50%);
     z-index:13;
     display:flex;
     justify-content:center;
     gap:14px;
     pointer-events:auto;
-    transition:bottom .18s ease, opacity .18s ease;
+    transition:opacity .18s ease;
   }
   .inside-hidden{opacity:0;pointer-events:none}
   .inside-visible{opacity:1;pointer-events:auto}
-  .video-card.landscape-mode .inside-mini-controls{ bottom:160px; }
 
   .inside-item{
     min-width:86px;
@@ -413,8 +413,8 @@ export default {
   const langCloseBtn = document.getElementById('langCloseBtn');
   const langBackBtn = document.getElementById('langBackBtn');
 
-  const svgBrightness = \`<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="22" height="22"><path d="M12 4V2M12 22v-2M4.93 4.93L3.51 3.51M20.49 20.49l-1.42-1.42M4 12H2M22 12h-2M4.93 19.07l-1.42 1.42M20.49 3.51l-1.42 1.42M12 8a4 4 0 100 8 4 4 0 000-8z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>\`;
-  const svgVolume = \`<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="22" height="22"><path d="M11 5L6 9H2v6h4l5 4V5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 9a5 5 0 010 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>\`;
+  const svgBrightness = `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="22" height="22"><path d="M12 4V2M12 22v-2M4.93 4.93L3.51 3.51M20.49 20.49l-1.42-1.42M4 12H2M22 12h-2M4.93 19.07l-1.42 1.42M20.49 3.51l-1.42 1.42M12 8a4 4 0 100 8 4 4 0 000-8z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  const svgVolume = `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="22" height="22"><path d="M11 5L6 9H2v6h4l5 4V5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 9a5 5 0 010 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
   const cornerRatio = 0.20;
 
@@ -758,13 +758,10 @@ export default {
 </script>
 </body>
 </html>
-      `;
+    `;
 
-      return new Response(playerHtml, {
-        headers: { "content-type": "text/html;charset=UTF-8" },
-      });
-    } else {
-      return fetch(targetUrl);
-    }
+    return new Response(playerHtml, {
+      headers: { "content-type": "text/html;charset=UTF-8" },
+    });
   },
 };
