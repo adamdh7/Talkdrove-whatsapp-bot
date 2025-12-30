@@ -1,0 +1,102 @@
+export default {
+  async fetch(request) {
+    const url = new URL(request.url);
+
+    // 1. SI moun nan sou paj akèy la (root)
+    if (url.pathname === "/" || url.pathname === "") {
+      const html = `
+        <!DOCTYPE html>
+        <html lang="fr">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Adam_D’H7 | Url</title> 
+          <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#000000" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Adam_D'H7 | Url" />
+  <link rel="apple-touch-icon" href="https://res.cloudinary.com/dckwrqrur/image/upload/v1757205404/tf-stream-url/Screenshot_20250906_202106_Chrome_go9vhu.png" />
+          <style>
+            body {
+              background-color: #000000; /* Nwa nèt */
+              margin: 0;
+              height: 100vh;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-family: 'Inter', -apple-system, sans-serif;
+              color: #ffffff;
+            }
+
+            /* Efè floutaj gri ak nwa */
+            .glass-card {
+              background: rgba(30, 30, 30, 0.6); /* Gri fonse transparan */
+              backdrop-filter: blur(15px); /* Floutaj la */
+              -webkit-backdrop-filter: blur(15px);
+              border: 1px solid rgba(255, 255, 255, 0.1);
+              padding: 50px 30px;
+              border-radius: 24px;
+              text-align: center;
+              box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+              max-width: 350px;
+              width: 90%;
+            }
+
+            h1 {
+              font-size: 2.5rem;
+              margin: 0;
+              letter-spacing: -1px;
+              color: #ffffff; /* Logo an Blan */
+              font-weight: 800;
+            }
+
+            p {
+              color: #888888; /* Gri pou rès tèks la */
+              font-size: 0.9rem;
+              margin-top: 10px;
+              text-transform: uppercase;
+              letter-spacing: 2px;
+            }
+
+            .status-dot {
+              height: 8px;
+              width: 8px;
+              background-color: #ffffff;
+              border-radius: 50%;
+              display: inline-block;
+              margin-right: 5px;
+              box-shadow: 0 0 10px #ffffff;
+            }
+
+            .status-text {
+              font-size: 0.75rem;
+              color: #ffffff;
+              opacity: 0.6;
+              margin-top: 20px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="glass-card">
+            <h1>Adam_D’H7</h1>
+            <p>URL</p>
+            <div class="status-text">
+              <span class="status-dot"></span> It's me Adam_D'H7
+            </div>
+          </div>
+        </body>
+        </html>
+      `;
+
+      return new Response(html, {
+        headers: { "content-type": "text/html;charset=UTF-8" },
+      });
+    }
+
+    // 2. SI gen yon path (videyo), li al chèche l sou R2
+    const targetUrl = "https://pub-6801bec6f6414c08995c6708f70f99c2.r2.dev" + url.pathname;
+    return fetch(targetUrl);
+  },
+};
