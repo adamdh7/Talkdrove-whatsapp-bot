@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ht">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D'H7 Cloud Upload</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background-color: #000; color: white; font-family: sans-serif; }
+        .upload-card { background: #111; border: 1px solid #222; border-radius: 20px; }
+        .progress-bar { height: 4px; width: 0%; background: #007aff; transition: width 0.2s; }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <div class="upload-card w-full max-w-md p-8 text-center">
+        <h1 class="text-3xl font-black mb-2 italic">D'H7 UPLOAD</h1>
+        <p class="text-zinc-500 text-sm mb-8 uppercase tracking-widest">R2 Storage System</p>
+
+        <div id="drop-zone" onclick="document.getElementById('fileInput').click()" 
+             class="border-2 border-dashed border-zinc-700 rounded-3xl p-10 cursor-pointer hover:border-blue-500 transition-all">
+            <i class="fa-solid fa-cloud-arrow-up text-4xl mb-4 text-zinc-600"></i>
+            <p id="file-name" class="text-zinc-400">Klike oswa trennen yon fichye la</p>
+            <input type="file" id="fileInput" class="hidden" onchange="updateFileName()">
+        </div>
+
+        <div class="w-full bg-zinc-800 rounded-full mt-6 overflow-hidden hidden" id="progress-container">
+            <div id="bar" class="progress-bar"></div>
+        </div>
+
+        <button onclick="startUpload()" id="uploadBtn" 
+                class="w-full bg-white text-black font-bold py-4 rounded-2xl mt-6 hover:bg-zinc-200 transition-all">
+            VOYE FICHYE A
+        </button>
+
+        <div id="result" class="mt-8 hidden">
+            <p class="text-green-500 text-sm mb-2 font-bold italic text-left">SUKSÈ! URL PIBLIK :</p>
+            <div class="flex gap-2">
+                <input type="text" id="outputUrl" readonly 
+                       class="flex-1 bg-zinc-900 border border-zinc-800 p-3 rounded-xl text-xs text-blue-400">
+                <button onclick="copyLink()" class="bg-zinc-800 px-4 rounded-xl"><i class="fa-solid fa-copy"></i></button>
+            </div>
+            <div id="preview" class="mt-4 rounded-lg overflow-hidden border border-zinc-800"></div>
+        </div>
+    </div>
+
+    <script>
+        const BACKEND_URL = "https://uploads.adamdh7.org";
+
+        function updateFileName() {
+            const input = document.getElementById('fileInput');
+            const label = document.getElementById('file-name');
+            if (input.files.length > 0) {
+                label.innerText = input.files[0].name;
+                label.classList.add('text-white');
+            }
+        }
+
+        async function startUpload() {
+            const fileInput = document.getElementById('fileInput');
+            const btn = document.getElementById('uploadBtn');
+            const progContainer = document.getElementById('progress-container');
+            const bar = document.getElementById('bar');
+            const resultDiv = document.getElementById('result');
+            const preview = document.getElementById('preview');
+
+            if (fileInput.files.length === 0) {
+                alert("Tanpri chwazi yon fichye anvan!");
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const fileName = encodeURIComponent(file.name);
+            
+            // UI Update
+            btn.disabled = true;
+            btn.innerText = "AP VOYE...";
+            progContainer.classList.remove('hidden');
+            resultDiv.classList.add('hidden');
+
+            try {
+                // Nou itilize metòd PUT jan sa te mande a
+                const response = await fetch(`${BACKEND_URL}/${fileName}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': file.type
+                    },
+                    body: file
+                });
+
+                if (response.ok) {
+                    const publicUrl = await response.text();
+                    
+                    // Afiche Rezilta
+                    document.getElementById('outputUrl').value = publicUrl;
+                    resultDiv.classList.remove('hidden');
+                    bar.style.width = "100%";
+                    
+                    // Preview si se foto oswa videyo
+                    if (file.type.startsWith('image/')) {
+                        preview.innerHTML = `<img src="${publicUrl}" class="w-full h-auto">`;
+                    } else if (file.type.startsWith('video/')) {
+                        preview.innerHTML = `<video src="${publicUrl}" controls class="w-full"></video>`;
+                    } else {
+                        preview.innerHTML = `<div class="p-4 bg-zinc-900 text-xs">Fichye sa pa ka parèt an preview.</div>`;
+                    }
+
+                } else {
+                    alert("Erè pandan upload la!");
+                }
+            } catch (error) {
+                console.error(error);
+                alert("Pa ka konekte ak Backend lan!");
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "VOYE YON LÒT";
+            }
+        }
+
+        function copyLink() {
+            const copyText = document.getElementById("outputUrl");
+            copyText.select();
+            document.execCommand("copy");
+            alert("Lyen an kopye!");
+        }
+    </script>
+</body>
+</html>
