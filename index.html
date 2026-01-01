@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="ht">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
+    <title>D'H7 | Digital Hub 7</title>
+    <meta name="theme-color" content="#000000">
+    <link rel="manifest" href="manifest.json" />
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+        /* 1. LOGIQUE ADAPTIVE (SCALING UI) */
+        :root {
+            /* Magie ici : La taille de base de la police change selon la largeur de l'écran (vmin).
+               Tout le reste utilise des 'rem', donc tout scale proportionnellement.
+            */
+            font-size: clamp(12px, 2vmin + 8px, 22px); 
+
+            --bg-pure: #000000;
+            --bg-card: #0a0a0a;
+            --bg-input: #121212;
+            --border: #1a1a1a;
+            --blue-ios: #007aff;
+            --reply-bg: #1c1c1e;
+        }
+
+        /* 2. RESTRICTIONS (No Zoom, No Copy, No Refresh) */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            /* Empêche le pull-to-refresh et l'effet élastique */
+            overscroll-behavior: none; 
+            /* Empêche la sélection de texte partout */
+            user-select: none; 
+            -webkit-user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-pure);
+            color: white;
+            font-family: 'Inter', sans-serif;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            /* Empêche le pinch-to-zoom */
+            touch-action: pan-x pan-y; 
+        }
+
+        /* Exception : On autorise l'utilisateur à manipuler les inputs (pour Coller) */
+        input, textarea {
+            user-select: text !important;
+            -webkit-user-select: text !important;
+            touch-action: manipulation; /* Permet le scroll/focus mais pas le zoom */
+        }
+
+        /* Screen Transitions */
+        .screen {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--bg-pure);
+            z-index: 10;
+            transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+
+        .screen.hidden-left { transform: translateX(-30%); opacity: 0; pointer-events: none; }
+        .screen.hidden-right { transform: translateX(100%); pointer-events: none; }
+        .screen.active { transform: translateX(0); opacity: 1; pointer-events: auto; }
+
+        /* Custom UI Elements scaled with REM */
+        .modern-input {
+            background: var(--bg-input);
+            border: 0.05rem solid var(--border);
+            border-radius: 1rem;
+            padding: 1rem;
+            width: 100%;
+            color: white;
+            outline: none;
+            font-size: 1rem; /* 1rem = variable root size */
+        }
+
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            padding-bottom: 8rem; /* Space for input */
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .bubble {
+            max-width: 80%;
+            padding: 0.6rem 0.9rem;
+            font-size: 0.95rem;
+            line-height: 1.35;
+            position: relative;
+            word-break: break-word;
+            border-radius: 1.2rem;
+            transition: transform 0.1s;
+        }
+
+        .bubble.me {
+            align-self: flex-end;
+            background-color: var(--blue-ios);
+            color: white;
+            border-bottom-right-radius: 0.2rem;
+        }
+
+        .bubble.them {
+            align-self: flex-start;
+            background-color: #1c1c1e;
+            color: white;
+            border-bottom-left-radius: 0.2rem;
+            border: 0.05rem solid var(--border);
+        }
+
+        /* REPLY STYLES */
+        .reply-bar {
+            background: rgba(0,0,0,0.2);
+            border-left: 0.2rem solid var(--blue-ios);
+            border-radius: 0.3rem;
+            padding: 0.3rem 0.5rem;
+            margin-bottom: 0.3rem;
+            font-size: 0.75rem;
+            display: flex;
+            flex-direction: column;
+            opacity: 0.9;
+        }
+        
+        .bubble.them .reply-bar { border-left-color: #555; background: rgba(255,255,255,0.05); }
+
+        .reply-preview-container {
+            background: var(--bg-card);
+            border-top: 1px solid var(--border);
+            padding: 0.5rem 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* IOS Header */
+        .ios-header {
+            padding: max(env(safe-area-inset-top), 1.5rem) 1.5rem 0.8rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+            background: rgba(0,0,0,0.9);
+            backdrop-filter: blur(10px);
+            z-index: 20;
+        }
+
+        /* Language Overlay */
+        .language-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(5px);
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .lang-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 1.5rem;
+            width: 80%;
+            max-width: 20rem;
+            overflow: hidden;
+        }
+
+        .hidden { display: none !important; }
+
+        /* Contact Card */
+        .contact-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 1rem;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .avatar {
+            width: 3.2rem;
+            height: 3.2rem;
+            border-radius: 50%;
+            background: #222;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+    </style>
+</head>
+<body>
+
+    <section id="scr-auth" class="screen active items-center justify-center p-8">
+        <div class="w-full max-w-md flex flex-col h-full justify-center text-center">
+            <div class="flex-1 flex flex-col justify-center">
+                <h1 class="text-[5rem] font-black tracking-tighter mb-2 italic" data-key="logo" onclick="showLanguageSelector()">D'H7</h1>
+                <p class="text-zinc-600 text-xs uppercase tracking-[0.5em] mb-12" data-key="subtitle">Digital HUB 7</p>
+                
+                <div id="login-form" class="space-y-4">
+                    <input type="text" id="login-id" data-key="placeholder-tfid" placeholder="TFID / DH7" class="modern-input py-4">
+                    <input type="password" id="login-pass" data-key="placeholder-password" placeholder="Pass" class="modern-input py-4">
+                    <button onclick="login()" class="w-full bg-white text-black font-black py-4 rounded-2xl mt-6 text-lg active:scale-95 transition-transform" data-key="connect">LOG IN</button>
+                    <button onclick="toggleAuth()" class="w-full text-zinc-500 text-sm mt-4 py-2" data-key="register">KREYE YON KONT</button>
+                </div>
+
+                <div id="reg-form" class="hidden space-y-3">
+                    <div class="flex gap-2">
+                        <input type="text" id="reg-nom" placeholder="Nom" class="modern-input">
+                        <input type="text" id="reg-prenom" placeholder="Prenom" class="modern-input">
+                    </div>
+                    <input type="text" id="reg-dh7" placeholder="DH7 ID" class="modern-input">
+                    <input type="number" id="reg-age" placeholder="Age" class="modern-input">
+                    <input type="password" id="reg-pass" placeholder="Pass" class="modern-input">
+                    <button onclick="register()" class="w-full bg-white text-black font-black py-4 rounded-2xl mt-4 active:scale-95 transition-transform" data-key="create-account">JOIN</button>
+                    <button onclick="toggleAuth()" class="w-full text-zinc-500 text-sm mt-4 py-2" data-key="back-to-login">RETOUNEN</button>
+                </div>
+            </div>
+            <div class="pb-6">
+                <button onclick="showLanguageSelector()" class="text-zinc-600 text-[0.7rem] font-bold border border-zinc-800 px-4 py-2 rounded-full uppercase tracking-widest">
+                    <span data-key="language_btn">Langue</span> 🌐
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <section id="scr-home" class="screen hidden-right">
+        <header class="ios-header flex justify-between items-end">
+            <h2 class="text-3xl font-black tracking-tight" data-key="messages-title">Mesaj</h2>
+            <div class="flex gap-5 pb-1 text-blue-500">
+                <button onclick="navTo('scr-search')">
+                    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                </button>
+                <button onclick="navTo('scr-menu')">
+                    <svg class="w-7 h-7" fill="currentColor" viewBox="0 0 20 20"><path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM18 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                </button>
+            </div>
+        </header>
+        <div id="contact-list" class="flex-1 overflow-y-auto p-4 custom-scroll"></div>
+    </section>
+
+    <section id="scr-chat" class="screen hidden-right flex flex-col">
+        <header class="ios-header flex items-center gap-3">
+            <button onclick="navTo('scr-home')" class="text-blue-500 flex items-center -ml-2 p-2">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"></path></svg>
+            </button>
+            <div class="flex-1 overflow-hidden pointer-events-none">
+                <h3 id="chat-peer-name" class="font-bold text-lg truncate leading-tight">---</h3>
+                <p id="chat-peer-tfid" class="text-[0.65rem] text-zinc-500 font-mono tracking-wider uppercase">---</p>
+            </div>
+        </header>
+
+        <div id="chat-messages" class="chat-container"></div>
+
+        <div id="reply-preview" class="reply-preview-container hidden">
+            <div class="border-l-2 border-blue-500 pl-2">
+                <p class="text-[0.7rem] text-blue-400 font-bold mb-0.5" id="reply-to-name">Repond a...</p>
+                <p class="text-[0.8rem] text-zinc-400 line-clamp-1" id="reply-to-text">Message...</p>
+            </div>
+            <button onclick="cancelReply()" class="text-zinc-500 p-2">✕</button>
+        </div>
+
+        <div class="p-3 bg-black border-t border-zinc-900 pb-[calc(env(safe-area-inset-bottom)+0.5rem)]">
+            <div class="flex gap-2 items-end bg-zinc-900 rounded-[1.5rem] p-1 pr-2 border border-zinc-800">
+                <textarea id="msg-input" data-key="message-placeholder" placeholder="Ekri..." class="flex-1 bg-transparent border-none p-3 pl-4 outline-none text-white resize-none max-h-32 leading-relaxed" rows="1" oninput="autoResize(this)"></textarea>
+                <button onclick="sendMessage()" class="p-2 mb-1 bg-blue-600 rounded-full text-white active:scale-90 transition-transform">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" /></svg>
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <section id="scr-search" class="screen hidden-right">
+        <header class="ios-header flex items-center gap-3">
+            <input type="text" id="search-q" oninput="doSearch()" data-key="search-placeholder" placeholder="Chèche..." class="flex-1 bg-zinc-900 border-none rounded-xl px-4 py-3 text-white outline-none">
+            <button onclick="navTo('scr-home')" class="text-blue-500 font-semibold p-2" data-key="close">Anile</button>
+        </header>
+        <div id="search-results" class="flex-1 overflow-y-auto p-4"></div>
+    </section>
+
+    <section id="scr-menu" class="screen hidden-right">
+        <div class="flex-1 flex flex-col items-center justify-center p-8 text-center">
+            <div class="w-24 h-24 bg-zinc-900 rounded-full mb-4 flex items-center justify-center text-4xl font-black border border-zinc-800" id="m-init">?</div>
+            <h2 id="m-name" class="text-3xl font-bold mb-1">---</h2>
+            <p id="m-dh7" class="text-zinc-500 font-mono mb-8 text-sm">---</p>
+            
+            <div class="w-full max-w-xs space-y-3">
+                <div class="p-5 bg-zinc-900 rounded-2xl border border-zinc-800 text-left mb-6">
+                    <p class="text-[0.65rem] text-zinc-500 font-black uppercase tracking-widest mb-1" data-key="personal-tfid">TFID</p>
+                    <p id="m-tfid" class="text-xl font-mono text-white tracking-widest select-all pointer-events-auto">---</p>
+                </div>
+                <button onclick="showLanguageSelector()" class="w-full py-4 bg-zinc-900 rounded-xl font-bold text-sm" data-key="language">CHWAZI LANG</button>
+                <button onclick="logout()" class="w-full py-4 text-red-500 bg-red-500/10 rounded-xl font-bold text-sm" data-key="logout">DEKONEKTE</button>
+                <button onclick="navTo('scr-home')" class="w-full py-4 text-zinc-500 font-bold text-sm" data-key="close">RETOUNEN</button>
+            </div>
+        </div>
+    </section>
+
+    <div id="language-overlay" class="language-overlay hidden" onclick="if(event.target === this) this.classList.add('hidden')">
+        <div class="lang-card">
+            <div class="p-4 border-b border-zinc-800 text-center font-bold" onclick="changeLanguage('ht')">🇭🇹 Kreyòl Ayisyen</div>
+            <div class="p-4 border-b border-zinc-800 text-center font-bold" onclick="changeLanguage('fr')">🇫🇷 Français</div>
+            <div class="p-4 border-b border-zinc-800 text-center font-bold" onclick="changeLanguage('en')">🇺🇸 English</div>
+            <div class="p-4 border-b border-zinc-800 text-center font-bold" onclick="changeLanguage('es')">🇪🇸 Español</div>
+            <div class="p-3 text-center text-xs text-zinc-500 bg-zinc-900 cursor-pointer" onclick="document.getElementById('language-overlay').classList.add('hidden')">CANCEL</div>
+        </div>
+    </div>
+
+    <script>
+        const API = "https://dh7.adamdh7.org";
+        let user = JSON.parse(localStorage.getItem('dh7_session')) || null;
+        let currentLanguage = localStorage.getItem('language') || 'ht';
+        let activePeer = null;
+        let chatInterval = null;
+        
+        // REPLY SYSTEM VARIABLES
+        let replyingTo = null;
+        const REPLY_START = '\u2063'; 
+        const REPLY_END = '\u2064';
+
+        const translations = {
+            ht: { logo: "D'H7", subtitle: "Digital HUB 7", "placeholder-tfid": "TFID oswa DH7", "placeholder-password": "Modpas", connect: "KONEKTE", register: "KREYE YON KONT", "create-account": "JOIN D'H7", "back-to-login": "RETOUNEN", language_btn: "Lang", "messages-title": "Mesaj", "search-placeholder": "Chèche nan D'H7...", "personal-tfid": "TFID Pèsonèl", language: "CHWAZI LANG", logout: "DEKONEKTE", close: "ANILE", "message-placeholder": "Ekri yon mesaj...", "no_contacts": "Pa gen kontak pako.", "no_results": "Pa jwenn anyen.", you: "Ou" },
+            fr: { logo: "D'H7", subtitle: "Digital HUB 7", "placeholder-tfid": "TFID ou DH7", "placeholder-password": "Mot de passe", connect: "SE CONNECTER", register: "CRÉER UN COMPTE", "create-account": "REJOINDRE", "back-to-login": "RETOUR", language_btn: "Langue", "messages-title": "Messages", "search-placeholder": "Rechercher...", "personal-tfid": "TFID Personnel", language: "LANGUE", logout: "DÉCONNEXION", close: "FERMER", "message-placeholder": "Message...", "no_contacts": "Aucun contact.", "no_results": "Vide.", you: "Vous" },
+            en: { logo: "D'H7", subtitle: "Digital HUB 7", "placeholder-tfid": "TFID or DH7", "placeholder-password": "Password", connect: "LOG IN", register: "SIGN UP", "create-account": "JOIN", "back-to-login": "BACK", language_btn: "Language", "messages-title": "Messages", "search-placeholder": "Search...", "personal-tfid": "My TFID", language: "LANGUAGE", logout: "LOGOUT", close: "CLOSE", "message-placeholder": "Type message...", "no_contacts": "No contacts.", "no_results": "No results.", you: "You" },
+            es: { logo: "D'H7", subtitle: "Digital HUB 7", "placeholder-tfid": "TFID o DH7", "placeholder-password": "Contraseña", connect: "CONECTAR", register: "REGISTRAR", "create-account": "UNIRSE", "back-to-login": "VOLVER", language_btn: "Idioma", "messages-title": "Mensajes", "search-placeholder": "Buscar...", "personal-tfid": "Mi TFID", language: "IDIOMA", logout: "SALIR", close: "CERRAR", "message-placeholder": "Escribe...", "no_contacts": "Sin contactos.", "no_results": "Sin resultados.", you: "Tú" }
+        };
+
+        /* --- INITIALIZATION & ROUTING --- */
+        window.onload = function() {
+            changeLanguage(currentLanguage);
+            if(user) {
+                // Check for Slug/Deep Link (e.g., adamdh7.org/TF-12345)
+                const path = window.location.pathname;
+                if(path.includes('TF-')) {
+                    const slugId = path.substring(path.indexOf('TF-'));
+                    // We need to fetch user details for this slug
+                    fetchUserByTfid(slugId).then(peer => {
+                        if(peer) openChat(peer);
+                        else navTo('scr-home');
+                    });
+                } else {
+                    navTo('scr-home');
+                }
+            } else {
+                navTo('scr-auth');
+            }
+        };
+
+        window.onpopstate = (e) => {
+            if(e.state && e.state.screen) navTo(e.state.screen);
+            else navTo('scr-home');
+        };
+
+        async function fetchUserByTfid(tfid) {
+            try {
+                const res = await fetch(`${API}/users`);
+                const users = await res.json();
+                return users.find(u => u.tfid === tfid);
+            } catch(e) { return null; }
+        }
+
+        /* --- UI & NAVIGATION --- */
+        function navTo(screenId) {
+            document.querySelectorAll('.screen').forEach(s => {
+                s.classList.remove('active', 'hidden-left', 'hidden-right');
+                if (s.id === screenId) s.classList.add('active');
+                else s.classList.add('hidden-right');
+            });
+
+            // Clean URL when going home
+            if(screenId === 'scr-home') {
+                history.pushState({screen: 'scr-home'}, '', '/');
+                loadContacts();
+                if(chatInterval) clearInterval(chatInterval);
+            }
+            
+            // Set Inputs height auto
+            if(screenId === 'scr-chat') document.getElementById('msg-input').focus();
+        }
+
+        function autoResize(el) {
+            el.style.height = 'auto';
+            el.style.height = el.scrollHeight + 'px';
+        }
+
+        function showLanguageSelector() { document.getElementById('language-overlay').classList.remove('hidden'); }
+
+        function changeLanguage(lang) {
+            currentLanguage = lang;
+            localStorage.setItem('language', lang);
+            const t = translations[lang];
+            document.querySelectorAll('[data-key]').forEach(el => {
+                const k = el.dataset.key;
+                if(t[k]) el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' ? el.placeholder = t[k] : el.textContent = t[k];
+            });
+            document.getElementById('language-overlay').classList.add('hidden');
+        }
+
+        /* --- AUTH --- */
+        async function login() {
+            let id = document.getElementById('login-id').value.trim();
+            const pass = document.getElementById('login-pass').value;
+            if(!id.includes('@dh7.tf') && !id.startsWith('TF-')) id += '@dh7.tf';
+            
+            try {
+                const res = await fetch(`${API}/login`, {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({identifier: id, password: pass})
+                });
+                const data = await res.json();
+                if(data.success) {
+                    user = data.user;
+                    localStorage.setItem('dh7_session', JSON.stringify(user));
+                    startApp();
+                } else alert(data.error || "Erreur");
+            } catch(e) { alert("Connexion impossible"); }
+        }
+
+        function startApp() {
+            document.getElementById('m-name').innerText = `${user.prenom} ${user.nom}`;
+            document.getElementById('m-dh7').innerText = user.dh7;
+            document.getElementById('m-tfid').innerText = user.tfid;
+            document.getElementById('m-init').innerText = user.prenom[0];
+            navTo('scr-home');
+        }
+
+        function logout() { localStorage.clear(); location.href = '/'; }
+        function toggleAuth() { 
+            document.getElementById('login-form').classList.toggle('hidden'); 
+            document.getElementById('reg-form').classList.toggle('hidden'); 
+        }
+
+        /* --- MESSAGING & REPLIES --- */
+        async function loadContacts() {
+            const list = document.getElementById('contact-list');
+            list.innerHTML = '';
+            try {
+                const res = await fetch(`${API}/users`);
+                const users = await res.json();
+                users.forEach(u => {
+                    if(u.tfid === user.tfid) return;
+                    const d = document.createElement('div');
+                    d.className = 'contact-card active:scale-95 transition-transform';
+                    d.onclick = () => openChat(u);
+                    d.innerHTML = `<div class="avatar text-white">${u.prenom[0]}</div><div class="flex-1 min-w-0"><h4 class="font-bold text-white truncate">${u.prenom} ${u.nom}</h4><p class="text-xs text-zinc-500 font-mono">${u.tfid}</p></div>`;
+                    list.appendChild(d);
+                });
+            } catch(e) {}
+        }
+
+        function openChat(peer) {
+            activePeer = peer;
+            document.getElementById('chat-peer-name').innerText = `${peer.prenom} ${peer.nom}`;
+            document.getElementById('chat-peer-tfid').innerText = peer.tfid;
+            // Set URL Slug
+            history.pushState({screen: 'scr-chat'}, '', `/${peer.tfid}`);
+            
+            navTo('scr-chat');
+            fetchMessages();
+            chatInterval = setInterval(fetchMessages, 3000);
+        }
+
+        /* --- SWIPE TO REPLY LOGIC --- */
+        function addSwipeListener(bubble, text, messageId) {
+            let startX = 0;
+            bubble.addEventListener('touchstart', e => startX = e.touches[0].clientX);
+            bubble.addEventListener('touchmove', e => {
+                const diff = e.touches[0].clientX - startX;
+                if(diff > 50) bubble.style.transform = `translateX(30px)`; // Visual feedback
+            });
+            bubble.addEventListener('touchend', e => {
+                const endX = e.changedTouches[0].clientX;
+                bubble.style.transform = `translateX(0)`; // Reset
+                if(endX - startX > 60) {
+                    // Trigger Reply
+                    const senderName = bubble.classList.contains('me') ? translations[currentLanguage].you : activePeer.prenom;
+                    initReply(text, senderName, messageId);
+                }
+            });
+        }
+
+        function initReply(text, sender, id) {
+            replyingTo = { text, sender, id };
+            document.getElementById('reply-preview').classList.remove('hidden');
+            document.getElementById('reply-to-name').innerText = `Reponse a ${sender}`;
+            document.getElementById('reply-to-text').innerText = text;
+            document.getElementById('msg-input').focus();
+        }
+
+        function cancelReply() {
+            replyingTo = null;
+            document.getElementById('reply-preview').classList.add('hidden');
+        }
+
+        async function sendMessage() {
+            let txt = document.getElementById('msg-input').value.trim();
+            if(!txt || !activePeer) return;
+
+            // Construct Reply Payload if exists
+            if(replyingTo) {
+                // Invisible chars logic used in previous versions
+                const payload = `${REPLY_START}${replyingTo.id}${REPLY_END}${replyingTo.sender}${REPLY_END}${replyingTo.text}${REPLY_END}`;
+                txt = payload + '\n' + txt;
+                cancelReply();
+            }
+
+            document.getElementById('msg-input').value = '';
+            autoResize(document.getElementById('msg-input'));
+
+            try {
+                await fetch(`${API}/send`, {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({sender_tfid: user.tfid, receiver_tfid: activePeer.tfid, message: txt})
+                });
+                fetchMessages();
+            } catch(e) {}
+        }
+
+        async function fetchMessages() {
+            if(!activePeer) return;
+            const container = document.getElementById('chat-messages');
+            const atBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 50;
+            
+            try {
+                const res = await fetch(`${API}/messages`, {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({user1_tfid: user.tfid, user2_tfid: activePeer.tfid})
+                });
+                const msgs = await res.json();
+                container.innerHTML = '';
+
+                msgs.forEach(m => {
+                    if(m.text === 'ok') return;
+                    const isMe = m.from === user.tfid;
+                    const div = document.createElement('div');
+                    div.className = `bubble ${isMe ? 'me' : 'them'}`;
+                    
+                    // Parse Reply
+                    let content = m.text;
+                    if(content.startsWith(REPLY_START)) {
+                        const parts = content.split(REPLY_END);
+                        if(parts.length >= 3) {
+                            const rSender = parts[1];
+                            const rText = parts[2];
+                            const realMsg = content.substring(content.lastIndexOf(REPLY_END) + 1).trim();
+                            
+                            const replyBar = document.createElement('div');
+                            replyBar.className = 'reply-bar';
+                            replyBar.innerHTML = `<span class="font-bold text-blue-500">${rSender}</span><span class="truncate opacity-70">${rText}</span>`;
+                            div.appendChild(replyBar);
+                            content = realMsg;
+                        }
+                    }
+
+                    const span = document.createElement('span');
+                    span.innerText = content;
+                    div.appendChild(span);
+                    
+                    // Add Swipe Listener
+                    addSwipeListener(div, content, m.time); // Using time as ID for simplicity in this demo
+                    container.appendChild(div);
+                });
+
+                if(atBottom) container.scrollTop = container.scrollHeight;
+            } catch(e) {}
+        }
+    </script>
+</body>
+</html>
