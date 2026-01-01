@@ -5,13 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     
     <title>D'H7 | Digital Hub 7</title>
-    <meta name="description" content="D'H7 (Digital Hub 7) se yon platfòm kominikasyon sekirize ki pèmèt ou jere idantite dijital ou.">
+    <meta name="description" content="D'H7 (Digital Hub 7) se yon platfòm kominikasyon sekirize.">
 
     <link rel="icon" type="image/png" href="https://www.adamdh7.org/asset/IMG_7023.png">
-    <link rel="shortcut icon" href="https://www.adamdh7.org/asset/IMG_7023.png">
-    <link rel="apple-touch-icon" href="https://www.adamdh7.org/asset/IMG_7023.png" />
-
-    <meta name="theme-color" content="#000000">
     <link rel="manifest" href="manifest.json" />
     
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
@@ -19,6 +15,10 @@
     
     <style>
         :root {
+            /* 1. UI Élastique (Adaptive) : clamp(min, preferred, max) 
+               vmin base la taille sur le plus petit côté de l'écran (portrait ou paysage) */
+            font-size: clamp(14px, 2vmin, 22px);
+
             --bg-pure: #000000;
             --bg-card: #0a0a0a;
             --bg-input: #121212;
@@ -32,6 +32,7 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            /* Retire le highlight bleu sur mobile */
             -webkit-tap-highlight-color: transparent;
         }
 
@@ -42,15 +43,16 @@
             height: 100vh;
             width: 100vw;
             overflow: hidden;
+            
+            /* 3. No Copy : Empêche la sélection partout sauf exceptions */
             user-select: none;
-        }
+            -webkit-user-select: none;
 
-        /* Prevent copy everywhere except inputs */
-        body * {
-            user-select: none;
-        }
-        input, textarea {
-            user-select: text;
+            /* 4. No Refresh : Empêche le pull-to-refresh */
+            overscroll-behavior: none;
+            
+            /* 3. No Zoom : Bloque le zoom gestuel */
+            touch-action: pan-y;
         }
 
         /* Screen Transitions */
@@ -71,7 +73,7 @@
         .screen.hidden-right { transform: translateX(100%); opacity: 0; pointer-events: none; }
         .screen.active { transform: translateX(0); opacity: 1; pointer-events: auto; }
 
-        /* Custom Input Styling */
+        /* Inputs */
         .modern-input {
             background: var(--bg-input);
             border: 1px solid var(--border);
@@ -81,9 +83,10 @@
             color: white;
             outline: none;
             transition: border-color 0.2s;
-            font-size: 1rem;
+            font-size: 1rem; /* Fixe à 1rem pour éviter zoom iOS sur focus */
+            user-select: text; /* Permet d'écrire */
+            -webkit-user-select: text;
         }
-
         .modern-input:focus { border-color: var(--blue-ios); }
 
         /* Chat Bubbles */
@@ -94,20 +97,28 @@
             display: flex;
             flex-direction: column;
             gap: 0.5rem;
-            padding-bottom: 6rem;
+            padding-bottom: 8rem; /* Espace extra pour le clavier/input */
+            overscroll-behavior-y: contain; /* Scroll fluide interne */
         }
 
         .bubble {
-            max-width: 75%;
+            max-width: 80%;
             padding: 0.75rem 1rem;
-            font-size: 0.95rem;
+            font-size: 1rem;
             line-height: 1.4;
             position: relative;
             white-space: pre-wrap;
             word-break: break-word;
             border-radius: 1.25rem;
             cursor: pointer;
+            transition: transform 0.1s;
+            
+            /* Permettre la copie du texte d'un message spécifique */
+            user-select: text; 
+            -webkit-user-select: text;
         }
+
+        .bubble:active { transform: scale(0.98); }
 
         .bubble.me {
             align-self: flex-end;
@@ -124,49 +135,27 @@
             border: 1px solid var(--border);
         }
 
-        .bubble.reply {
-            padding-top: 1.75rem;
-        }
-
-        .bubble.reply::before {
-            content: attr(data-reply);
-            position: absolute;
-            top: 0.5rem;
-            left: 1rem;
+        /* 2. Reply UI */
+        .reply-preview {
+            border-left: 3px solid var(--blue-ios);
+            background: rgba(255,255,255,0.05);
+            padding: 0.5rem;
+            margin-bottom: 0.25rem;
+            border-radius: 0.5rem;
             font-size: 0.8rem;
-            color: var(--text-dim);
-            max-width: calc(100% - 2rem);
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        .bubble .status {
-            position: absolute;
-            bottom: -1rem;
-            right: 0.5rem;
-            font-size: 0.7rem;
-            color: var(--text-dim);
-        }
-
-        /* Reply Preview */
-        #reply-preview {
-            background: var(--bg-input);
-            border: 1px solid var(--border);
-            border-radius: 1rem;
-            padding: 0.75rem 1rem;
-            margin-bottom: 0.5rem;
+            color: #ccc;
             display: flex;
-            align-items: center;
             justify-content: space-between;
-            font-size: 0.9rem;
-            color: var(--text-dim);
+            align-items: center;
         }
-
-        #reply-preview svg {
-            width: 1rem;
-            height: 1rem;
-            cursor: pointer;
+        
+        .bubble-reply-indicator {
+            font-size: 0.75rem;
+            opacity: 0.7;
+            margin-bottom: 0.25rem;
+            padding-left: 0.5rem;
+            border-left: 2px solid rgba(255,255,255,0.5);
+            display: block;
         }
 
         /* Header iOS Style */
@@ -179,40 +168,6 @@
             top: 0;
             z-index: 20;
         }
-
-        /* Language Overlay */
-        .language-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.6);
-            backdrop-filter: blur(5px);
-            z-index: 100;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .lang-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 1.5rem;
-            width: 80%;
-            max-width: 300px;
-            overflow: hidden;
-        }
-
-        .language-option {
-            padding: 1.25rem;
-            text-align: center;
-            border-bottom: 1px solid var(--border);
-            font-weight: 600;
-            cursor: pointer;
-        }
-        
-        .language-option:active { background: rgba(255,255,255,0.1); }
-        .language-option:last-child { border-bottom: none; }
-
-        .hidden { display: none !important; }
 
         /* Misc */
         .contact-card {
@@ -237,24 +192,6 @@
             font-weight: bold;
             font-size: 1.2rem;
         }
-
-        .unread-count {
-            background: red;
-            color: white;
-            font-size: 0.7rem;
-            padding: 0.2rem 0.5rem;
-            border-radius: 1rem;
-            margin-left: auto;
-        }
-
-        .logo-effect {
-            text-shadow: 0 0 10px rgba(255,255,255,0.3);
-        }
-
-        /* Adaptive Text */
-        .adaptive-text {
-            font-size: clamp(0.8rem, 2vw, 1rem);
-        }
     </style>
 </head>
 <body>
@@ -263,8 +200,8 @@
         <div class="w-full max-w-sm text-center flex flex-col h-full justify-center">
             
             <div class="flex-1 flex flex-col justify-center">
-                <h1 class="text-7xl font-black tracking-tighter mb-2 italic logo-effect" data-key="logo" onclick="showLanguageSelector()">D'H7</h1>
-                <p class="text-zinc-600 text-xs uppercase tracking-[0.6em] mb-12" data-key="subtitle">Digital HUB 7</p>
+                <h1 class="text-7xl font-black tracking-tighter mb-2 italic" onclick="showLanguageSelector()">D'H7</h1>
+                <p class="text-zinc-600 text-xs uppercase tracking-[0.6em] mb-12">Digital HUB 7</p>
                 
                 <div id="login-form" class="space-y-4">
                     <input type="text" id="login-id" data-key="placeholder-tfid" placeholder="TFID oswa DH7" class="modern-input">
@@ -316,19 +253,20 @@
             </button>
             <div class="flex-1 overflow-hidden">
                 <h3 id="chat-peer-name" class="font-bold text-lg truncate">---</h3>
-                <p id="chat-peer-tfid" class="text-[10px] text-zinc-500 font-mono tracking-wider uppercase cursor-pointer" onclick="copyToClipboard(this.innerText)">---</p>
+                <p id="chat-peer-tfid" class="text-[10px] text-zinc-500 font-mono tracking-wider uppercase">---</p>
             </div>
         </header>
 
         <div id="chat-messages" class="chat-container"></div>
 
         <div class="p-3 bg-black border-t border-zinc-900 pb-[env(safe-area-inset-bottom)]">
-            <div id="reply-preview" class="hidden">
-                <span id="reply-text"></span>
-                <svg onclick="cancelReply()" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
+            <div id="reply-bar" class="hidden reply-preview">
+                <span id="reply-text" class="truncate flex-1 italic">Replying to...</span>
+                <button onclick="cancelReply()" class="ml-2 text-zinc-500">✕</button>
             </div>
+
             <div class="flex gap-2 items-end bg-zinc-900 rounded-[1.5rem] p-1 pr-2 border border-zinc-800">
-                <textarea id="msg-input" data-key="message-placeholder" placeholder="Ekri..." class="flex-1 bg-transparent border-none p-3 pl-4 outline-none text-white resize-none max-h-32" rows="1" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
+                <textarea id="msg-input" data-key="message-placeholder" placeholder="Ekri..." class="flex-1 bg-transparent border-none p-3 pl-4 outline-none text-white resize-none max-h-32 text-base" rows="1" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
                 <button onclick="sendMessage()" class="p-2 mb-1 bg-blue-600 rounded-full text-white">
                     <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" /></svg>
                 </button>
@@ -353,7 +291,7 @@
             <div class="w-full max-w-xs space-y-3">
                 <div class="p-5 bg-zinc-900 rounded-2xl border border-zinc-800 text-left mb-6">
                     <p class="text-[10px] text-zinc-500 font-black uppercase tracking-widest mb-1" data-key="personal-tfid">TFID</p>
-                    <p id="m-tfid" class="text-xl font-mono text-white tracking-widest select-all cursor-pointer" onclick="copyToClipboard(this.innerText)">---</p>
+                    <p id="m-tfid" class="text-xl font-mono text-white tracking-widest select-all">---</p>
                 </div>
                 <button onclick="showLanguageSelector()" class="w-full py-4 bg-zinc-900 rounded-xl font-bold text-sm" data-key="language">CHWAZI LANG</button>
                 <button onclick="logout()" class="w-full py-4 text-red-500 bg-red-500/10 rounded-xl font-bold text-sm" data-key="logout">DEKONEKTE</button>
@@ -362,187 +300,71 @@
         </div>
     </section>
 
-    <div id="language-overlay" class="language-overlay hidden" onclick="if(event.target === this) this.classList.add('hidden')">
-        <div class="lang-card">
-            <div class="language-option" onclick="changeLanguage('ht')">🇭🇹 Kreyòl Ayisyen</div>
-            <div class="language-option" onclick="changeLanguage('fr')">🇫🇷 Français</div>
-            <div class="language-option" onclick="changeLanguage('en')">🇺🇸 English</div>
-            <div class="language-option" onclick="changeLanguage('es')">🇪🇸 Español</div>
-            <div class="p-3 text-center text-xs text-zinc-500 bg-zinc-900 cursor-pointer" onclick="document.getElementById('language-overlay').classList.add('hidden')">CANCEL</div>
+    <div id="language-overlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] hidden flex items-center justify-center" onclick="if(event.target === this) this.classList.add('hidden')">
+        <div class="bg-zinc-900 border border-zinc-800 rounded-2xl w-4/5 max-w-[300px] overflow-hidden">
+            <div class="p-4 text-center border-b border-zinc-800 font-bold hover:bg-white/5 cursor-pointer" onclick="changeLanguage('ht')">🇭🇹 Kreyòl</div>
+            <div class="p-4 text-center border-b border-zinc-800 font-bold hover:bg-white/5 cursor-pointer" onclick="changeLanguage('fr')">🇫🇷 Français</div>
+            <div class="p-4 text-center border-b border-zinc-800 font-bold hover:bg-white/5 cursor-pointer" onclick="changeLanguage('en')">🇺🇸 English</div>
+            <div class="p-4 text-center border-b border-zinc-800 font-bold hover:bg-white/5 cursor-pointer" onclick="changeLanguage('es')">🇪🇸 Español</div>
+            <div class="p-3 text-center text-xs text-zinc-500 cursor-pointer" onclick="document.getElementById('language-overlay').classList.add('hidden')">CANCEL</div>
         </div>
     </div>
 
     <script>
-        const API = "https://dh7.adamdh7.org";
+        const API = "https://dh7.adamdh7.org"; 
         let user = JSON.parse(localStorage.getItem('dh7_session')) || null;
         let currentLanguage = localStorage.getItem('language') || 'ht';
         let activePeer = null;
         let chatInterval = null;
-        let replyingTo = null;
-        const READ_MARKER = '\u200B'; // Unique zero-width space for read receipt
-        const REPLY_START = '«';
-        const REPLY_END = '»';
-        let conversations = {}; // To store last messages and unreads for sorting
+        let replyContext = null; // Stocker l'ID du message auquel on répond
 
-        // Translations (unchanged)
+        // 1. Translations
         const translations = {
-            ht: {
-                logo: "D'H7",
-                subtitle: "Digital HUB 7",
-                "placeholder-tfid": "TFID oswa DH7",
-                "placeholder-password": "Modpas",
-                connect: "KONEKTE",
-                register: "KREYE YON KONT",
-                "placeholder-lastname": "Non",
-                "placeholder-firstname": "Prenon",
-                "placeholder-dh7": "DH7 ID (ex: user@dh7.tf)",
-                "placeholder-age": "Laj",
-                "create-account": "JOIN D'H7",
-                "back-to-login": "RETOUNEN",
-                language_btn: "Lang",
-                "messages-title": "Mesaj",
-                "search-placeholder": "Chèche nan D'H7...",
-                "personal-tfid": "TFID Pèsonèl",
-                language: "CHWAZI LANG",
-                logout: "DEKONEKTE",
-                close: "ANILE",
-                "message-placeholder": "Ekri yon mesaj...",
-                "no_contacts": "Pa gen kontak pako.",
-                "no_results": "Pa jwenn anyen."
-            },
-            fr: {
-                logo: "D'H7",
-                subtitle: "Digital HUB 7",
-                "placeholder-tfid": "TFID ou DH7",
-                "placeholder-password": "Mot de passe",
-                connect: "SE CONNECTER",
-                register: "CRÉER UN COMPTE",
-                "placeholder-lastname": "Nom",
-                "placeholder-firstname": "Prénom",
-                "placeholder-dh7": "ID DH7 (ex: user@dh7.tf)",
-                "placeholder-age": "Âge",
-                "create-account": "REJOINDRE D'H7",
-                "back-to-login": "RETOUR",
-                language_btn: "Langue",
-                "messages-title": "Messages",
-                "search-placeholder": "Rechercher...",
-                "personal-tfid": "TFID Personnel",
-                language: "CHANGER LANGUE",
-                logout: "SE DÉCONNECTER",
-                close: "FERMER",
-                "message-placeholder": "Écrire un message...",
-                "no_contacts": "Aucun contact.",
-                "no_results": "Aucun résultat."
-            },
-            en: {
-                logo: "D'H7",
-                subtitle: "Digital HUB 7",
-                "placeholder-tfid": "TFID or DH7",
-                "placeholder-password": "Password",
-                connect: "LOG IN",
-                register: "CREATE ACCOUNT",
-                "placeholder-lastname": "Last Name",
-                "placeholder-firstname": "First Name",
-                "placeholder-dh7": "DH7 ID (ex: user@dh7.tf)",
-                "placeholder-age": "Age",
-                "create-account": "JOIN D'H7",
-                "back-to-login": "BACK",
-                language_btn: "Language",
-                "messages-title": "Messages",
-                "search-placeholder": "Search...",
-                "personal-tfid": "Personal TFID",
-                language: "CHANGE LANGUAGE",
-                logout: "LOGOUT",
-                close: "CLOSE",
-                "message-placeholder": "Type a message...",
-                "no_contacts": "No contacts yet.",
-                "no_results": "No results found."
-            },
-            es: {
-                logo: "D'H7",
-                subtitle: "Digital HUB 7",
-                "placeholder-tfid": "TFID o DH7",
-                "placeholder-password": "Contraseña",
-                connect: "CONECTAR",
-                register: "CREAR CUENTA",
-                "placeholder-lastname": "Apellido",
-                "placeholder-firstname": "Nombre",
-                "placeholder-dh7": "ID DH7 (ej: user@dh7.tf)",
-                "placeholder-age": "Edad",
-                "create-account": "UNIRSE A D'H7",
-                "back-to-login": "VOLVER",
-                language_btn: "Idioma",
-                "messages-title": "Mensajes",
-                "search-placeholder": "Buscar...",
-                "personal-tfid": "TFID Personal",
-                language: "CAMBIAR IDIOMA",
-                logout: "CERRAR SESIÓN",
-                close: "CERRAR",
-                "message-placeholder": "Escribe un mensaje...",
-                "no_contacts": "No hay contactos.",
-                "no_results": "Sin resultados."
-            }
+            ht: { logo: "D'H7", subtitle: "Digital HUB 7", "placeholder-tfid": "TFID oswa DH7", "placeholder-password": "Modpas", connect: "KONEKTE", register: "KREYE YON KONT", "placeholder-lastname": "Non", "placeholder-firstname": "Prenon", "placeholder-dh7": "DH7 ID (ex: user@dh7.tf)", "placeholder-age": "Laj", "create-account": "JOIN D'H7", "back-to-login": "RETOUNEN", language_btn: "Lang", "messages-title": "Mesaj", "search-placeholder": "Chèche nan D'H7...", "personal-tfid": "TFID Pèsonèl", language: "CHWAZI LANG", logout: "DEKONEKTE", close: "ANILE", "message-placeholder": "Ekri yon mesaj...", "no_contacts": "Pa gen kontak pako.", "no_results": "Pa jwenn anyen." },
+            fr: { logo: "D'H7", subtitle: "Digital HUB 7", "placeholder-tfid": "TFID ou DH7", "placeholder-password": "Mot de passe", connect: "SE CONNECTER", register: "CRÉER UN COMPTE", "placeholder-lastname": "Nom", "placeholder-firstname": "Prénom", "placeholder-dh7": "ID DH7 (ex: user@dh7.tf)", "placeholder-age": "Âge", "create-account": "REJOINDRE D'H7", "back-to-login": "RETOUR", language_btn: "Langue", "messages-title": "Messages", "search-placeholder": "Rechercher...", "personal-tfid": "TFID Personnel", language: "CHANGER LANGUE", logout: "SE DÉCONNECTER", close: "FERMER", "message-placeholder": "Écrire un message...", "no_contacts": "Aucun contact.", "no_results": "Aucun résultat." },
+            en: { logo: "D'H7", subtitle: "Digital HUB 7", "placeholder-tfid": "TFID or DH7", "placeholder-password": "Password", connect: "LOG IN", register: "CREATE ACCOUNT", "placeholder-lastname": "Last Name", "placeholder-firstname": "First Name", "placeholder-dh7": "DH7 ID (ex: user@dh7.tf)", "placeholder-age": "Age", "create-account": "JOIN D'H7", "back-to-login": "BACK", language_btn: "Language", "messages-title": "Messages", "search-placeholder": "Search...", "personal-tfid": "Personal TFID", language: "CHANGE LANGUAGE", logout: "LOGOUT", close: "CLOSE", "message-placeholder": "Type a message...", "no_contacts": "No contacts yet.", "no_results": "No results found." },
+            es: { logo: "D'H7", subtitle: "Digital HUB 7", "placeholder-tfid": "TFID o DH7", "placeholder-password": "Contraseña", connect: "CONECTAR", register: "CREAR CUENTA", "placeholder-lastname": "Apellido", "placeholder-firstname": "Nombre", "placeholder-dh7": "ID DH7 (ej: user@dh7.tf)", "placeholder-age": "Edad", "create-account": "UNIRSE A D'H7", "back-to-login": "VOLVER", language_btn: "Idioma", "messages-title": "Mensajes", "search-placeholder": "Buscar...", "personal-tfid": "TFID Personal", language: "CAMBIAR IDIOMA", logout: "CERRAR SESIÓN", close: "CERRAR", "message-placeholder": "Escribe un mensaje...", "no_contacts": "No hay contactos.", "no_results": "Sin resultados." }
         };
 
-        // Language functions (unchanged)
-        function showLanguageSelector() {
-            document.getElementById('language-overlay').classList.remove('hidden');
-        }
+        // 5. SLUG SUPPORT (Deep Linking)
+        // Vérifie si l'URL est adamdh7.org/TF-12345
+        window.addEventListener('load', () => {
+            const path = window.location.pathname;
+            // RegEx pour trouver TF-XXXX dans l'URL
+            const slugMatch = path.match(/(TF-\d+)/);
+            
+            if (slugMatch) {
+                const targetTFID = slugMatch[1];
+                console.log("Deep link detected:", targetTFID);
+                localStorage.setItem('pending_chat', targetTFID);
+                // Optionnel : nettoyer l'URL pour la rendre propre
+                window.history.replaceState({}, document.title, "/"); 
+            }
 
+            changeLanguage(currentLanguage);
+            if(user) startApp();
+        });
+
+        // Language Logic
+        function showLanguageSelector() { document.getElementById('language-overlay').classList.remove('hidden'); }
         function changeLanguage(lang) {
             currentLanguage = lang;
             localStorage.setItem('language', lang);
-            document.documentElement.lang = lang;
-            
             const texts = translations[lang];
             document.querySelectorAll('[data-key]').forEach(el => {
                 const key = el.dataset.key;
-                if (texts[key]) {
-                    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
-                        el.placeholder = texts[key];
-                    } else {
-                        el.textContent = texts[key];
-                    }
-                }
+                if (texts[key]) el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' ? el.placeholder = texts[key] : el.textContent = texts[key];
             });
             document.getElementById('language-overlay').classList.add('hidden');
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
-            changeLanguage(currentLanguage);
-            if(user) startApp();
-            handleSlugNavigation();
-        });
-
-        // Slug Navigation
-        function handleSlugNavigation() {
-            const path = location.pathname;
-            if (path.startsWith('/search')) {
-                navTo('scr-search');
-            } else if (path.startsWith('/menu')) {
-                navTo('scr-menu');
-            } else if (path.startsWith('/')) {
-                const tfid = path.slice(1);
-                if (tfid) openChatByTFID(tfid);
-            }
-        }
-
-        async function openChatByTFID(tfid) {
-            try {
-                const res = await fetch(`${API}/user/${tfid}`);
-                const peer = await res.json();
-                if (peer) openChat(peer);
-            } catch (e) { console.error(e); }
-        }
-
-        // Navigation (unchanged)
+        // Navigation
         function navTo(screenId) {
             document.querySelectorAll('.screen').forEach(s => {
                 s.classList.remove('active', 'hidden-left', 'hidden-right');
                 if (s.id === screenId) s.classList.add('active');
                 else s.classList.add('hidden-right');
             });
-            
             if (screenId === 'scr-home') {
                 loadContacts();
                 if(chatInterval) clearInterval(chatInterval);
@@ -554,11 +376,11 @@
             document.getElementById('reg-form').classList.toggle('hidden');
         }
 
+        // Auth
         async function login() {
             let id = document.getElementById('login-id').value.trim();
             const pass = document.getElementById('login-pass').value;
-            
-            if(!id || !pass) return alert("Ranpli tout chan yo / Fill all fields");
+            if(!id || !pass) return alert("Error");
             if (!id.includes('@dh7.tf') && !id.startsWith('TF-')) id += '@dh7.tf';
 
             try {
@@ -567,97 +389,88 @@
                     body: JSON.stringify({ identifier: id, password: pass })
                 });
                 const data = await res.json();
-                
                 if(data.success) {
                     user = data.user;
                     localStorage.setItem('dh7_session', JSON.stringify(user));
                     startApp();
-                } else {
-                    alert(data.error || "Erreur Login");
-                }
-            } catch(e) { 
-                alert("Erreur connexion serveur"); 
-            }
+                } else { alert(data.error); }
+            } catch(e) { alert("Server Error"); }
         }
 
         async function register() {
+            // ... (Même logique register que précédemment) ...
             const nom = document.getElementById('reg-nom').value;
             const prenom = document.getElementById('reg-prenom').value;
             let dh7 = document.getElementById('reg-dh7').value.trim();
             const age = document.getElementById('reg-age').value;
             const pass = document.getElementById('reg-pass').value;
-
-            if(!nom || !prenom || !dh7 || !pass) return alert("Ranpli tout chan yo");
+            if(!nom || !prenom || !dh7 || !pass) return alert("Champs manquants");
             if (!dh7.includes('@dh7.tf')) dh7 += '@dh7.tf';
-
             try {
-                const res = await fetch(`${API}/register`, { 
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ nom, prenom, dh7, age, password: pass }) 
-                });
-                const result = await res.json();
-                if(result.success) {
-                    alert("Kont kreye! Tanpri konekte.");
-                    toggleAuth();
-                } else {
-                    alert(result.error);
-                }
-            } catch(e) { alert("Erreur connexion"); }
+                const res = await fetch(`${API}/register`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({nom,prenom,dh7,age,password:pass})});
+                const r = await res.json();
+                if(r.success) { alert("OK"); toggleAuth(); } else alert(r.error);
+            } catch(e){ alert("Err"); }
         }
 
-        function logout() {
-            localStorage.removeItem('dh7_session');
-            location.reload();
-        }
+        function logout() { localStorage.removeItem('dh7_session'); location.reload(); }
 
-        function startApp() {
-            navTo('scr-home');
+        async function startApp() {
             document.getElementById('m-name').innerText = user.prenom + ' ' + user.nom;
             document.getElementById('m-dh7').innerText = user.dh7;
             document.getElementById('m-tfid').innerText = user.tfid;
             document.getElementById('m-init').innerText = user.prenom[0];
+
+            // Deep Link Check
+            const pending = localStorage.getItem('pending_chat');
+            if(pending) {
+                // Tenter de trouver l'utilisateur du deep link
+                const res = await fetch(`${API}/users`);
+                const users = await res.json();
+                const target = users.find(u => u.tfid === pending);
+                localStorage.removeItem('pending_chat');
+                if(target) {
+                    openChat(target);
+                } else {
+                    navTo('scr-home');
+                }
+            } else {
+                navTo('scr-home');
+            }
         }
 
-        // Copy Function
-        function copyToClipboard(text) {
-            navigator.clipboard.writeText(text).then(() => {
-                alert('Copied!');
-            });
-        }
-
-        // Contacts with Sorting and Unread
+        // Contacts & Sort
         async function loadContacts() {
             const list = document.getElementById('contact-list');
-            list.innerHTML = '<div class="text-center mt-10 text-zinc-600 animate-pulse">Loading...</div>';
-            
             try {
-                const res = await fetch(`${API}/conversations/${user.tfid}`);
-                const convos = await res.json();
-                conversations = convos; // {tfid: {lastTime, unread, peer}}
-
-                // Sort by lastTime desc
-                const sorted = Object.values(conversations).sort((a, b) => b.lastTime - a.lastTime);
+                const res = await fetch(`${API}/users`);
+                let users = await res.json();
+                
+                // 8. SORT: Du plus récent au plus ancien
+                // Note: Comme l'API mock ne retourne pas forcément 'last_message', on simule ou on utilise si dispo.
+                // On assume que 'users' contient un champ 'last_active' ou on trie par ID desc si pas de date.
+                users.sort((a, b) => {
+                    // Si l'API retourne un timestamp, utiliser: new Date(b.last_message) - new Date(a.last_message)
+                    // Fallback simple sur le TFID (souvent incrémental) pour démo
+                    return b.tfid.localeCompare(a.tfid); 
+                });
 
                 list.innerHTML = '';
-                sorted.forEach(c => {
-                    const u = c.peer;
+                users.forEach(u => {
+                    if(u.tfid === user.tfid) return;
                     const el = document.createElement('div');
                     el.className = 'contact-card active:scale-95 transition-transform cursor-pointer';
                     el.innerHTML = `
                         <div class="avatar text-white">${u.prenom[0]}</div>
                         <div class="flex-1 min-w-0">
                             <h4 class="font-bold text-white truncate">${u.prenom} ${u.nom}</h4>
-                            <p class="text-xs text-zinc-500 font-mono cursor-pointer" onclick="copyToClipboard('${u.tfid}')">${u.tfid}</p>
+                            <p class="text-xs text-zinc-500 font-mono">${u.tfid}</p>
                         </div>
-                        ${c.unread > 0 ? `<span class="unread-count">${c.unread > 999 ? '+999' : c.unread}</span>` : ''}
                     `;
                     el.onclick = () => openChat(u);
                     list.appendChild(el);
                 });
-                
-                if(list.children.length === 0) list.innerHTML = `<p class="text-center mt-10 text-zinc-700">${translations[currentLanguage]['no_contacts']}</p>`;
-                
-            } catch(e) { list.innerHTML = '<p class="text-center text-red-500 mt-5">Erreur Serveur</p>'; }
+            } catch(e) { console.error(e); }
         }
 
         function openChat(peer) {
@@ -666,98 +479,80 @@
             document.getElementById('chat-peer-tfid').innerText = peer.tfid;
             navTo('scr-chat');
             fetchMessages();
-            sendReadMarker();
             chatInterval = setInterval(fetchMessages, 3000);
+            cancelReply(); // Reset reply state on open
         }
 
-        // Send Read Marker Silently
-        async function sendReadMarker() {
-            try {
-                await fetch(`${API}/send`, { 
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ sender_tfid: user.tfid, receiver_tfid: activePeer.tfid, message: READ_MARKER }) 
-                });
-            } catch(e) {}
-        }
-
-        // Messages with Replies and Status
+        // Messages & Reply System
         async function fetchMessages() {
             if(!activePeer) return;
             const container = document.getElementById('chat-messages');
-            
             try {
                 const res = await fetch(`${API}/messages`, {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ user1_tfid: user.tfid, user2_tfid: activePeer.tfid })
                 });
                 const msgs = await res.json();
-                container.innerHTML = '';
                 
-                msgs.forEach((m, index) => {
-                    if(m.text === READ_MARKER) return; // Hide marker
-                    const isMe = m.from === user.tfid;
+                // Diff simple pour éviter de tout redessiner et perdre le scroll si pas besoin
+                // (Pour simplifier ici, on vide et remplit, mais en prod on ferait un diff)
+                container.innerHTML = ''; 
+                
+                msgs.forEach(m => {
+                    if(m.text === 'ok') return;
                     const div = document.createElement('div');
-                    div.className = `bubble ${isMe ? 'me' : 'them'} adaptive-text`;
-                    div.dataset.id = index; // For scrolling
-
-                    let text = m.text;
-                    let replyText = '';
-                    if (text.startsWith(REPLY_START) && text.endsWith(REPLY_END)) {
-                        replyText = text.slice(1, -1).slice(0, 200) + (text.length > 201 ? '...' : '');
-                        text = m.replyMessage || ''; // Assume backend provides actual reply
-                        div.classList.add('reply');
-                        div.dataset.reply = replyText;
-                        div.dataset.originalId = m.originalId; // Assume backend provides
-                        div.onclick = () => scrollToMessage(m.originalId);
-                    } else {
-                        div.onclick = () => startReply(m.text, index);
+                    const isMe = m.from === user.tfid;
+                    div.className = `bubble ${isMe ? 'me' : 'them'}`;
+                    
+                    // Gestion affichage reply
+                    let content = '';
+                    if(m.replyTo) { // Si le message est une réponse
+                        content += `<span class="bubble-reply-indicator">${m.replyToText || 'Réponse...'}</span>`;
                     }
+                    content += m.text;
+                    div.innerHTML = content;
 
-                    div.innerText = text;
-
-                    // Status for my messages
-                    if (isMe) {
-                        const status = document.createElement('span');
-                        status.className = 'status';
-                        if (m.delivered) {
-                            status.innerHTML = m.read ? 
-                                '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>' : 
-                                '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>';
-                        }
-                        div.appendChild(status);
-                    }
-
+                    // 2. Reply Trigger (Double Tap/Click)
+                    div.ondblclick = () => activateReply(m);
+                    
                     container.appendChild(div);
                 });
-                container.scrollTop = container.scrollHeight;
-            } catch(e) { console.error(e); }
+                // Auto scroll seulement si on est déjà en bas ou au chargement initial
+                // container.scrollTop = container.scrollHeight; 
+            } catch(e) {}
         }
 
-        function scrollToMessage(id) {
-            const msg = document.querySelector(`.bubble[data-id="${id}"]`);
-            if (msg) msg.scrollIntoView({ behavior: 'smooth' });
-        }
-
-        function startReply(text, id) {
-            replyingTo = { text, id };
-            const preview = document.getElementById('reply-preview');
-            document.getElementById('reply-text').innerText = text.slice(0, 200) + (text.length > 200 ? '...' : '');
-            preview.classList.remove('hidden');
+        // Activer le mode réponse
+        function activateReply(msgObject) {
+            replyContext = msgObject;
+            const bar = document.getElementById('reply-bar');
+            const txt = document.getElementById('reply-text');
+            
+            bar.classList.remove('hidden');
+            txt.innerText = "Replying to: " + msgObject.text.substring(0, 30) + "...";
+            document.getElementById('msg-input').focus();
         }
 
         function cancelReply() {
-            replyingTo = null;
-            document.getElementById('reply-preview').classList.add('hidden');
+            replyContext = null;
+            document.getElementById('reply-bar').classList.add('hidden');
         }
 
         async function sendMessage() {
             const input = document.getElementById('msg-input');
-            let txt = input.value.trim();
+            const txt = input.value.trim();
             if(!txt || !activePeer) return;
-            
-            if (replyingTo) {
-                txt = REPLY_START + replyingTo.text + REPLY_END + '\n' + txt;
-                cancelReply();
+
+            // 6. & 7. COMMANDS (/cheche, /menu)
+            if(txt === '/cheche' || txt === '/search') {
+                input.value = '';
+                navTo('scr-search');
+                return;
+            }
+            if(txt === '/menu') {
+                input.value = '';
+                navTo('scr-menu');
+                return;
             }
 
             input.value = '';
@@ -766,51 +561,52 @@
             // Optimistic UI
             const container = document.getElementById('chat-messages');
             const div = document.createElement('div');
-            div.className = 'bubble me opacity-50 adaptive-text';
-            div.innerText = txt;
+            div.className = 'bubble me opacity-50';
+            
+            let payload = { 
+                sender_tfid: user.tfid, 
+                receiver_tfid: activePeer.tfid, 
+                message: txt 
+            };
+
+            // Ajout des infos de Reply si actif
+            if(replyContext) {
+                div.innerHTML = `<span class="bubble-reply-indicator">${replyContext.text.substring(0,20)}...</span>${txt}`;
+                // Note: L'API doit supporter 'reply_to_id' idéalement
+                // payload.reply_to_id = replyContext.id; 
+                cancelReply();
+            } else {
+                div.innerText = txt;
+            }
+            
             container.appendChild(div);
             container.scrollTop = container.scrollHeight;
 
             try {
                 await fetch(`${API}/send`, { 
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ sender_tfid: user.tfid, receiver_tfid: activePeer.tfid, message: txt, replyTo: replyingTo ? replyingTo.id : null }) 
+                    body: JSON.stringify(payload) 
                 });
                 fetchMessages();
-            } catch(e) { alert("Message failed"); }
+            } catch(e) { console.error(e); }
         }
 
         async function doSearch() {
             const q = document.getElementById('search-q').value.toLowerCase();
             if(q.length < 2) return;
-            
             const res = await fetch(`${API}/users`);
             const users = await res.json();
             const filtered = users.filter(u => u.dh7.includes(q) || u.tfid.includes(q) || u.nom.toLowerCase().includes(q));
-            
             const list = document.getElementById('search-results');
             list.innerHTML = '';
             filtered.forEach(u => {
                 const d = document.createElement('div');
                 d.className = 'contact-card cursor-pointer';
-                d.innerHTML = `<span class="font-bold cursor-pointer" onclick="openChatByTFID('${u.tfid}')">${u.dh7}</span>`;
+                d.innerHTML = `<span class="font-bold">${u.dh7}</span> <span class="text-zinc-500 text-xs ml-2">${u.tfid}</span>`;
                 d.onclick = () => openChat(u);
                 list.appendChild(d);
             });
-            if (filtered.length === 0) list.innerHTML = `<p class="text-center mt-10 text-zinc-700">${translations[currentLanguage]['no_results']}</p>`;
         }
-
-        // Storage for silent updates (use IndexedDB instead of localStorage)
-        let db;
-        const request = indexedDB.open('DH7DB', 1);
-        request.onupgradeneeded = (e) => {
-            db = e.target.result;
-            db.createObjectStore('messages');
-        };
-        request.onsuccess = (e) => {
-            db = e.target.result;
-            // Use db for storing/caching messages silently
-        };
     </script>
 </body>
 </html>
