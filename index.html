@@ -44,6 +44,7 @@
             --text-dim: #8e8e93;
             --msg-me: #007aff;
             --msg-them: #262628;
+            --vh: 1vh; /* Dynamic viewport height for resize handling */
         }
 
         * {
@@ -57,17 +58,19 @@
             background-color: var(--bg-pure);
             color: white;
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            height: 100vh;
+            height: calc(var(--vh) * 100); /* Use dynamic --vh */
             width: 100vw;
             overflow: hidden;
             user-select: none;
             -webkit-user-select: none;
             touch-action: manipulation; /* Improves touch responsiveness */
+            position: fixed;
+            inset: 0;
         }
 
         /* Rebuilt Scroll System for Cross-Browser Compatibility */
         .scroll-container {
-            overflow-y: scroll; /* Changed to scroll for better Android support */
+            overflow-y: scroll; /* Force scroll always active */
             -webkit-overflow-scrolling: touch; /* iOS smooth scrolling */
             touch-action: pan-y; /* Restrict to vertical panning */
             overscroll-behavior-y: contain; /* Prevent overscroll bounce propagation */
@@ -76,7 +79,7 @@
             scrollbar-width: none; /* Firefox */
             position: relative; /* Ensures proper layering */
             height: 100%; /* Full height */
-            max-height: 50%;
+            max-height: 100%;
         }
         
         .scroll-container::-webkit-scrollbar { 
@@ -156,12 +159,6 @@
             border-radius: 12px 12px 12px 0;
         }
 
-        /* Larger Voice Bubble like WhatsApp iOS */
-        .bubble.voice-bubble {
-            max-width: 90%; /* Larger for voice */
-            padding: 0.6rem 0.8rem;
-        }
-
         /* Media Support Styles */
         .media-content {
             border-radius: 8px;
@@ -229,7 +226,7 @@
             cursor: pointer;
         }
 
-        /* Reply Styles - WhatsApp iOS Like */
+        /* Reply Styles */
         .reply-bar {
             background: rgba(0,0,0,0.2);
             border-radius: 6px;
@@ -1143,7 +1140,7 @@
                         const lastNonOkMsg = [...messages].reverse().find(m => m.text !== 'ok');
                         const lastTimestamp = lastNonOkMsg ? new Date(lastNonOkMsg.time).getTime() : 0;
                         const prefix = lastNonOkMsg && lastNonOkMsg.from === user.tfid ? translations[currentLanguage].you + ' ' : '';
-                        const lastMsgText = prefix + (lastNonOkMsg ? getPreviewText(lastNonOkMsg.text) : '');
+                        const lastMsgText = prefix + (lastNonOkMsg ? getMainMessage(lastNonOkMsg.text) : '');
                         const unread = getUnreadCount(messages, u.tfid);
                         totalUnread += unread;
                         const card = document.createElement('div');
@@ -1243,7 +1240,7 @@
                     const lastTimestamp = lastNonOkMsg ? new Date(lastNonOkMsg.time).getTime() : 0;
                     card.dataset.lastTimestamp = lastTimestamp;
                     const prefix = lastNonOkMsg && lastNonOkMsg.from === user.tfid ? translations[currentLanguage].you + ' ' : '';
-                    const lastMsgText = prefix + (lastNonOkMsg ? getPreviewText(lastNonOkMsg.text) : '');
+                    const lastMsgText = prefix + (lastNonOkMsg ? getMainMessage(lastNonOkMsg.text) : '');
                     const p = card.querySelector('p.text-zinc-500');
                     if (p) p.textContent = lastMsgText.substring(0, 30) + (lastMsgText.length > 30 ? '…' : '');
                 } catch (e) {
@@ -1270,7 +1267,7 @@
                         const lastNonOkMsg = [...messages].reverse().find(m => m.text !== 'ok');
                         const lastTimestamp = lastNonOkMsg ? new Date(lastNonOkMsg.time).getTime() : 0;
                         const prefix = lastNonOkMsg && lastNonOkMsg.from === user.tfid ? translations[currentLanguage].you + ' ' : '';
-                        const lastMsgText = prefix + (lastNonOkMsg ? getPreviewText(lastNonOkMsg.text) : '');
+                        const lastMsgText = prefix + (lastNonOkMsg ? getMainMessage(lastNonOkMsg.text) : '');
                         const unread = getUnreadCount(messages, u.tfid);
                         totalUnread += unread;
                         const card = document.createElement('div');
@@ -1418,7 +1415,7 @@
             const isMe = m.from === user.tfid;
             const div = document.createElement('div');
             div.className = `bubble ${isMe ? 'me' : 'them'}`;
-            div.id = `msg-${m.time.replace(/[^a-zA-Z0-9]/g, '-')}`;
+            div.id = `msg-${m.time.replace(/[^a-zA-Z0-9]/g, '-')}`; // Assume time is in id
             
             let text = m.text;
             if (text.startsWith(REPLY_START)) {
@@ -1440,7 +1437,7 @@
                 replyDiv.appendChild(nameSpan);
                 const textSpan = document.createElement('span');
                 textSpan.className = 'reply-text';
-                textSpan.innerHTML = getPreviewText(quoted);
+                textSpan.innerHTML = renderReplyPreview(quoted);
                 replyDiv.appendChild(textSpan);
                 replyDiv.classList.add(sender === translations[currentLanguage].you ? 'reply-me' : 'reply-them');
                 replyDiv.onclick = () => {
@@ -1526,27 +1523,26 @@
             // currentChatMessages = []; // Commenté si non utilisé
         }
 
-        function getPreviewText(text) {
-            if (text.startsWith(REPLY_START)) {
-                let pos = REPLY_START.length;
-                pos = text.indexOf(REPLY_END, pos) + REPLY_END.length;
-                pos = text.indexOf(REPLY_END, pos) + REPLY_END.length;
-                pos = text.indexOf(REPLY_END, pos) + REPLY_END.length;
-                return getPreviewText(text.substring(pos).trim());
-            }
-            if (text.startsWith(PUBLIC_URL)) {
-                const ext = text.split('.').pop().toLowerCase();
+        function renderReplyPreview(quoted) {
+            if (quoted.startsWith(PUBLIC_URL)) {
+                const filename = quoted.split('/').pop();
+                const ext = filename.split('.').pop().toLowerCase();
+                let preview = '';
                 if (['jpeg','jpg','gif','png','heic'].includes(ext)) {
-                    return translations[currentLanguage]["image-message"];
+                    preview = `<img src="${quoted}" class="reply-preview-media">`;
                 } else if (['mp4','mov','avi','mkv','hevc'].includes(ext)) {
-                    return translations[currentLanguage]["video-message"] || "Video";
+                    preview = `<video src="${quoted}" class="reply-preview-media" muted></video>`;
                 } else if (['mp3','wav','ogg','aac','m4a'].includes(ext)) {
-                    return translations[currentLanguage]["voice-message"];
+                    preview = `<i class="fa-solid fa-microphone reply-preview-icon"></i>`;
                 } else {
-                    return translations[currentLanguage]["file-message"];
+                    preview = `<i class="fa-solid fa-file reply-preview-icon"></i>`;
                 }
+                return preview;
+            } else {
+                const lines = quoted.split('\n');
+                const displayText = lines[0] + (lines.length > 1 ? '…' : '');
+                return displayText;
             }
-            return text;
         }
 
         function updateCheckmarks(messages) {
@@ -1734,7 +1730,7 @@
         }
 
         function renderCustomVoicePlayer(src) {
-            const playerId = `voice-${Math.random().toString(36).substr(2,9)}`;
+            const playerId = `${crypto.randomUUID()}`;
             return `
                 <div class="voice-player" data-src="${src}" id="${playerId}">
                     <svg class="play-pause" viewBox="0 0 24 24" fill="white">
@@ -2249,7 +2245,7 @@
                     const isMe = m.from === user.tfid;
                     const div = document.createElement('div');
                     div.className = `mini-bubble ${isMe ? 'me' : 'them'}`;
-                    div.innerText = getPreviewText(m.text);
+                    div.innerText = getMainMessage(m.text);
                     msgDiv.appendChild(div);
                 });
             } catch (e) {
