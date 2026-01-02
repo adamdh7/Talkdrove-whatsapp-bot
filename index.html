@@ -58,7 +58,7 @@
             background-color: var(--bg-pure);
             color: white;
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            height: calc(var(--vh) * 100); /* Use dynamic --vh */
+            height: 100dvh;
             width: 100vw;
             overflow: hidden;
             user-select: none;
@@ -90,7 +90,7 @@
         /* Force reflow on resize/orientation change */
         @media screen and (orientation: portrait), screen and (orientation: landscape) {
             .scroll-container {
-                height: calc(100vh - var(--header-height, 0px) - var(--input-height, 0px));
+                height: calc(100dvh - var(--header-height, 0px) - var(--input-height, 0px));
             }
         }
 
@@ -99,7 +99,7 @@
             top: 0;
             left: 0;
             width: 100%;
-            height: 100%;
+            height: 100dvh;
             display: flex;
             flex-direction: column;
             background-color: var(--bg-pure);
@@ -240,6 +240,8 @@
         }
         .reply-name { font-weight: 700; color: rgba(255,255,255,0.9); margin-bottom: 2px; }
         .reply-text { color: rgba(255,255,255,0.7); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .reply-preview-media { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
+        .reply-preview-icon { font-size: 20px; color: var(--accent); }
 
         .status {
             font-size: 0.65rem;
@@ -259,6 +261,11 @@
             align-items: flex-end;
             gap: 0.5rem;
             border-top: 0.5px solid rgba(255,255,255,0.1);
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            transition: transform 0.3s ease;
         }
 
         .input-wrapper {
@@ -525,7 +532,7 @@
             gap: 8px;
             padding: 0; /* No background padding, integrates into bubble */
             width: auto; /* Fits bubble width */
-            max-width: 250px; /* Typical WhatsApp size */
+            max-width: 200px; /* Smaller like WhatsApp */
         }
         .play-pause {
             cursor: pointer;
@@ -545,10 +552,10 @@
             height: 100%;
             width: 100%;
             display: flex;
-            gap: 1px; /* Tighter for more bars */
+            gap: 0.5px; /* Tighter for more bars */
         }
         .wave-bar {
-            width: 2px;
+            width: 1.5px;
             background: rgba(255,255,255,0.3); /* Default gray */
             border-radius: 2px; /* Rounded like WhatsApp */
         }
@@ -593,6 +600,18 @@
             z-index: 50;
             color: white;
             font-size: 1.2rem;
+        }
+
+        .message-text {
+            display: block;
+        }
+
+        .see-more {
+            color: var(--accent);
+            cursor: pointer;
+            font-size: 0.8rem;
+            margin-top: 4px;
+            display: block;
         }
     </style>
 </head>
@@ -672,7 +691,7 @@
             <button class="icon-btn text-blue-500" onclick="document.getElementById('file-input').click()">
                 <i class="fa-solid fa-plus text-xl"></i>
             </button>
-            <input type="file" id="file-input" class="hidden" accept="image/*,video/*,audio/*" onchange="handleFileSelect(this)">
+            <input type="file" id="file-input" class="hidden" accept="image/*,video/*,audio/*,*/*" onchange="handleFileSelect(this)">
 
             <div class="input-wrapper transition-all duration-200" id="input-wrapper">
                 <div id="recording-ui" class="hidden flex-1">
@@ -704,7 +723,8 @@
 
     <section id="scr-menu" class="screen hidden-right">
         <div class="flex-1 flex flex-col items-center justify-center p-10 text-center">
-            <div class="w-24 h-24 bg-zinc-900 rounded-full mb-4 flex items-center justify-content: center text-4xl font-black border border-zinc-800" id="m-init">?</div>
+            <h1 class="text-7xl font-black tracking-tighter mb-2 italic logo" data-key="logo" onclick="showLang()">D'H7</h1>
+            <div class="w-24 h-24 bg-zinc-900 rounded-full mb-4 flex items-center justify-center text-4xl font-black border border-zinc-800" id="m-init">?</div>
             <h2 id="m-name" class="text-4xl font-black mb-1">---</h2>
             <p id="m-dh7" class="text-zinc-500 font-mono mb-4 copyable" onclick="copyToClipboard(this.innerText)">---</p>
             
@@ -799,10 +819,12 @@
                 copied: "Kopi",
                 you: "Ou",
                 "image-message": "Imaj",
+                "video-message": "Videyo",
                 "voice-message": "Mesaj vwa",
                 "file-message": "Fichye",
                 "loading": "Patiyans tanpri...",
-                "upload_failed": "Echèk upload apre plizyè esè"
+                "upload_failed": "Echèk upload apre plizyè esè",
+                "see-more": "Wè plis"
             },
             fr: {
                 logo: "D'H7",
@@ -832,10 +854,12 @@
                 copied: "Copié",
                 you: "Vous",
                 "image-message": "Image",
+                "video-message": "Vidéo",
                 "voice-message": "Message vocal",
                 "file-message": "Fichier",
                 "loading": "Patientez s'il vous plaît...",
-                "upload_failed": "Échec de l'upload après plusieurs tentatives"
+                "upload_failed": "Échec de l'upload après plusieurs tentatives",
+                "see-more": "Voir plus"
             },
             en: {
                 logo: "D'H7",
@@ -865,10 +889,12 @@
                 copied: "Copied",
                 you: "You",
                 "image-message": "Image",
+                "video-message": "Video",
                 "voice-message": "Voice Message",
                 "file-message": "File",
                 "loading": "Please wait...",
-                "upload_failed": "Upload failed after several attempts"
+                "upload_failed": "Upload failed after several attempts",
+                "see-more": "See more"
             },
             es: {
                 logo: "D'H7",
@@ -898,10 +924,12 @@
                 copied: "Copiado",
                 you: "Tú",
                 "image-message": "Imagen",
+                "video-message": "Vídeo",
                 "voice-message": "Mensaje de voz",
                 "file-message": "Archivo",
                 "loading": "Por favor espere...",
-                "upload_failed": "Fallo de carga después de varios intentos"
+                "upload_failed": "Fallo de carga después de varios intentos",
+                "see-more": "Ver más"
             }
         };
 
@@ -911,6 +939,23 @@
         let audioChunks = [];
         let recordStartTime = 0;
         let recordTimerInterval = null;
+
+        // Keyboard handling
+        let fullHeight = window.innerHeight;
+        window.addEventListener('resize', () => {
+            const newHeight = window.innerHeight;
+            const inputArea = document.querySelector('.input-area');
+            if (newHeight < fullHeight) {
+                // Keyboard open
+                const keyboardHeight = fullHeight - newHeight;
+                inputArea.style.transform = `translateY(-${keyboardHeight}px)`;
+            } else {
+                // Keyboard closed
+                inputArea.style.transform = '';
+                fullHeight = newHeight;
+            }
+            forceScrollRecalc();
+        });
 
         // --- INIT & AUTH ---
         if(user) {
@@ -930,11 +975,16 @@
             setupNotifications();
             // Initialiser les écouteurs pour le bouton d'action (Mic/Send)
             initActionBtn();
+            initPasteHandlers();
             forceScrollRecalc(); // Initial scroll fix
         }
 
         // Rebuilt Scroll reflow fix for all browsers
         function forceScrollRecalc() {
+            const header = document.querySelector('.ios-header');
+            const inputArea = document.querySelector('.input-area');
+            if (header) document.documentElement.style.setProperty('--header-height', `${header.offsetHeight}px`);
+            if (inputArea) document.documentElement.style.setProperty('--input-height', `${inputArea.offsetHeight}px`);
             const containers = document.querySelectorAll('.scroll-container');
             containers.forEach(c => {
                 c.style.overflowY = 'hidden';
@@ -944,9 +994,6 @@
                     c.scrollTop = c.scrollTop - 1;
                 }, 100);
             });
-            // Adjust heights dynamically
-            const vh = window.innerHeight * 0.01;
-            document.documentElement.style.setProperty('--vh', `${vh}px`);
         }
         window.addEventListener('resize', forceScrollRecalc);
         window.addEventListener('orientationchange', forceScrollRecalc);
@@ -1140,7 +1187,7 @@
                         const lastNonOkMsg = [...messages].reverse().find(m => m.text !== 'ok');
                         const lastTimestamp = lastNonOkMsg ? new Date(lastNonOkMsg.time).getTime() : 0;
                         const prefix = lastNonOkMsg && lastNonOkMsg.from === user.tfid ? translations[currentLanguage].you + ' ' : '';
-                        const lastMsgText = prefix + (lastNonOkMsg ? getMainMessage(lastNonOkMsg.text) : '');
+                        const lastMsgText = prefix + (lastNonOkMsg ? getPreviewText(lastNonOkMsg.text) : '');
                         const unread = getUnreadCount(messages, u.tfid);
                         totalUnread += unread;
                         const card = document.createElement('div');
@@ -1240,7 +1287,7 @@
                     const lastTimestamp = lastNonOkMsg ? new Date(lastNonOkMsg.time).getTime() : 0;
                     card.dataset.lastTimestamp = lastTimestamp;
                     const prefix = lastNonOkMsg && lastNonOkMsg.from === user.tfid ? translations[currentLanguage].you + ' ' : '';
-                    const lastMsgText = prefix + (lastNonOkMsg ? getMainMessage(lastNonOkMsg.text) : '');
+                    const lastMsgText = prefix + (lastNonOkMsg ? getPreviewText(lastNonOkMsg.text) : '');
                     const p = card.querySelector('p.text-zinc-500');
                     if (p) p.textContent = lastMsgText.substring(0, 30) + (lastMsgText.length > 30 ? '…' : '');
                 } catch (e) {
@@ -1267,7 +1314,7 @@
                         const lastNonOkMsg = [...messages].reverse().find(m => m.text !== 'ok');
                         const lastTimestamp = lastNonOkMsg ? new Date(lastNonOkMsg.time).getTime() : 0;
                         const prefix = lastNonOkMsg && lastNonOkMsg.from === user.tfid ? translations[currentLanguage].you + ' ' : '';
-                        const lastMsgText = prefix + (lastNonOkMsg ? getMainMessage(lastNonOkMsg.text) : '');
+                        const lastMsgText = prefix + (lastNonOkMsg ? getPreviewText(lastNonOkMsg.text) : '');
                         const unread = getUnreadCount(messages, u.tfid);
                         totalUnread += unread;
                         const card = document.createElement('div');
@@ -1449,10 +1496,10 @@
                 div.appendChild(replyDiv);
                 const mainSpan = document.createElement('span');
                 mainSpan.className = 'main-message';
-                mainSpan.innerHTML = renderText(main);
+                mainSpan.innerHTML = renderText(main, isMe);
                 div.appendChild(mainSpan);
             } else {
-                div.innerHTML = renderText(text);
+                div.innerHTML = renderText(text, isMe);
             }
             
             if (isMe) {
@@ -1528,14 +1575,14 @@
                 const filename = quoted.split('/').pop();
                 const ext = filename.split('.').pop().toLowerCase();
                 let preview = '';
-                if (['jpeg','jpg','gif','png','heic'].includes(ext)) {
+                if (['jpeg','jpg','gif','png','heic','webp','avif','bmp','tiff','svg'].includes(ext)) {
                     preview = `<img src="${quoted}" class="reply-preview-media">`;
-                } else if (['mp4','mov','avi','mkv','hevc'].includes(ext)) {
-                    preview = `<video src="${quoted}" class="reply-preview-media" muted></video>`;
-                } else if (['mp3','wav','ogg','aac','m4a'].includes(ext)) {
-                    preview = `<i class="fa-solid fa-microphone reply-preview-icon"></i>`;
+                } else if (['mp4','mov','avi','mkv','hevc','webm','ogv','3gp'].includes(ext)) {
+                    preview = `<i class="fa-solid fa-video reply-preview-icon"></i> <span>${translations[currentLanguage]["video-message"]}</span>`;
+                } else if (['mp3','wav','ogg','aac','m4a','flac'].includes(ext)) {
+                    preview = `<i class="fa-solid fa-microphone reply-preview-icon"></i> <span>${translations[currentLanguage]["voice-message"]}</span>`;
                 } else {
-                    preview = `<i class="fa-solid fa-file reply-preview-icon"></i>`;
+                    preview = `<i class="fa-solid fa-file reply-preview-icon"></i> <span>${translations[currentLanguage]["file-message"]}</span>`;
                 }
                 return preview;
             } else {
@@ -1595,8 +1642,31 @@
             return text.trim();
         }
 
+        function getPreviewText(text) {
+            const main = getMainMessage(text);
+            if (main.startsWith(PUBLIC_URL)) {
+                const filename = main.split('/').pop();
+                const ext = filename.split('.').pop().toLowerCase();
+                if (['jpeg','jpg','gif','png','heic','webp','avif','bmp','tiff','svg'].includes(ext)) {
+                    return translations[currentLanguage]["image-message"];
+                } else if (['mp4','mov','avi','mkv','hevc','webm','ogv','3gp'].includes(ext)) {
+                    return translations[currentLanguage]["video-message"];
+                } else if (['mp3','wav','ogg','aac','m4a','flac'].includes(ext)) {
+                    return translations[currentLanguage]["voice-message"];
+                } else {
+                    return translations[currentLanguage]["file-message"];
+                }
+            } else {
+                return main;
+            }
+        }
+
         function addMessageListeners(bubble, text) {
-            addLongPressListeners(bubble, (x, y) => showCopyMenu(x, y, text, bubble));
+            addLongPressListeners(bubble, (x, y) => {
+                if (isTextMessage(text)) {
+                    showCopyMenu(x, y, text, bubble);
+                }
+            });
             let touchStartX = 0;
             bubble.addEventListener('touchstart', (e) => {
                 touchStartX = e.touches[0].clientX;
@@ -1611,6 +1681,10 @@
                     replyToMessage(getMainMessage(text), sender, messageId);
                 }
             });
+        }
+
+        function isTextMessage(text) {
+            return !text.startsWith(PUBLIC_URL) && !text.startsWith('https://url.adamdh7.org/');
         }
 
         async function sendMessage() {
@@ -1645,14 +1719,14 @@
             mediaPreview.innerHTML = '';
             if (quoted.startsWith(PUBLIC_URL)) {
                 const ext = quoted.split('.').pop().toLowerCase();
-                if (['jpeg','jpg','gif','png','heic'].includes(ext)) {
+                if (['jpeg','jpg','gif','png','heic','webp','avif','bmp','tiff','svg'].includes(ext)) {
                     mediaPreview.innerHTML = `<img src="${quoted}" class="reply-preview-media">`;
-                } else if (['mp4','mov','avi','mkv','hevc'].includes(ext)) {
-                    mediaPreview.innerHTML = `<video src="${quoted}" class="reply-preview-media" muted></video>`;
-                } else if (['mp3','wav','ogg','aac','m4a'].includes(ext)) {
-                    mediaPreview.innerHTML = `<i class="fa-solid fa-microphone reply-preview-icon"></i>`;
+                } else if (['mp4','mov','avi','mkv','hevc','webm','ogv','3gp'].includes(ext)) {
+                    mediaPreview.innerHTML = `<i class="fa-solid fa-video reply-preview-icon"></i> <span>${translations[currentLanguage]["video-message"]}</span>`;
+                } else if (['mp3','wav','ogg','aac','m4a','flac'].includes(ext)) {
+                    mediaPreview.innerHTML = `<i class="fa-solid fa-microphone reply-preview-icon"></i> <span>${translations[currentLanguage]["voice-message"]}</span>`;
                 } else {
-                    mediaPreview.innerHTML = `<i class="fa-solid fa-file reply-preview-icon"></i>`;
+                    mediaPreview.innerHTML = `<i class="fa-solid fa-file reply-preview-icon"></i> <span>${translations[currentLanguage]["file-message"]}</span>`;
                 }
             } else {
                 replyText.textContent = quoted.substring(0, 50) + (quoted.length > 50 ? '…' : '');
@@ -1667,254 +1741,6 @@
             const preview = document.getElementById('reply-preview');
             if (preview) preview.classList.add('hidden');
         }
-
-        function autoResize(el) {
-            el.style.height = 'auto';
-            el.style.height = el.scrollHeight + 'px';
-        }
-
-        async function setupNotifications() {
-            if ('serviceWorker' in navigator && 'PushManager' in window) {
-                try {
-                    const permission = await Notification.requestPermission();
-                    if (permission !== 'granted') return;
-                    const registration = await navigator.serviceWorker.ready;
-                    const subscription = await registration.pushManager.subscribe({
-                        userVisibleOnly: true,
-                        applicationServerKey: urlB64ToUint8Array('BFbcgVOdhydPHrXNgaelinKRIj4wUqTzLi13smhuzuzlWE_0F0evS2UxPm3fu-_gdVwNc5o3ursVFTKayf1Mndc') // Remplace par la clé VAPID publique du serveur
-                    });
-                    await fetch(`${API}/subscribe`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ tfid: user.tfid, subscription: subscription })
-                    });
-                } catch (e) {
-                    console.error('Notification setup failed:', e);
-                }
-            }
-        }
-
-        function urlB64ToUint8Array(base64String) {
-            const padding = '='.repeat((4 - base64String.length % 4) % 4);
-            const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-            const rawData = window.atob(base64);
-            const outputArray = new Uint8Array(rawData.length);
-            for (let i = 0; i < rawData.length; ++i) {
-                outputArray[i] = rawData.charCodeAt(i);
-            }
-            return outputArray;
-        }
-
-        // --- CORE: MEDIA RENDERING & UTILS ---
-        
-        function renderText(text) {
-            // Détection URL from workers.dev
-            if (text.startsWith(PUBLIC_URL)) {
-                const filename = text.split('/').pop();
-                const ext = filename.split('.').pop().toLowerCase();
-                if (['jpeg','jpg','gif','png','heic'].includes(ext)) {
-                    return `<div class="media-content" onclick="openFullscreen('${text}', 'image')"><img src="${text}" loading="lazy" alt="${filename}" onerror="this.onerror=null; this.src=''; this.alt='${translations[currentLanguage]["loading"]}';" /></div>`;
-                } else if (['mp4','mov','avi','mkv','hevc'].includes(ext)) {
-                    return `<div class="media-content" onclick="openFullscreen('${text}', 'video')"><video src="${text}" playsinline muted preload="metadata" poster="${text}#t=0.1" onerror="this.onerror=null; this.poster=''; this.alt='${translations[currentLanguage]["loading"]}';"></video></div>`;
-                } else if (['mp3','wav','ogg','aac','m4a'].includes(ext)) {
-                    return renderCustomVoicePlayer(text);
-                } else {
-                    // Autres fichiers: afficher nom et lien
-                    return `<div class="file-preview" onclick="openFileInNewTab('${text}')"><i class="fa-solid fa-file file-icon"></i><span class="file-link">${filename}</span></div>`;
-                }
-            }
-            
-            // Liens URL standards
-            const urlRegex = /(https?:\/\/[^\s]+)/g;
-            return text.replace(urlRegex, '<a href="$1" target="_blank" class="underline text-blue-300">$1</a>');
-        }
-
-        function renderCustomVoicePlayer(src) {
-            const playerId = `${crypto.randomUUID()}`;
-            return `
-                <div class="voice-player" data-src="${src}" id="${playerId}">
-                    <svg class="play-pause" viewBox="0 0 24 24" fill="white">
-                        <path d="M8 5v14l11-7z"/> <!-- Play -->
-                    </svg>
-                    <div class="progress-bar">
-                        <div class="wave-form"></div>
-                        <div class="seeker" style="left: 0%;"></div>
-                    </div>
-                    <span class="time-display">0:00</span>
-                    <span class="speed-control">1x</span>
-                </div>
-            `;
-        }
-
-        function attachVoicePlayers() {
-            document.querySelectorAll('.voice-player:not(.attached)').forEach(player => {
-                player.classList.add('attached');
-                const audio = new Audio(player.dataset.src);
-                const playPause = player.querySelector('.play-pause');
-                const progressBar = player.querySelector('.progress-bar');
-                const waveForm = player.querySelector('.wave-form');
-                const seeker = player.querySelector('.seeker');
-                const timeDisplay = player.querySelector('.time-display');
-                const speedControl = player.querySelector('.speed-control');
-                let isPlaying = false;
-                let isSeeking = false;
-                let speeds = ['1x', '1.5x', '2x'];
-                let currentSpeedIndex = 0;
-                audio.playbackRate = 1;
-
-                // Generate ~30 wave bars with varying heights
-                for (let i = 0; i < 30; i++) {
-                    const bar = document.createElement('div');
-                    bar.className = 'wave-bar';
-                    bar.style.height = `${Math.random() * 80 + 20}%`; // Vary 20-100%
-                    waveForm.appendChild(bar);
-                }
-                const waveBars = waveForm.querySelectorAll('.wave-bar');
-
-                speedControl.addEventListener('click', () => {
-                    currentSpeedIndex = (currentSpeedIndex + 1) % speeds.length;
-                    speedControl.textContent = speeds[currentSpeedIndex];
-                    audio.playbackRate = parseFloat(speeds[currentSpeedIndex]);
-                });
-
-                playPause.addEventListener('click', () => {
-                    if (isPlaying) {
-                        audio.pause();
-                        playPause.innerHTML = '<path d="M8 5v14l11-7z"/>';
-                    } else {
-                        audio.play();
-                        playPause.innerHTML = '<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>';
-                    }
-                    isPlaying = !isPlaying;
-                });
-
-                audio.addEventListener('timeupdate', () => {
-                    if (!isSeeking) {
-                        const progress = (audio.currentTime / audio.duration) * 100;
-                        seeker.style.left = `${progress}%`;
-                        timeDisplay.textContent = formatTime(audio.currentTime);
-                        updateWaveProgress(progress);
-                    }
-                });
-
-                audio.addEventListener('loadedmetadata', () => {
-                    timeDisplay.textContent = formatTime(audio.duration);
-                });
-
-                audio.addEventListener('ended', () => {
-                    isPlaying = false;
-                    playPause.innerHTML = '<path d="M8 5v14l11-7z"/>';
-                    seeker.style.left = '0%';
-                    timeDisplay.textContent = formatTime(audio.duration);
-                    updateWaveProgress(0);
-                });
-
-                progressBar.addEventListener('touchstart', startSeek);
-                progressBar.addEventListener('mousedown', startSeek);
-
-                function startSeek(e) {
-                    isSeeking = true;
-                    seek(e);
-                    const moveEvent = 'ontouchstart' in window ? 'touchmove' : 'mousemove';
-                    const endEvent = 'ontouchstart' in window ? 'touchend' : 'mouseup';
-                    document.addEventListener(moveEvent, seek);
-                    document.addEventListener(endEvent, endSeek);
-                }
-
-                function seek(e) {
-                    const touch = e.touches ? e.touches[0] : e;
-                    const rect = progressBar.getBoundingClientRect();
-                    const x = touch.clientX - rect.left;
-                    const progress = Math.min(1, Math.max(0, x / rect.width));
-                    seeker.style.left = `${progress * 100}%`;
-                    audio.currentTime = progress * audio.duration;
-                    updateWaveProgress(progress * 100);
-                }
-
-                function endSeek() {
-                    isSeeking = false;
-                    const moveEvent = 'ontouchstart' in window ? 'touchmove' : 'mousemove';
-                    const endEvent = 'ontouchstart' in window ? 'touchend' : 'mouseup';
-                    document.removeEventListener(moveEvent, seek);
-                    document.removeEventListener(endEvent, endSeek);
-                    if (isPlaying) audio.play();
-                }
-
-                function updateWaveProgress(progress) {
-                    const progressedCount = Math.floor((progress / 100) * waveBars.length);
-                    waveBars.forEach((bar, index) => {
-                        if (index < progressedCount) {
-                            bar.classList.add('progressed');
-                        } else {
-                            bar.classList.remove('progressed');
-                        }
-                    });
-                }
-
-                function formatTime(seconds) {
-                    const m = Math.floor(seconds / 60);
-                    const s = Math.floor(seconds % 60);
-                    return `${m}:${s < 10 ? '0' : ''}${s}`;
-                }
-            });
-        }
-
-        function openFullscreen(dataUrl, type) {
-            const fs = document.getElementById('fs-media');
-            let content = '';
-            if (type === 'image') {
-                content = `<img src="${dataUrl}" alt="Fullscreen Image" id="zoom-img" />`;
-            } else if (type === 'video') {
-                content = `<video src="${dataUrl}" controls autoplay playsinline loop></video>`;
-            } else if (type === 'audio') {
-                content = `<audio src="${dataUrl}" controls autoplay></audio>`;
-            }
-            fs.innerHTML = content + `<svg class="fullscreen-close w-8 h-8" onclick="closeFullscreen()" fill="none" stroke="white" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>`;
-            fs.classList.remove('hidden');
-            history.pushState({ screen: type === 'video' ? 'scr-video' : 'scr-photo' }, '', `/${type === 'video' ? 'videyo' : 'foto'}`);
-            if (type === 'image') {
-                enablePinchZoom();
-            }
-        }
-
-        function enablePinchZoom() {
-            const img = document.getElementById('zoom-img');
-            let scale = 1;
-            let initialScale = 1;
-            let initialDistance = 0;
-            const fs = document.getElementById('fs-media');
-            fs.addEventListener('touchstart', (e) => {
-                if (e.touches.length === 2) {
-                    initialDistance = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
-                    initialScale = scale;
-                    e.preventDefault();
-                }
-            });
-            fs.addEventListener('touchmove', (e) => {
-                if (e.touches.length === 2) {
-                    const dist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
-                    scale = initialScale * (dist / initialDistance);
-                    img.style.transform = `scale(${scale})`;
-                    e.preventDefault();
-                }
-            });
-        }
-
-        function closeFullscreen() {
-            const fs = document.getElementById('fs-media');
-            fs.classList.add('hidden');
-            fs.innerHTML = '';
-            history.back();
-        }
-
-        function openFileInNewTab(dataUrl) {
-            const newTab = window.open();
-            newTab.document.write('<iframe src="' + dataUrl + '" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>');
-        }
-
-        // --- INPUT & SENDING LOGIC ---
 
         function handleInput(el) {
             // Auto resize
@@ -2245,7 +2071,7 @@
                     const isMe = m.from === user.tfid;
                     const div = document.createElement('div');
                     div.className = `mini-bubble ${isMe ? 'me' : 'them'}`;
-                    div.innerText = getMainMessage(m.text);
+                    div.innerText = getPreviewText(getMainMessage(m.text));
                     msgDiv.appendChild(div);
                 });
             } catch (e) {
@@ -2258,6 +2084,278 @@
             const preview = document.getElementById('contact-preview');
             preview.classList.add('hidden');
             preview.innerHTML = '';
+        }
+
+        function renderText(text, isMe) {
+            // Détection URL from workers.dev or adamdh7.org
+            if (text.startsWith(PUBLIC_URL) || text.startsWith('https://url.adamdh7.org/')) {
+                const filename = text.split('/').pop();
+                const ext = filename.split('.').pop().toLowerCase();
+                if (['jpeg','jpg','gif','png','heic','webp','avif','bmp','tiff','svg'].includes(ext)) {
+                    return `<div class="media-content" onclick="openFullscreen('${text}', 'image')"><img src="${text}" loading="lazy" alt="${filename}" onerror="this.onerror=null; this.src=''; this.alt='${translations[currentLanguage]["loading"]}';" /></div>`;
+                } else if (['mp4','mov','avi','mkv','hevc','webm','ogv','3gp'].includes(ext)) {
+                    return `<div class="media-content" onclick="openFullscreen('${text}', 'video')"><video src="${text}" playsinline muted preload="metadata" poster="${text}#t=0.1" onerror="this.onerror=null; this.poster=''; this.alt='${translations[currentLanguage]["loading"]}';"></video></div>`;
+                } else if (['mp3','wav','ogg','aac','m4a','flac'].includes(ext)) {
+                    return renderCustomVoicePlayer(text);
+                } else {
+                    // Autres fichiers: afficher nom et lien
+                    return `<div class="file-preview" onclick="openFileInNewTab('${text}')"><i class="fa-solid fa-file file-icon"></i><span class="file-link">${filename}</span></div>`;
+                }
+            }
+            
+            // Liens URL standards
+            let processedText = text.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" class="underline text-blue-300">$1</a>');
+            // Detect TFID/DH7
+            processedText = processedText.replace(/(TF-\w+)|(\w+@dh7\.tf)/g, '<span class="text-blue-300 cursor-pointer" onclick="openChatByIdentifier(\'$1$2\')">$1$2</span>');
+
+            // Truncate long text
+            return truncateText(processedText);
+        }
+
+        function truncateText(text) {
+            const CHUNK_SIZE = 700;
+            if (text.length <= CHUNK_SIZE) return `<span class="message-text">${text}</span>`;
+            let html = '';
+            let remaining = text;
+            let chunkId = 0;
+            while (remaining.length > 0) {
+                const chunk = remaining.substring(0, CHUNK_SIZE);
+                remaining = remaining.substring(CHUNK_SIZE);
+                html += `<span class="message-text chunk-${chunkId}" ${chunkId > 0 ? 'style="display:none;"' : ''}>${chunk}</span>`;
+                if (remaining.length > 0) {
+                    html += `<span class="see-more" onclick="showMore(this, ${chunkId})">${translations[currentLanguage]["see-more"]}</span>`;
+                }
+                chunkId++;
+            }
+            return html;
+        }
+
+        function showMore(el, id) {
+            const nextChunk = el.parentElement.querySelector(`.chunk-${id + 1}`);
+            if (nextChunk) {
+                nextChunk.style.display = 'block';
+            }
+            el.remove();
+        }
+
+        function renderCustomVoicePlayer(src) {
+            const playerId = `${crypto.randomUUID()}`;
+            return `
+                <div class="voice-player" data-src="${src}" id="${playerId}">
+                    <svg class="play-pause" viewBox="0 0 24 24" fill="white">
+                        <path d="M8 5v14l11-7z"/> <!-- Play -->
+                    </svg>
+                    <div class="progress-bar">
+                        <div class="wave-form"></div>
+                        <div class="seeker" style="left: 0%;"></div>
+                    </div>
+                    <span class="time-display">0:00</span>
+                    <span class="speed-control">1x</span>
+                </div>
+            `;
+        }
+
+        function attachVoicePlayers() {
+            document.querySelectorAll('.voice-player:not(.attached)').forEach(player => {
+                player.classList.add('attached');
+                const audio = new Audio(player.dataset.src);
+                const playPause = player.querySelector('.play-pause');
+                const progressBar = player.querySelector('.progress-bar');
+                const waveForm = player.querySelector('.wave-form');
+                const seeker = player.querySelector('.seeker');
+                const timeDisplay = player.querySelector('.time-display');
+                const speedControl = player.querySelector('.speed-control');
+                let isPlaying = false;
+                let isSeeking = false;
+                let speeds = ['1x', '1.5x', '2x'];
+                let currentSpeedIndex = 0;
+                audio.playbackRate = 1;
+
+                // Generate ~50 wave bars with varying heights for longer bar
+                for (let i = 0; i < 50; i++) {
+                    const bar = document.createElement('div');
+                    bar.className = 'wave-bar';
+                    bar.style.height = `${Math.random() * 80 + 20}%`; // Vary 20-100%
+                    waveForm.appendChild(bar);
+                }
+                const waveBars = waveForm.querySelectorAll('.wave-bar');
+
+                speedControl.addEventListener('click', () => {
+                    currentSpeedIndex = (currentSpeedIndex + 1) % speeds.length;
+                    speedControl.textContent = speeds[currentSpeedIndex];
+                    audio.playbackRate = parseFloat(speeds[currentSpeedIndex]);
+                });
+
+                playPause.addEventListener('click', () => {
+                    if (isPlaying) {
+                        audio.pause();
+                        playPause.innerHTML = '<path d="M8 5v14l11-7z"/>';
+                    } else {
+                        audio.play();
+                        playPause.innerHTML = '<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>';
+                    }
+                    isPlaying = !isPlaying;
+                });
+
+                audio.addEventListener('timeupdate', () => {
+                    if (!isSeeking) {
+                        const progress = (audio.currentTime / audio.duration) * 100;
+                        seeker.style.left = `${progress}%`;
+                        timeDisplay.textContent = formatTime(audio.currentTime);
+                        updateWaveProgress(progress);
+                    }
+                });
+
+                audio.addEventListener('loadedmetadata', () => {
+                    timeDisplay.textContent = formatTime(audio.duration);
+                });
+
+                audio.addEventListener('ended', () => {
+                    isPlaying = false;
+                    playPause.innerHTML = '<path d="M8 5v14l11-7z"/>';
+                    seeker.style.left = '0%';
+                    timeDisplay.textContent = formatTime(audio.duration);
+                    updateWaveProgress(0);
+                });
+
+                progressBar.addEventListener('touchstart', startSeek);
+                progressBar.addEventListener('mousedown', startSeek);
+
+                function startSeek(e) {
+                    isSeeking = true;
+                    seek(e);
+                    const moveEvent = 'ontouchstart' in window ? 'touchmove' : 'mousemove';
+                    const endEvent = 'ontouchstart' in window ? 'touchend' : 'mouseup';
+                    document.addEventListener(moveEvent, seek);
+                    document.addEventListener(endEvent, endSeek);
+                }
+
+                function seek(e) {
+                    const touch = e.touches ? e.touches[0] : e;
+                    const rect = progressBar.getBoundingClientRect();
+                    const x = touch.clientX - rect.left;
+                    const progress = Math.min(1, Math.max(0, x / rect.width));
+                    seeker.style.left = `${progress * 100}%`;
+                    audio.currentTime = progress * audio.duration;
+                    updateWaveProgress(progress * 100);
+                }
+
+                function endSeek() {
+                    isSeeking = false;
+                    const moveEvent = 'ontouchstart' in window ? 'touchmove' : 'mousemove';
+                    const endEvent = 'ontouchstart' in window ? 'touchend' : 'mouseup';
+                    document.removeEventListener(moveEvent, seek);
+                    document.removeEventListener(endEvent, endSeek);
+                    if (isPlaying) audio.play();
+                }
+
+                function updateWaveProgress(progress) {
+                    const progressedCount = Math.floor((progress / 100) * waveBars.length);
+                    waveBars.forEach((bar, index) => {
+                        if (index < progressedCount) {
+                            bar.classList.add('progressed');
+                        } else {
+                            bar.classList.remove('progressed');
+                        }
+                    });
+                }
+
+                function formatTime(seconds) {
+                    const m = Math.floor(seconds / 60);
+                    const s = Math.floor(seconds % 60);
+                    return `${m}:${s < 10 ? '0' : ''}${s}`;
+                }
+            });
+        }
+
+        function openFullscreen(dataUrl, type) {
+            const fs = document.getElementById('fs-media');
+            let content = '';
+            if (type === 'image') {
+                content = `<img src="${dataUrl}" alt="Fullscreen Image" id="zoom-img" />`;
+            } else if (type === 'video') {
+                content = `<video src="${dataUrl}" controls autoplay playsinline loop></video>`;
+            } else if (type === 'audio') {
+                content = `<audio src="${dataUrl}" controls autoplay></audio>`;
+            }
+            fs.innerHTML = content + `<svg class="fullscreen-close w-8 h-8" onclick="closeFullscreen()" fill="none" stroke="white" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>`;
+            fs.classList.remove('hidden');
+            history.pushState({ screen: type === 'video' ? 'scr-video' : 'scr-photo' }, '', `/${type === 'video' ? 'videyo' : 'foto'}`);
+            if (type === 'image') {
+                enablePinchZoom();
+            }
+        }
+
+        function enablePinchZoom() {
+            const img = document.getElementById('zoom-img');
+            let scale = 1;
+            let initialScale = 1;
+            let initialDistance = 0;
+            const fs = document.getElementById('fs-media');
+            fs.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 2) {
+                    initialDistance = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
+                    initialScale = scale;
+                    e.preventDefault();
+                }
+            });
+            fs.addEventListener('touchmove', (e) => {
+                if (e.touches.length === 2) {
+                    const dist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
+                    scale = initialScale * (dist / initialDistance);
+                    img.style.transform = `scale(${scale})`;
+                    e.preventDefault();
+                }
+            });
+        }
+
+        function closeFullscreen() {
+            const fs = document.getElementById('fs-media');
+            fs.classList.add('hidden');
+            fs.innerHTML = '';
+            history.back();
+        }
+
+        function openFileInNewTab(dataUrl) {
+            const newTab = window.open();
+            newTab.document.write('<iframe src="' + dataUrl + '" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>');
+        }
+
+        // --- PASTE HANDLING ---
+        function initPasteHandlers() {
+            const msgInput = document.getElementById('msg-input');
+            const searchInput = document.getElementById('search-q');
+            if (msgInput) {
+                msgInput.addEventListener('paste', handlePaste);
+            }
+            if (searchInput) {
+                searchInput.addEventListener('paste', handlePaste);
+            }
+        }
+
+        async function handlePaste(e) {
+            e.preventDefault();
+            const items = e.clipboardData.items;
+            for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                if (item.kind === 'file') {
+                    const file = item.getAsFile();
+                    if (file) {
+                        document.getElementById('upload-loading').classList.remove('hidden');
+                        try {
+                            await uploadFile(file, file.name || 'pasted_file', file.type);
+                        } finally {
+                            document.getElementById('upload-loading').classList.add('hidden');
+                        }
+                    }
+                } else if (item.kind === 'string') {
+                    item.getAsString((text) => {
+                        document.execCommand('insertText', false, text);
+                    });
+                }
+            }
         }
 
         document.addEventListener('gesturestart', function (e) { e.preventDefault(); });
