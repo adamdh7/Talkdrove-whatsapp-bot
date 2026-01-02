@@ -61,6 +61,7 @@
             width: 100vw;
             overflow: hidden;
             user-select: none;
+            -webkit-user-select: none;
         }
 
         /* Scroll fixes for cross-browser (Android/Chrome/Edge + iOS/Safari) */
@@ -126,6 +127,8 @@
             word-break: break-word;
             margin-bottom: 2px;
             box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+            user-select: none;
+            -webkit-user-select: none;
         }
 
         .bubble.me {
@@ -265,6 +268,8 @@
             resize: none;
             padding: 0;
             line-height: 1.4;
+            user-select: text;
+            -webkit-user-select: text;
         }
 
         .action-btn {
@@ -332,6 +337,8 @@
             color: white;
             width: 100%;
             outline: none;
+            user-select: text;
+            -webkit-user-select: text;
         }
 
         /* Language Overlay Bottom Sheet */
@@ -1124,7 +1131,7 @@
                                     <span class="font-bold text-lg leading-tight truncate">${u.prenom} ${u.nom}</span>
                                     <span class="tfid text-[9px] text-zinc-700 font-mono tracking-tighter copyable" onclick="copyToClipboard('${u.tfid}')">${u.tfid}</span>
                                 </div>
-                                <p class="text-zinc-500 text-sm truncate">${lastMsgText.substring(0, 30)}${lastMsgText.length > 30 ? '...' : ''}</p>
+                                <p class="text-zinc-500 text-sm truncate">${lastMsgText.substring(0, 30)}${lastMsgText.length > 30 ? '…' : ''}</p>
                             </div>
                             ${unread > 0 ? `<span class="unread-badge">+${unread}</span>` : ''}
                         `;
@@ -1213,7 +1220,7 @@
                     const prefix = lastNonOkMsg && lastNonOkMsg.from === user.tfid ? translations[currentLanguage].you + ' ' : '';
                     const lastMsgText = prefix + (lastNonOkMsg ? getMainMessage(lastNonOkMsg.text) : '');
                     const p = card.querySelector('p.text-zinc-500');
-                    if (p) p.textContent = lastMsgText.substring(0, 30) + (lastMsgText.length > 30 ? '...' : '');
+                    if (p) p.textContent = lastMsgText.substring(0, 30) + (lastMsgText.length > 30 ? '…' : '');
                 } catch (e) {
                     console.error(e);
                 }
@@ -1251,7 +1258,7 @@
                                     <span class="font-bold text-lg leading-tight truncate">${u.prenom} ${u.nom}</span>
                                     <span class="tfid text-[9px] text-zinc-700 font-mono tracking-tighter copyable" onclick="copyToClipboard('${u.tfid}')">${u.tfid}</span>
                                 </div>
-                                <p class="text-zinc-500 text-sm truncate">${lastMsgText.substring(0, 30)}${lastMsgText.length > 30 ? '...' : ''}</p>
+                                <p class="text-zinc-500 text-sm truncate">${lastMsgText.substring(0, 30)}${lastMsgText.length > 30 ? '…' : ''}</p>
                             </div>
                             ${unread > 0 ? `<span class="unread-badge">+${unread}</span>` : ''}
                         `;
@@ -1511,7 +1518,7 @@
                 return preview;
             } else {
                 const lines = quoted.split('\n');
-                const displayText = lines[0] + (lines.length > 1 ? '•••' : '');
+                const displayText = lines[0] + (lines.length > 1 ? '…' : '');
                 return displayText;
             }
         }
@@ -1626,7 +1633,7 @@
                     mediaPreview.innerHTML = `<i class="fa-solid fa-file reply-preview-icon"></i>`;
                 }
             } else {
-                replyText.textContent = quoted.substring(0, 50) + (quoted.length > 50 ? ' •••' : '');
+                replyText.textContent = quoted.substring(0, 50) + (quoted.length > 50 ? '…' : '');
             }
             preview.classList.remove('hidden');
             const input = document.getElementById('msg-input');
