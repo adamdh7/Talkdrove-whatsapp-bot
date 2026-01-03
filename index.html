@@ -146,45 +146,14 @@
             align-self: flex-end;
             background-color: var(--msg-me);
             color: white;
-            border-radius: 18px 18px 4px 18px;
+            border-radius: 12px 12px 0 12px;
         }
 
         .bubble.them {
             align-self: flex-start;
             background-color: var(--msg-them);
             color: white;
-            border-radius: 18px 18px 18px 4px;
-        }
-
-        .bubble.me::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            right: -4px;
-            width: 12px;
-            height: 12px;
-            background-color: var(--msg-me);
-            border-bottom-left-radius: 12px;
-            clip-path: polygon(0 0, 100% 0, 100% 100%);
-        }
-
-        .bubble.them::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: -4px;
-            width: 12px;
-            height: 12px;
-            background-color: var(--msg-them);
-            border-bottom-right-radius: 12px;
-            clip-path: polygon(0 0, 100% 0, 0 100%);
-        }
-
-        .time-stamp {
-            font-size: 0.7rem;
-            color: var(--text-dim);
-            text-align: right;
-            margin-top: 2px;
+            border-radius: 12px 12px 12px 0;
         }
 
         .media-content {
@@ -313,16 +282,13 @@
         .modern-input {
             background: var(--bg-input);
             border: none;
-            border-radius: 22px;
+            border-radius: 12px;
             padding: 12px;
             color: white;
             width: 100%;
             outline: none;
             user-select: text;
             -webkit-user-select: text;
-            resize: none;
-            max-height: 150px;
-            overflow-y: auto;
         }
 
         .language-overlay {
@@ -619,9 +585,9 @@
                 <i class="fa-solid fa-plus text-xl"></i>
             </button>
             <input type="file" id="file-input" class="hidden" accept="image/*,video/*,audio/*,*/*" onchange="handleFileSelect(this)">
-            <textarea id="msg-input" data-key="message-placeholder" placeholder="Ekri yon mesaj..." class="modern-input flex-1" rows="1" oninput="adjustInputHeight(this); toggleSendButton();"></textarea>
-            <div id="action-btn" class="action-btn" onclick="sendTextOrLink()">
-                <i class="fa-solid fa-paper-plane text-lg" id="action-icon"></i>
+
+            <div id="action-btn" class="action-btn" onclick="sendLink()">
+                <i class="fa-solid fa-link text-lg" id="action-icon"></i>
             </div>
         </div>
 
@@ -878,15 +844,6 @@
             handleRouting();
             setupNotifications();
             forceScrollRecalc();
-            const msgInput = document.getElementById('msg-input');
-            if (msgInput) {
-                msgInput.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        sendTextOrLink();
-                    }
-                });
-            }
         }
 
         function forceScrollRecalc() {
@@ -1325,7 +1282,6 @@
             }
             chatInterval = setInterval(syncChatSilently, 3000);
             setupScrollListener();
-            toggleSendButton();
         }
 
         async function loadInitialMessages() {
@@ -1370,11 +1326,6 @@
             let text = m.text;
             div.innerHTML = renderText(text, isMe);
             
-            const timeDiv = document.createElement('div');
-            timeDiv.className = 'time-stamp';
-            timeDiv.innerText = new Date(m.time).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
-            div.appendChild(timeDiv);
-
             if (isMe) {
                 const status = document.createElement('span');
                 status.className = 'status';
@@ -1523,38 +1474,11 @@
             }
         }
 
-        function sendTextOrLink() {
-            const input = document.getElementById('msg-input');
-            const text = input.value.trim();
-            if (text) {
-                sendMessage(text);
-                input.value = '';
-                adjustInputHeight(input);
-                toggleSendButton();
-            } else {
-                const link = prompt(translations[currentLanguage]["enter_link"] || "Enter the link to send");
-                if (link && link.trim()) {
-                    sendMessage(link.trim());
-                }
+        async function sendLink() {
+            const link = prompt("Enter the link to send");
+            if (link && link.trim()) {
+                await sendMessage(link.trim());
             }
-        }
-
-        function toggleSendButton() {
-            const input = document.getElementById('msg-input');
-            const icon = document.getElementById('action-icon');
-            if (input.value.trim()) {
-                icon.classList.remove('fa-link');
-                icon.classList.add('fa-paper-plane');
-            } else {
-                icon.classList.remove('fa-paper-plane');
-                icon.classList.add('fa-link');
-            }
-        }
-
-        function adjustInputHeight(el) {
-            el.style.height = 'auto';
-            el.style.height = `${Math.min(el.scrollHeight, 150)}px`;
-            forceScrollRecalc();
         }
 
         async function handleFileSelect(input) {
