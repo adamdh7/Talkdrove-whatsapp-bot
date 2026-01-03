@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="ht">
 <head>
     <meta charset="UTF-8">
@@ -87,7 +88,7 @@
 
         @media screen and (orientation: portrait), screen and (orientation: landscape) {
             .scroll-container {
-                height: calc(100vh - var(--header-height, 0px) - var(--input-height, 0px));
+                height: calc(100vh - var(--header-height, 0px) - var(--input-height, 0px) - var(--reply-height, 0px));
             }
         }
 
@@ -232,6 +233,38 @@
             left: 0;
             right: 0;
             transition: transform 0.3s ease;
+            z-index: 15;
+        }
+
+        #reply-bar {
+            position: absolute;
+            bottom: var(--input-height, 60px);
+            left: 0;
+            right: 0;
+            background: var(--bg-input);
+            padding: 0.5rem;
+            border-top: 0.5px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            z-index: 15;
+        }
+
+        .reply-preview {
+            background: rgba(255,255,255,0.05);
+            padding: 4px 8px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            max-width: 80%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            border-left: 3px solid var(--accent);
+        }
+
+        .mini-media {
+            max-width: 40px;
+            max-height: 40px;
+            border-radius: 4px;
         }
 
         .action-btn {
@@ -580,6 +613,7 @@
         <div id="chat-messages" class="chat-body scroll-container">
         </div>
 
+        <div id="reply-bar" class="hidden"></div>
         <div class="input-area">
             <button class="icon-btn text-blue-500" onclick="document.getElementById('file-input').click()">
                 <i class="fa-solid fa-plus text-xl"></i>
@@ -644,6 +678,7 @@
     <div id="contact-preview" class="hidden"></div>
     <div id="copy-menu" class="hidden flex flex-col gap-2">
         <button id="copy-btn" data-key="copy"></button>
+        <button id="reply-btn" data-key="reply"></button>
     </div>
 
     <div id="upload-loading" class="hidden">
@@ -671,6 +706,7 @@
         }
         let shownTfids = new Set();
         let displayedMessageIds = new Set();
+        let replyingTo = null;
         const translations = {
             ht: {
                 logo: "D'H7",
@@ -818,11 +854,16 @@
         window.addEventListener('resize', () => {
             const newHeight = window.innerHeight;
             const inputArea = document.querySelector('.input-area');
+            const replyBar = document.getElementById('reply-bar');
             if (newHeight < fullHeight) {
                 const keyboardHeight = fullHeight - newHeight;
                 inputArea.style.transform = `translateY(-${keyboardHeight}px)`;
+                if (!replyBar.classList.contains('hidden')) {
+                    replyBar.style.transform = `translateY(-${keyboardHeight}px)`;
+                }
             } else {
                 inputArea.style.transform = '';
+                replyBar.style.transform = '';
                 fullHeight = newHeight;
             }
             forceScrollRecalc();
@@ -849,8 +890,14 @@
         function forceScrollRecalc() {
             const header = document.querySelector('.ios-header');
             const inputArea = document.querySelector('.input-area');
+            const replyBar = document.getElementById('reply-bar');
             if (header) document.documentElement.style.setProperty('--header-height', `${header.offsetHeight}px`);
             if (inputArea) document.documentElement.style.setProperty('--input-height', `${inputArea.offsetHeight}px`);
+            if (replyBar && !replyBar.classList.contains('hidden')) {
+                document.documentElement.style.setProperty('--reply-height', `${replyBar.offsetHeight}px`);
+            } else {
+                document.documentElement.style.setProperty('--reply-height', '0px');
+            }
             const containers = document.querySelectorAll('.scroll-container');
             containers.forEach(c => {
                 c.style.overflowY = 'hidden';
@@ -989,6 +1036,8 @@
             }
             if (screenId !== 'scr-chat') {
                 if (chatInterval) clearInterval(chatInterval);
+                replyingTo = null;
+                document.getElementById('reply-bar').classList.add('hidden');
             }
             if (screenId === 'scr-chat' && peerTfid) {
                 getUserByTfid(peerTfid).then(peer => {
@@ -1322,6 +1371,7 @@
             const div = document.createElement('div');
             div.className = `bubble ${isMe ? 'me' : 'them'}`;
             div.id = `msg-${m.time.replace(/[^a-zA-Z0-9]/g, '-')}`;
+            div.dataset.time = m.time;
             
             let text = m.text;
             div.innerHTML = renderText(text, isMe);
@@ -1415,42 +1465,52 @@
         }
 
         function getMainMessage(text) {
+            if (text.startsWith('REPLY_TO:')) {
+                return text.split('\n').slice(1).join('\n').trim();
+            }
             return text.trim();
         }
 
         function getPreviewText(text) {
-            const main = getMainMessage(text);
+            let main = getMainMessage(text);
+            let prefix = '';
+            if (text.startsWith('REPLY_TO:')) {
+                prefix = translations[currentLanguage].reply + ': ';
+            }
             if (main.startsWith(PUBLIC_URL)) {
                 const filename = main.split('/').pop();
                 const ext = filename.split('.').pop().toLowerCase();
                 if (['jpeg','jpg','gif','png','heic','webp','avif','bmp','tiff','svg'].includes(ext)) {
-                    return translations[currentLanguage]["image-message"];
+                    return prefix + translations[currentLanguage]["image-message"];
                 } else if (['mp4','mov','avi','mkv','hevc','webm','ogv','3gp'].includes(ext)) {
-                    return translations[currentLanguage]["video-message"];
+                    return prefix + translations[currentLanguage]["video-message"];
                 } else if (['mp3','wav','ogg','aac','m4a','flac'].includes(ext)) {
-                    return translations[currentLanguage]["voice-message"];
+                    return prefix + translations[currentLanguage]["voice-message"];
                 } else {
-                    return translations[currentLanguage]["file-message"];
+                    return prefix + translations[currentLanguage]["file-message"];
                 }
             } else {
-                return main;
+                return prefix + main;
             }
         }
 
         function addMessageListeners(bubble, text) {
             addLongPressListeners(bubble, (x, y) => {
-                if (isTextMessage(text)) {
-                    showCopyMenu(x, y, text, bubble);
-                }
+                showMenu(x, y, text, bubble);
             });
         }
 
         function isTextMessage(text) {
-            return !text.startsWith(PUBLIC_URL) && !text.startsWith('https://url.adamdh7.org/');
+            return !getMainMessage(text).startsWith(PUBLIC_URL) && !getMainMessage(text).startsWith('https://url.adamdh7.org/');
         }
 
         async function sendMessage(content) {
             if (!content || !activePeer) return;
+
+            if (replyingTo) {
+                content = `REPLY_TO:${replyingTo}\n${content}`;
+                cancelReply();
+            }
 
             try {
                 const response = await fetch(`https://server.adamdh7.org/send`, {
@@ -1541,30 +1601,45 @@
         }
 
         let currentText = '';
-        function showCopyMenu(x, y, text) {
+        let currentBubble = null;
+        function showMenu(x, y, text, bubble) {
             currentText = text;
+            currentBubble = bubble;
             const menu = document.getElementById('copy-menu');
             menu.style.left = `${x - 40}px`;
             menu.style.top = `${y + 10}px`;
             menu.classList.remove('hidden');
-            document.getElementById('copy-btn').innerText = translations[currentLanguage].copy;
-            document.getElementById('copy-btn').onclick = () => {
-                copyToClipboard(text);
-                hideCopyMenu();
+            const copyBtn = document.getElementById('copy-btn');
+            const replyBtn = document.getElementById('reply-btn');
+            if (isTextMessage(text)) {
+                copyBtn.classList.remove('hidden');
+                copyBtn.innerText = translations[currentLanguage].copy;
+                copyBtn.onclick = () => {
+                    copyToClipboard(getMainMessage(text));
+                    hideMenu();
+                };
+            } else {
+                copyBtn.classList.add('hidden');
+            }
+            replyBtn.innerText = translations[currentLanguage].reply;
+            replyBtn.onclick = () => {
+                setReplyTo(bubble.dataset.time);
+                hideMenu();
             };
             document.addEventListener('touchstart', handleOutsideTouch);
             document.addEventListener('mousedown', handleOutsideTouch);
         }
 
-        function hideCopyMenu() {
+        function hideMenu() {
             document.getElementById('copy-menu').classList.add('hidden');
+            document.getElementById('copy-btn').classList.remove('hidden');
             document.removeEventListener('touchstart', handleOutsideTouch);
             document.removeEventListener('mousedown', handleOutsideTouch);
         }
 
         function handleOutsideTouch(e) {
             if (!document.getElementById('copy-menu').contains(e.target)) {
-                hideCopyMenu();
+                hideMenu();
             }
         }
 
@@ -1643,7 +1718,7 @@
                     const isMe = m.from === user.tfid;
                     const div = document.createElement('div');
                     div.className = `mini-bubble ${isMe ? 'me' : 'them'}`;
-                    div.innerText = getPreviewText(getMainMessage(m.text));
+                    div.innerText = getPreviewText(m.text);
                     msgDiv.appendChild(div);
                 });
             } catch (e) {
@@ -1659,6 +1734,18 @@
         }
 
         function renderText(text, isMe) {
+            if (text.startsWith('REPLY_TO:')) {
+                const [replyPart, main] = text.split('\n', 2);
+                const replyTime = replyPart.slice(9);
+                const originalId = `msg-${replyTime.replace(/:/g, '-')}`;
+                const originalBubble = document.getElementById(originalId);
+                let previewHtml = '';
+                if (originalBubble) {
+                    previewHtml = createPreview(originalBubble);
+                }
+                return previewHtml + renderText(main, isMe);
+            }
+            
             if (text.startsWith(PUBLIC_URL) || text.startsWith('https://url.adamdh7.org/')) {
                 const filename = text.split('/').pop();
                 const ext = filename.split('.').pop().toLowerCase();
@@ -1703,6 +1790,52 @@
                 nextChunk.style.display = 'block';
             }
             el.remove();
+        }
+
+        function createPreview(bubble) {
+            let preview = '';
+            const img = bubble.querySelector('img');
+            const video = bubble.querySelector('video');
+            const voice = bubble.querySelector('.voice-player');
+            const file = bubble.querySelector('.file-link');
+            const msgText = bubble.querySelector('.message-text');
+            if (img) {
+                preview = `<img src="${img.src}" class="mini-media" alt="preview" />`;
+            } else if (video) {
+                preview = `<video src="${video.src}" class="mini-media" muted></video> <span>${translations[currentLanguage]["video-message"]}</span>`;
+            } else if (voice) {
+                preview = `<i class="fa-solid fa-waveform-lines"></i> ${translations[currentLanguage]["voice-message"]}`;
+            } else if (file) {
+                preview = `<i class="fa-solid fa-file"></i> ${file.textContent}`;
+            } else if (msgText) {
+                let txt = msgText.textContent.trim().substring(0, 50);
+                if (msgText.textContent.length > 50) txt += '...';
+                preview = txt;
+            }
+            return `<div class="reply-preview">${preview}</div>`;
+        }
+
+        function setReplyTo(time) {
+            replyingTo = time;
+            const originalId = `msg-${time.replace(/:/g, '-')}`;
+            const originalBubble = document.getElementById(originalId);
+            if (originalBubble) {
+                const previewHtml = createPreview(originalBubble);
+                document.getElementById('reply-bar').innerHTML = `
+                    <div class="flex-1">${previewHtml}</div>
+                    <button class="text-zinc-500" onclick="cancelReply()"><i class="fa-solid fa-times text-lg"></i></button>
+                `;
+                document.getElementById('reply-bar').classList.remove('hidden');
+                forceScrollRecalc();
+                scrollToBottom();
+            }
+        }
+
+        function cancelReply() {
+            replyingTo = null;
+            document.getElementById('reply-bar').classList.add('hidden');
+            document.getElementById('reply-bar').innerHTML = '';
+            forceScrollRecalc();
         }
 
         function renderCustomVoicePlayer(src) {
@@ -1908,7 +2041,6 @@
         let isRecording = false;
 
         function startVoiceRecording(e) {
-            e.preventDefault();
             if (isRecording) return;
             navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
                 mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/mp4' });
@@ -1928,8 +2060,7 @@
             }).catch(e => console.error(e));
         }
 
-        function stopVoiceRecording(e) {
-            e.preventDefault();
+        function stopVoiceRecording() {
             if (mediaRecorder && isRecording) {
                 mediaRecorder.stop();
             }
@@ -1943,13 +2074,20 @@
             const icon = document.getElementById('action-icon');
             input.style.height = 'auto';
             input.style.height = `${input.scrollHeight}px`;
+            forceScrollRecalc();
             if (input.value.trim()) {
                 icon.className = 'fa-solid fa-paper-plane text-lg';
                 btn.addEventListener('click', sendText);
             } else {
                 icon.className = 'fa-solid fa-microphone text-lg';
-                btn.addEventListener('touchstart', startVoiceRecording, { passive: true });
-                btn.addEventListener('touchend', stopVoiceRecording);
+                btn.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    startVoiceRecording();
+                }, { passive: false });
+                btn.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    stopVoiceRecording();
+                });
                 btn.addEventListener('mousedown', startVoiceRecording);
                 btn.addEventListener('mouseup', stopVoiceRecording);
                 btn.addEventListener('mouseleave', stopVoiceRecording);
