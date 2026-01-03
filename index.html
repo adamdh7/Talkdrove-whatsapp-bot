@@ -241,7 +241,7 @@
             padding: 0.5rem 0.5rem calc(0.5rem + env(safe-area-inset-bottom)) 0.5rem;
             background: var(--bg-pure);
             display: flex;
-            flex-direction: column;
+            align-items: flex-end;
             gap: 0.5rem;
             border-top: 0.5px solid rgba(255,255,255,0.1);
             position: absolute;
@@ -249,13 +249,6 @@
             left: 0;
             right: 0;
             transition: transform 0.3s ease;
-            max-height: 50vh;
-        }
-
-        .input-main-row {
-            display: flex;
-            align-items: flex-end;
-            gap: 0.5rem;
         }
 
         .input-wrapper {
@@ -599,17 +592,6 @@
             margin-top: 4px;
             display: block;
         }
-
-        #reply-preview {
-            background: #1c1c1e;
-            padding: 0.75rem;
-            border-radius: 12px;
-            border-left: 4px solid #007aff;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin: 0 0.5rem;
-        }
     </style>
 </head>
 <body>
@@ -673,34 +655,32 @@
         <div id="chat-messages" class="chat-body scroll-container">
         </div>
 
-        <div class="input-area">
-            <div id="reply-preview" class="hidden">
-                <div class="overflow-hidden flex items-center gap-3">
-                    <div id="reply-media-preview"></div>
-                    <div class="flex-1 min-w-0">
-                        <p class="text-xs text-blue-400 font-bold" id="reply-to-name">Répondre à...</p>
-                        <p class="text-xs text-gray-300 truncate" id="reply-content"></p>
-                    </div>
+        <div id="reply-preview" class="hidden mx-2 mt-2 bg-zinc-800 p-2 rounded-lg border-l-4 border-blue-500 flex justify-between items-center">
+            <div class="overflow-hidden flex items-center">
+                <div id="reply-media-preview"></div>
+                <div>
+                    <p class="text-xs text-blue-400 font-bold" id="reply-to-name">Répondre à...</p>
+                    <p class="text-xs text-gray-300 truncate" id="reply-content"></p>
                 </div>
-                <button onclick="cancelReply()" class="text-gray-400 text-xl">×</button>
+            </div>
+            <button onclick="cancelReply()" class="text-gray-400 px-2">×</button>
+        </div>
+
+        <div class="input-area">
+            <button class="icon-btn text-blue-500" onclick="document.getElementById('file-input').click()">
+                <i class="fa-solid fa-plus text-xl"></i>
+            </button>
+            <input type="file" id="file-input" class="hidden" accept="image/*,video/*,audio/*,*/*" onchange="handleFileSelect(this)">
+
+            <div class="input-wrapper transition-all duration-200" id="input-wrapper">
+                <div id="recording-ui" class="hidden flex-1">
+                    <i class="fa-solid fa-circle text-xs"></i> <span>Enregistrement... <span id="rec-timer">0:00</span></span>
+                </div>
+                <textarea id="msg-input" data-key="message-placeholder" placeholder="" rows="1" oninput="handleInput(this)"></textarea>
             </div>
 
-            <div class="input-main-row">
-                <button class="icon-btn text-blue-500" onclick="document.getElementById('file-input').click()">
-                    <i class="fa-solid fa-plus text-xl"></i>
-                </button>
-                <input type="file" id="file-input" class="hidden" accept="image/*,video/*,audio/*,*/*" onchange="handleFileSelect(this)">
-
-                <div class="input-wrapper transition-all duration-200" id="input-wrapper">
-                    <div id="recording-ui" class="hidden flex-1">
-                        <i class="fa-solid fa-circle text-xs"></i> <span>Enregistrement... <span id="rec-timer">0:00</span></span>
-                    </div>
-                    <textarea id="msg-input" data-key="message-placeholder" placeholder="" rows="1" oninput="handleInput(this)"></textarea>
-                </div>
-
-                <div id="action-btn" class="action-btn mic-mode">
-                    <i class="fa-solid fa-microphone text-lg" id="action-icon"></i>
-                </div>
+            <div id="action-btn" class="action-btn mic-mode">
+                <i class="fa-solid fa-microphone text-lg" id="action-icon"></i>
             </div>
         </div>
 
@@ -765,8 +745,7 @@
     </div>
 
     <script>
-        const PRIMARY_API = "https://server.adamdh7.org";
-        const FALLBACK_API = "https://dh7.adamdh7.org";
+        const API = "https://server.adamdh7.org";
         const UPLOAD_URL = "https://uploads.adamdh7.org/";
         const PUBLIC_URL = "https://uploads.adamdh7.org/";
         let user = JSON.parse(localStorage.getItem('dh7_session')) || null;
@@ -934,19 +913,20 @@
 
         let mediaRecorder = null;
         let audioChunks = [];
+        let recordStartTime = 0;
         let recordTimerInterval = null;
 
         let fullHeight = window.innerHeight;
         window.addEventListener('resize', () => {
             const newHeight = window.innerHeight;
             const inputArea = document.querySelector('.input-area');
-            const keyboardHeight = fullHeight - newHeight;
-            if (keyboardHeight > 0) {
-                inputArea.style.transform = `translateY(-${Math.min(keyboardHeight, window.innerHeight * 0.5)}px)`;
+            if (newHeight < fullHeight) {
+                const keyboardHeight = fullHeight - newHeight;
+                inputArea.style.transform = `translateY(-${keyboardHeight}px)`;
             } else {
                 inputArea.style.transform = '';
+                fullHeight = newHeight;
             }
-            fullHeight = newHeight;
             forceScrollRecalc();
         });
 
@@ -964,6 +944,7 @@
             document.getElementById('m-init').innerText = user.nom[0];
             changeLanguage(currentLanguage);
             handleRouting();
+            setupNotifications();
             initActionBtn();
             initPasteHandlers();
             forceScrollRecalc();
@@ -979,44 +960,35 @@
                 c.style.overflowY = 'hidden';
                 setTimeout(() => { 
                     c.style.overflowY = 'scroll'; 
-                }, 50);
+                    c.scrollTop = c.scrollTop + 1;
+                    c.scrollTop = c.scrollTop - 1;
+                }, 100);
             });
         }
         window.addEventListener('resize', forceScrollRecalc);
         window.addEventListener('orientationchange', forceScrollRecalc);
         window.addEventListener('load', forceScrollRecalc);
 
-        async function fetchWithTimeout(url, options = {}, timeout = 10000) {
-            const controller = new AbortController();
-            const id = setTimeout(() => controller.abort(), timeout);
-            try {
-                const response = await fetch(url, { ...options, signal: controller.signal });
-                clearTimeout(id);
-                return response;
-            } catch (error) {
-                clearTimeout(id);
-                throw error;
-            }
-        }
-
         async function getUserByTfid(tfid) {
             try {
-                const res = await fetchWithTimeout(`${PRIMARY_API}/users`);
-                if (!res.ok) return null;
+                const res = await fetch(`${API}/users`);
+                if (!res.ok) throw new Error('Failed to fetch users');
                 const users = await res.json();
                 return users.find(u => u.tfid === tfid);
             } catch (e) {
+                console.error(e);
                 return null;
             }
         }
 
         async function getUserByIdentifier(identifier) {
             try {
-                const res = await fetchWithTimeout(`${PRIMARY_API}/users`);
-                if (!res.ok) return null;
+                const res = await fetch(`${API}/users`);
+                if (!res.ok) throw new Error('Failed to fetch users');
                 const users = await res.json();
                 return users.find(u => u.tfid === identifier || u.dh7 === identifier);
             } catch (e) {
+                console.error(e);
                 return null;
             }
         }
@@ -1025,47 +997,61 @@
             const peer = await getUserByIdentifier(identifier);
             if (peer) {
                 openChat(peer);
+            } else {
+                alert("Itilizatè sa pa egziste.");
             }
         }
 
         async function login() {
             let id = document.getElementById('login-id').value.trim();
-            if (!id.includes('@dh7.tf') && !id.startsWith('TF-')) id += '@dh7.tf';
+            if (!id.includes('@dh7.tf') && !id.startsWith('TF-')) {
+                id += '@dh7.tf';
+            }
             const pass = document.getElementById('login-pass').value;
             try {
-                const res = await fetchWithTimeout(`${PRIMARY_API}/login`, {
+                const res = await fetch(`${API}/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ identifier: id, password: pass })
                 });
+                if (!res.ok) throw new Error('Login failed');
                 const data = await res.json();
                 if(data.success) {
                     user = data.user;
                     localStorage.setItem('dh7_session', JSON.stringify(user));
                     startApp();
-                }
-            } catch(e) {}
+                } else { alert(data.error); }
+            } catch(e) { alert("Sèvè a pa reponn"); }
         }
 
         async function register() {
-            const nom = document.getElementById('reg-nom').value.trim();
-            const prenom = document.getElementById('reg-prenom').value.trim();
+            const nom = document.getElementById('reg-nom').value;
+            const prenom = document.getElementById('reg-prenom').value;
             let dh7 = document.getElementById('reg-dh7').value.trim();
-            if (!dh7.includes('@dh7.tf')) dh7 += '@dh7.tf';
+            if (!dh7.includes('@dh7.tf')) {
+                dh7 += '@dh7.tf';
+            }
             const age = parseInt(document.getElementById('reg-age').value);
             const pass = document.getElementById('reg-pass').value;
-            if (!nom || !prenom || !dh7 || !age || !pass) return;
+            if (!age) {
+                alert(translations[currentLanguage].enter_age || "Antre laj ou");
+                return;
+            }
             try {
-                const res = await fetchWithTimeout(`${PRIMARY_API}/register`, { 
+                const res = await fetch(`${API}/register`, { 
                     method: 'POST', 
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ nom, prenom, dh7, age, password: pass }) 
                 });
+                if (!res.ok) throw new Error('Registration failed');
                 const result = await res.json();
                 if(result.success) {
+                    alert((translations[currentLanguage].account_created || "Kont ou kreye!") + " TFID: " + result.tfid);
                     toggleAuth();
-                }
-            } catch (e) {}
+                } else { alert(result.error); }
+            } catch (e) {
+                alert("Sèvè a pa reponn");
+            }
         }
 
         function toggleAuth() {
@@ -1086,7 +1072,13 @@
             });
 
             let path = '/';
-            if (screenId === 'scr-chat' && activePeer) path = `/${activePeer.tfid}`;
+            if (screenId === 'scr-chat' && activePeer) {
+                path = `/${activePeer.tfid}`;
+            } else if (screenId === 'scr-search') {
+                path = '/cherche';
+            } else if (screenId === 'scr-menu') {
+                path = '/menu';
+            }
             history.pushState({ screen: screenId, tfid: peerTfid }, '', path);
 
             if (screenId === 'scr-home') {
@@ -1095,44 +1087,64 @@
             } else {
                 if (homeInterval) clearInterval(homeInterval);
             }
+            if (screenId === 'scr-search') {
+                const searchInput = document.getElementById('search-q');
+                if (searchInput) searchInput.focus();
+            }
             if (screenId !== 'scr-chat') {
                 if (chatInterval) clearInterval(chatInterval);
             }
             if (screenId === 'scr-chat' && peerTfid) {
-                getUserByTfid(peerTfid).then(peer => { if (peer) openChat(peer); });
+                getUserByTfid(peerTfid).then(peer => {
+                    if (peer) openChat(peer);
+                });
             }
             forceScrollRecalc();
         }
 
         window.onpopstate = (event) => {
-            if (event.state) navTo(event.state.screen, event.state.tfid);
-            else navTo('scr-home');
+            if (event.state) {
+                navTo(event.state.screen, event.state.tfid);
+            } else {
+                navTo('scr-home');
+            }
         };
 
         function handleRouting() {
             const path = window.location.pathname;
-            if (path === '/' || path === '') navTo('scr-home');
-            else if (path.startsWith('/TF-')) navTo('scr-chat', path.slice(1));
-            else navTo('scr-home');
+            if (path === '/' || path === '') {
+                navTo('scr-home');
+            } else if (path.startsWith('/TF-')) {
+                const tfid = path.slice(1);
+                navTo('scr-chat', tfid);
+            } else if (path.startsWith('/cherche')) {
+                navTo('scr-search');
+            } else if (path === '/menu') {
+                navTo('scr-menu');
+            } else {
+                navTo('scr-home');
+            }
         }
 
         async function loadContacts() {
             shownTfids.clear();
             const container = document.getElementById('contact-list');
+            if (!container) return;
             container.innerHTML = '';
+            let totalUnread = 0;
             try {
-                const res = await fetchWithTimeout(`${PRIMARY_API}/users`);
-                if (!res.ok) return;
+                const res = await fetch(`${API}/users`);
+                if (!res.ok) throw new Error('Failed to fetch users');
                 const users = await res.json();
                 const promises = users.map(async u => {
                     if (u.tfid === user.tfid) return null;
                     try {
-                        const msgsRes = await fetchWithTimeout(`${PRIMARY_API}/messages`, {
+                        const msgsRes = await fetch(`${API}/messages`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ user1_tfid: user.tfid, user2_tfid: u.tfid })
                         });
-                        if (!msgsRes.ok) return null;
+                        if (!msgsRes.ok) throw new Error('Failed to fetch messages');
                         const messages = await msgsRes.json();
                         const hasConversation = messages.some(m => m.text !== 'ok');
                         if (!hasConversation) return null;
@@ -1141,6 +1153,7 @@
                         const prefix = lastNonOkMsg && lastNonOkMsg.from === user.tfid ? translations[currentLanguage].you + ' ' : '';
                         const lastMsgText = prefix + (lastNonOkMsg ? getPreviewText(lastNonOkMsg.text) : '');
                         const unread = getUnreadCount(messages, u.tfid);
+                        totalUnread += unread;
                         const card = document.createElement('div');
                         card.className = "contact-card";
                         card.dataset.lastTimestamp = lastTimestamp;
@@ -1155,19 +1168,34 @@
                             </div>
                             ${unread > 0 ? `<span class="unread-badge">+${unread}</span>` : ''}
                         `;
-                        addLongPressListeners(card, () => showContactPreview(u), () => openChat(u));
+                        addLongPressListeners(card, (x, y) => showContactPreview(u), () => openChat(u));
                         shownTfids.add(u.tfid);
                         return card;
-                    } catch (e) { return null; }
+                    } catch (e) {
+                        console.error(e);
+                        return null;
+                    }
                 });
-                const contacts = (await Promise.all(promises)).filter(c => c);
-                contacts.forEach(c => container.appendChild(c));
+                const contacts = await Promise.all(promises);
+                const filteredContacts = contacts.filter(c => c !== null);
+                filteredContacts.forEach(c => container.appendChild(c));
                 sortContacts();
-            } catch (e) {}
+                if (filteredContacts.length === 0) {
+                    const p = document.createElement('p');
+                    p.className = "text-zinc-700 text-center mt-20 no-contacts";
+                    p.textContent = translations[currentLanguage].no_contacts;
+                    container.appendChild(p);
+                }
+                localStorage.setItem('totalUnread', totalUnread);
+                updateAppBadge(totalUnread);
+            } catch (e) {
+                console.error(e);
+            }
         }
 
         function sortContacts() {
             const container = document.getElementById('contact-list');
+            if (!container) return;
             const cards = Array.from(container.querySelectorAll('.contact-card'));
             cards.sort((a, b) => (b.dataset.lastTimestamp || 0) - (a.dataset.lastTimestamp || 0));
             cards.forEach(card => container.appendChild(card));
@@ -1176,17 +1204,152 @@
         function getUnreadCount(messages, fromTfid) {
             let unread = 0;
             messages.forEach((m, index) => {
-                if (m.text === 'ok' || m.from !== fromTfid) return;
-                let read = m.read;
-                for (let j = index + 1; j < messages.length; j++) {
-                    if (messages[j].from !== fromTfid && messages[j].text !== 'ok') {
-                        read = true;
-                        break;
+                if (m.text === 'ok') return;
+                if (m.from === fromTfid) {
+                    let read = m.read;
+                    for (let j = index + 1; j < messages.length; j++) {
+                        if (messages[j].from !== fromTfid && messages[j].text !== 'ok') {
+                            read = true;
+                            break;
+                        }
                     }
+                    if (!read) unread++;
                 }
-                if (!read) unread++;
             });
             return unread;
+        }
+
+        async function updateContacts() {
+            const container = document.getElementById('contact-list');
+            if (!container) return;
+            const cards = Array.from(container.querySelectorAll('.contact-card'));
+            let totalUnread = 0;
+            await Promise.all(cards.map(async card => {
+                const tfid = card.querySelector('.tfid').textContent;
+                try {
+                    const msgsRes = await fetch(`${API}/messages`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ user1_tfid: user.tfid, user2_tfid: tfid })
+                    });
+                    if (!msgsRes.ok) throw new Error('Failed to fetch messages');
+                    const messages = await msgsRes.json();
+                    const unread = getUnreadCount(messages, tfid);
+                    totalUnread += unread;
+                    let badge = card.querySelector('.unread-badge');
+                    if (unread > 0) {
+                        if (!badge) {
+                            badge = document.createElement('span');
+                            badge.className = 'unread-badge';
+                            card.appendChild(badge);
+                        }
+                        badge.textContent = `+${unread}`;
+                    } else if (badge) {
+                        badge.remove();
+                    }
+                    const lastNonOkMsg = [...messages].reverse().find(m => m.text !== 'ok');
+                    const lastTimestamp = lastNonOkMsg ? new Date(lastNonOkMsg.time).getTime() : 0;
+                    card.dataset.lastTimestamp = lastTimestamp;
+                    const prefix = lastNonOkMsg && lastNonOkMsg.from === user.tfid ? translations[currentLanguage].you + ' ' : '';
+                    const lastMsgText = prefix + (lastNonOkMsg ? getPreviewText(lastNonOkMsg.text) : '');
+                    const p = card.querySelector('p.text-zinc-500');
+                    if (p) p.textContent = lastMsgText.substring(0, 30) + (lastMsgText.length > 30 ? '…' : '');
+                } catch (e) {
+                    console.error(e);
+                }
+            }));
+
+            try {
+                const res = await fetch(`${API}/users`);
+                if (!res.ok) throw new Error('Failed to fetch users');
+                const users = await res.json();
+                const newPromises = users.map(async u => {
+                    if (u.tfid === user.tfid || shownTfids.has(u.tfid)) return null;
+                    try {
+                        const msgsRes = await fetch(`${API}/messages`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ user1_tfid: user.tfid, user2_tfid: u.tfid })
+                        });
+                        if (!msgsRes.ok) throw new Error('Failed to fetch messages');
+                        const messages = await msgsRes.json();
+                        const hasConversation = messages.some(m => m.text !== 'ok');
+                        if (!hasConversation) return null;
+                        const lastNonOkMsg = [...messages].reverse().find(m => m.text !== 'ok');
+                        const lastTimestamp = lastNonOkMsg ? new Date(lastNonOkMsg.time).getTime() : 0;
+                        const prefix = lastNonOkMsg && lastNonOkMsg.from === user.tfid ? translations[currentLanguage].you + ' ' : '';
+                        const lastMsgText = prefix + (lastNonOkMsg ? getPreviewText(lastNonOkMsg.text) : '');
+                        const unread = getUnreadCount(messages, u.tfid);
+                        totalUnread += unread;
+                        const card = document.createElement('div');
+                        card.className = "contact-card";
+                        card.dataset.lastTimestamp = lastTimestamp;
+                        card.innerHTML = `
+                            <div class="avatar">${u.nom[0]}</div>
+                            <div class="flex-1">
+                                <div class="flex justify-between items-center">
+                                    <span class="font-bold text-lg leading-tight truncate">${u.prenom} ${u.nom}</span>
+                                    <span class="tfid text-[9px] text-zinc-700 font-mono tracking-tighter copyable" onclick="copyToClipboard('${u.tfid}')">${u.tfid}</span>
+                                </div>
+                                <p class="text-zinc-500 text-sm truncate">${lastMsgText.substring(0, 30)}${lastMsgText.length > 30 ? '…' : ''}</p>
+                            </div>
+                            ${unread > 0 ? `<span class="unread-badge">+${unread}</span>` : ''}
+                        `;
+                        addLongPressListeners(card, (x, y) => showContactPreview(u), () => openChat(u));
+                        shownTfids.add(u.tfid);
+                        return card;
+                    } catch (e) {
+                        console.error(e);
+                        return null;
+                    }
+                });
+                const newContacts = await Promise.all(newPromises);
+                newContacts.filter(c => c).forEach(c => container.appendChild(c));
+                sortContacts();
+
+                const noContactsP = container.querySelector('.no-contacts');
+                if (noContactsP && container.querySelectorAll('.contact-card').length > 0) {
+                    noContactsP.remove();
+                }
+                localStorage.setItem('totalUnread', totalUnread);
+                updateAppBadge(totalUnread);
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function updateAppBadge(count) {
+            if ('setAppBadge' in navigator) {
+                navigator.setAppBadge(count);
+            } else if ('clearAppBadge' in navigator && count === 0) {
+                navigator.clearAppBadge();
+            }
+        }
+
+        async function doSearch() {
+            let q = document.getElementById('search-q').value.toLowerCase().trim();
+            if(q.length < 2) {
+                document.getElementById('search-results').innerHTML = '';
+                return;
+            }
+            try {
+                const res = await fetch(`${API}/users`);
+                if (!res.ok) throw new Error('Failed to fetch users');
+                const users = await res.json();
+                let filtered = users.filter(u => (u.dh7.toLowerCase().includes(q) || u.tfid.toLowerCase().includes(q) || (u.nom + ' ' + u.prenom).toLowerCase().includes(q)) && u.tfid !== user.tfid);
+                
+                const container = document.getElementById('search-results');
+                container.innerHTML = filtered.length ? "" : `<p class="text-center text-zinc-600 mt-10 tracking-widest font-bold">${translations[currentLanguage].no_results}</p>`;
+                filtered.forEach(u => {
+                    const div = document.createElement('div');
+                    div.className = "contact-card";
+                    div.innerHTML = `<div class="avatar">${u.nom[0]}</div><div><p class="font-bold text-lg">${u.prenom} ${u.nom}</p><p class="text-xs text-zinc-600 font-mono copyable" onclick="copyToClipboard('${u.dh7}')">${u.dh7}</p></div>`;
+                    div.onclick = () => openChat(u);
+                    container.appendChild(div);
+                });
+            } catch (e) {
+                console.error(e);
+            }
         }
 
         async function openChat(peer) {
@@ -1197,35 +1360,65 @@
             navTo('scr-chat');
             resetChatView();
             await loadInitialMessages();
+            try {
+                const msgsRes = await fetch(`${API}/messages`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user1_tfid: user.tfid, user2_tfid: activePeer.tfid })
+                });
+                if (!msgsRes.ok) throw new Error('Failed to fetch messages');
+                const messages = await msgsRes.json();
+                const unread = messages.filter(m => m.from === activePeer.tfid && !m.read && m.text !== 'ok').length;
+                if (unread > 0) {
+                    await fetch(`${API}/mark-read`, { 
+                        method: 'POST', 
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ sender_tfid: activePeer.tfid, receiver_tfid: user.tfid }) 
+                    });
+                    let totalUnread = parseInt(localStorage.getItem('totalUnread') || '0') - unread;
+                    localStorage.setItem('totalUnread', totalUnread);
+                    updateAppBadge(totalUnread);
+                }
+                lastViewed[peer.tfid] = Date.now();
+                localStorage.setItem('lastViewed', JSON.stringify(lastViewed));
+            } catch (e) {
+                console.error(e);
+            }
             chatInterval = setInterval(syncChatSilently, 3000);
             setupScrollListener();
         }
 
         async function loadInitialMessages() {
-            if (!activePeer) return;
+            if (!activePeer || !user) return;
+
             try {
-                const res = await fetchWithTimeout(`${PRIMARY_API}/messages`, {
+                const res = await fetch(`${API}/messages`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ user1_tfid: user.tfid, user2_tfid: activePeer.tfid })
                 });
+                
                 const messages = await res.json();
                 const container = document.getElementById('chat-messages');
+                
                 const validMessages = messages.filter(m => m.text !== 'ok');
+
                 if (validMessages.length > 0) {
                     const fragment = document.createDocumentFragment();
                     validMessages.forEach(m => {
                         const msgId = m.time + m.from;
-                        if (!displayedMessageIds.has(msgId)) {
-                            displayedMessageIds.add(msgId);
-                            fragment.appendChild(createMessageElement(m));
-                        }
+                        displayedMessageIds.add(msgId);
+                        const div = createMessageElement(m);
+                        fragment.appendChild(div);
                     });
                     container.appendChild(fragment);
                     scrollToBottom();
+                    updateCheckmarks(messages);
                     attachVoicePlayers();
                 }
-            } catch (e) {}
+            } catch (e) {
+                console.error(e);
+            }
         }
 
         function createMessageElement(m) {
@@ -1243,21 +1436,30 @@
                 const senderEnd = text.indexOf(REPLY_END, pos);
                 const sender = text.substring(pos, senderEnd);
                 pos = senderEnd + REPLY_END.length;
-                const quotedEnd = text.indexOf(REPLY_END, pos);
-                const quoted = text.substring(pos, quotedEnd);
-                pos = quotedEnd + REPLY_END.length;
+                const quoted = text.substring(pos, text.indexOf(REPLY_END, pos));
+                pos = text.indexOf(REPLY_END, pos) + REPLY_END.length;
                 const main = text.substring(pos).trim();
-
                 const replyDiv = document.createElement('div');
                 replyDiv.className = 'reply-bar';
-                replyDiv.innerHTML = `<div class="reply-name">${sender}</div><div class="reply-text">${renderReplyPreview(quoted)}</div>`;
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'reply-name';
+                nameSpan.innerText = sender;
+                replyDiv.appendChild(nameSpan);
+                const textSpan = document.createElement('span');
+                textSpan.className = 'reply-text';
+                textSpan.innerHTML = renderReplyPreview(quoted);
+                replyDiv.appendChild(textSpan);
                 replyDiv.onclick = () => {
-                    const orig = document.getElementById('msg-' + id);
-                    if (orig) orig.scrollIntoView({behavior: 'smooth'});
+                    const original = document.getElementById('msg-' + id);
+                    if (original) {
+                        original.scrollIntoView({behavior: 'smooth'});
+                    }
                 };
                 div.appendChild(replyDiv);
-
-                div.innerHTML += renderText(main, isMe);
+                const mainSpan = document.createElement('span');
+                mainSpan.className = 'main-message';
+                mainSpan.innerHTML = renderText(main, isMe);
+                div.appendChild(mainSpan);
             } else {
                 div.innerHTML = renderText(text, isMe);
             }
@@ -1274,29 +1476,45 @@
         }
 
         async function syncChatSilently() {
-            if (!activePeer) return;
+            if (!activePeer || !user) return;
+
             try {
-                const res = await fetchWithTimeout(`${PRIMARY_API}/messages`, {
+                const res = await fetch(`${API}/messages`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ user1_tfid: user.tfid, user2_tfid: activePeer.tfid })
                 });
+                
                 const messages = await res.json();
                 const container = document.getElementById('chat-messages');
-                const newMessages = messages.filter(m => m.text !== 'ok' && !displayedMessageIds.has(m.time + m.from));
+                
+                const newMessages = messages.filter(m => {
+                    const msgId = m.time + m.from;
+                    return m.text !== 'ok' && !displayedMessageIds.has(msgId);
+                });
+
                 if (newMessages.length > 0) {
                     const isAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 150;
+
                     const fragment = document.createDocumentFragment();
                     newMessages.forEach(m => {
-                        displayedMessageIds.add(m.time + m.from);
-                        const el = createMessageElement(m);
-                        el.classList.add('animate-slide-in');
-                        fragment.appendChild(el);
+                        const msgId = m.time + m.from;
+                        displayedMessageIds.add(msgId);
+                        
+                        const div = createMessageElement(m);
+                        div.classList.add('animate-slide-in');
+                        fragment.appendChild(div);
                     });
                     container.appendChild(fragment);
-                    if (isAtBottom) scrollToBottom();
+
+                    if (isAtBottom) {
+                        scrollToBottom();
+                    }
                     attachVoicePlayers();
                 }
+                
+                updateCheckmarks(messages);
+
             } catch (e) {}
         }
 
@@ -1307,66 +1525,127 @@
 
         function renderReplyPreview(quoted) {
             if (quoted.startsWith(PUBLIC_URL)) {
-                const ext = quoted.split('.').pop().toLowerCase();
-                if (['jpg','jpeg','png','gif','webp'].includes(ext)) return `<img src="${quoted}" class="reply-preview-media">`;
-                if (['mp4','mov','webm'].includes(ext)) return `<i class="fa-solid fa-video reply-preview-icon"></i> <span>${translations[currentLanguage]["video-message"]}</span>`;
-                if (['mp3','wav','ogg','webm','m4a'].includes(ext)) return `<i class="fa-solid fa-microphone reply-preview-icon"></i> <span>${translations[currentLanguage]["voice-message"]}</span>`;
-                return `<i class="fa-solid fa-file reply-preview-icon"></i> <span>${translations[currentLanguage]["file-message"]}</span>`;
+                const filename = quoted.split('/').pop();
+                const ext = filename.split('.').pop().toLowerCase();
+                let preview = '';
+                if (['jpeg','jpg','gif','png','heic','webp','avif','bmp','tiff','svg'].includes(ext)) {
+                    preview = `<img src="${quoted}" class="reply-preview-media">`;
+                } else if (['mp4','mov','avi','mkv','hevc','webm','ogv','3gp'].includes(ext)) {
+                    preview = `<i class="fa-solid fa-video reply-preview-icon"></i> <span>${translations[currentLanguage]["video-message"]}</span>`;
+                } else if (['mp3','wav','ogg','aac','m4a','flac'].includes(ext)) {
+                    preview = `<i class="fa-solid fa-microphone reply-preview-icon"></i> <span>${translations[currentLanguage]["voice-message"]}</span>`;
+                } else {
+                    preview = `<i class="fa-solid fa-file reply-preview-icon"></i> <span>${translations[currentLanguage]["file-message"]}</span>`;
+                }
+                return preview;
+            } else {
+                const lines = quoted.split('\n');
+                const displayText = lines[0] + (lines.length > 1 ? '…' : '');
+                return displayText;
             }
-            return quoted.substring(0, 50) + (quoted.length > 50 ? '…' : '');
+        }
+
+        function updateCheckmarks(messages) {
+            const container = document.getElementById('chat-messages');
+            const bubbles = container.querySelectorAll('.bubble.me');
+            bubbles.forEach((bubble, idx) => {
+                const msgTime = bubble.id.replace('msg-', '').replace(/-/g, ':');
+                const msgIndex = messages.findIndex(m => m.time === msgTime && m.from === user.tfid);
+                if (msgIndex === -1) return;
+                const m = messages[msgIndex];
+                let read = m.read;
+                for (let j = msgIndex + 1; j < messages.length; j++) {
+                    if (messages[j].from !== user.tfid && messages[j].text !== 'ok') {
+                        read = true;
+                        break;
+                    }
+                }
+                const status = bubble.querySelector('.status');
+                if (status) {
+                    status.innerText = read ? '✓✓' : '✓';
+                    if (read) status.classList.add('read');
+                    else status.classList.remove('read');
+                }
+            });
         }
 
         function setupScrollListener() {
             const container = document.getElementById('chat-messages');
-            const btn = document.getElementById('scroll-down-btn');
+            if (!container) return;
+            const scrollDownBtn = document.getElementById('scroll-down-btn');
             container.addEventListener('scroll', () => {
-                const up = container.scrollHeight - container.scrollTop - container.clientHeight > 50;
-                btn.classList.toggle('hidden', !up);
+                const isScrolledUp = container.scrollHeight - container.scrollTop - container.clientHeight > 50;
+                scrollDownBtn.classList.toggle('hidden', !isScrolledUp);
             });
         }
 
         function scrollToBottom() {
-            const c = document.getElementById('chat-messages');
-            c.scrollTo({ top: c.scrollHeight, behavior: 'smooth' });
-        }
-
-        function getPreviewText(text) {
-            const main = text.replace(/^[\u2063\u2064]+/, '').split('\n\n')[1] || text;
-            if (main.startsWith(PUBLIC_URL)) {
-                const ext = main.split('.').pop().toLowerCase();
-                if (['jpg','jpeg','png','gif','webp'].includes(ext)) return translations[currentLanguage]["image-message"];
-                if (['mp4','mov','webm'].includes(ext)) return translations[currentLanguage]["video-message"];
-                if (['mp3','wav','ogg','webm','m4a'].includes(ext)) return translations[currentLanguage]["voice-message"];
-                return translations[currentLanguage]["file-message"];
-            }
-            return main;
-        }
-
-        function addMessageListeners(bubble, text) {
-            addLongPressListeners(bubble, () => {
-                if (!text.startsWith(PUBLIC_URL)) showCopyMenu(event.clientX, event.clientY, text);
-            });
-            bubble.addEventListener('touchstart', e => touchStartX = e.touches[0].clientX);
-            bubble.addEventListener('touchend', e => {
-                const delta = e.changedTouches[0].clientX - touchStartX;
-                if (delta > 50) {
-                    const sender = bubble.classList.contains('me') ? translations[currentLanguage].you : document.getElementById('chat-peer-name').innerText;
-                    replyToMessage(getMainMessage(text), sender, bubble.id.replace('msg-', ''));
-                }
-            });
+            const d = document.getElementById('chat-messages');
+            d.scrollTo({ top: d.scrollHeight, behavior: 'smooth' });
         }
 
         function getMainMessage(text) {
-            if (!text.startsWith(REPLY_START)) return text.trim();
-            const parts = text.split(REPLY_END);
-            return parts[parts.length - 1].trim();
+            if (text.startsWith(REPLY_START)) {
+                let pos = REPLY_START.length;
+                pos = text.indexOf(REPLY_END, pos) + REPLY_END.length;
+                pos = text.indexOf(REPLY_END, pos) + REPLY_END.length;
+                pos = text.indexOf(REPLY_END, pos) + REPLY_END.length;
+                return text.substring(pos).trim();
+            }
+            return text.trim();
         }
 
+        function getPreviewText(text) {
+            const main = getMainMessage(text);
+            if (main.startsWith(PUBLIC_URL)) {
+                const filename = main.split('/').pop();
+                const ext = filename.split('.').pop().toLowerCase();
+                if (['jpeg','jpg','gif','png','heic','webp','avif','bmp','tiff','svg'].includes(ext)) {
+                    return translations[currentLanguage]["image-message"];
+                } else if (['mp4','mov','avi','mkv','hevc','webm','ogv','3gp'].includes(ext)) {
+                    return translations[currentLanguage]["video-message"];
+                } else if (['mp3','wav','ogg','aac','m4a','flac'].includes(ext)) {
+                    return translations[currentLanguage]["voice-message"];
+                } else {
+                    return translations[currentLanguage]["file-message"];
+                }
+            } else {
+                return main;
+            }
+        }
+
+        function addMessageListeners(bubble, text) {
+            addLongPressListeners(bubble, (x, y) => {
+                if (isTextMessage(text)) {
+                    showCopyMenu(x, y, text, bubble);
+                }
+            });
+            let touchStartX = 0;
+            bubble.addEventListener('touchstart', (e) => {
+                touchStartX = e.touches[0].clientX;
+            });
+            bubble.addEventListener('touchend', (e) => {
+                const touchEndX = e.changedTouches[0].clientX;
+                const deltaX = touchEndX - touchStartX;
+                if (deltaX > 50) {
+                    const isMe = bubble.classList.contains('me');
+                    const sender = isMe ? translations[currentLanguage].you : document.getElementById('chat-peer-name').innerText;
+                    const messageId = bubble.id.replace('msg-', '');
+                    replyToMessage(getMainMessage(text), sender, messageId);
+                }
+            });
+        }
+
+        function isTextMessage(text) {
+            return !text.startsWith(PUBLIC_URL) && !text.startsWith('https://url.adamdh7.org/');
+        }
+
+        // Fonction unique pour envoyer tous les messages (texte, média, voix, reply)
         async function sendMessage(content) {
             if (!content || !activePeer) return;
-            let apiUrl = PRIMARY_API;
+
             try {
-                const res = await fetchWithTimeout(`${apiUrl}/send`, {
+                const response = await fetch(`https://server.adamdh7.org/send`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1375,263 +1654,468 @@
                         message: content
                     })
                 });
-                if (res.ok) {
-                    syncChatSilently();
-                    return;
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
-            } catch (e) {}
-            apiUrl = FALLBACK_API;
-            try {
-                await fetchWithTimeout(`${apiUrl}/send`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        sender_tfid: user.tfid,
-                        receiver_tfid: activePeer.tfid,
-                        message: content
-                    })
-                });
+
                 syncChatSilently();
-            } catch (e) {}
+            } catch (e) {
+                console.error("Erreur envoi message:", e);
+                alert("Mesaj pa ale. Verifiez console pou plis detay.");
+            }
         }
 
+        // Envoi texte avec gestion reply
         async function sendTextMessage() {
             const input = document.getElementById('msg-input');
             let text = input.value.trim();
-            if (!text) return;
+            if (!text || !activePeer) return;
+
             if (replyingTo) {
                 text = REPLY_START + replyingTo.id + REPLY_END + replyingTo.sender + REPLY_END + replyingTo.quoted + REPLY_END + '\n\n' + text;
+                replyingTo = null;
                 cancelReply();
             }
-            input.value = '';
-            handleInput(input);
+
+            input.value = "";
+            input.style.height = 'auto';
+            updateActionButton();
+
             await sendMessage(text);
         }
 
-        function replyToMessage(quoted, sender, id) {
-            replyingTo = {id, sender, quoted};
-            document.getElementById('reply-preview').classList.remove('hidden');
-            document.getElementById('reply-to-name').innerText = sender;
-            document.getElementById('reply-content').innerText = quoted.length > 50 ? quoted.substring(0,50)+'…' : quoted;
-            document.getElementById('reply-media-preview').innerHTML = quoted.startsWith(PUBLIC_URL) ? renderReplyPreview(quoted) : '';
-            document.getElementById('msg-input').focus();
+        function replyToMessage(quoted, sender, messageId) {
+            replyingTo = {id: messageId, sender: sender, quoted: quoted};
+            const preview = document.getElementById('reply-preview');
+            const replyText = document.getElementById('reply-content');
+            const mediaPreview = document.getElementById('reply-media-preview');
+            mediaPreview.innerHTML = '';
+            if (quoted.startsWith(PUBLIC_URL)) {
+                const ext = quoted.split('.').pop().toLowerCase();
+                if (['jpeg','jpg','gif','png','heic','webp','avif','bmp','tiff','svg'].includes(ext)) {
+                    mediaPreview.innerHTML = `<img src="${quoted}" class="reply-preview-media">`;
+                } else if (['mp4','mov','avi','mkv','hevc','webm','ogv','3gp'].includes(ext)) {
+                    mediaPreview.innerHTML = `<i class="fa-solid fa-video reply-preview-icon"></i> <span>${translations[currentLanguage]["video-message"]}</span>`;
+                } else if (['mp3','wav','ogg','aac','m4a','flac'].includes(ext)) {
+                    mediaPreview.innerHTML = `<i class="fa-solid fa-microphone reply-preview-icon"></i> <span>${translations[currentLanguage]["voice-message"]}</span>`;
+                } else {
+                    mediaPreview.innerHTML = `<i class="fa-solid fa-file reply-preview-icon"></i> <span>${translations[currentLanguage]["file-message"]}</span>`;
+                }
+            } else {
+                replyText.textContent = quoted.substring(0, 50) + (quoted.length > 50 ? '…' : '');
+            }
+            preview.classList.remove('hidden');
+            const input = document.getElementById('msg-input');
+            input.focus();
         }
 
         function cancelReply() {
             replyingTo = null;
-            document.getElementById('reply-preview').classList.add('hidden');
-            document.getElementById('reply-media-preview').innerHTML = '';
+            const preview = document.getElementById('reply-preview');
+            if (preview) preview.classList.add('hidden');
         }
 
         function handleInput(el) {
             el.style.height = 'auto';
-            el.style.height = el.scrollHeight + 'px';
+            el.style.height = (el.scrollHeight) + 'px';
             updateActionButton();
         }
 
+        // Remplace initActionBtn par celle-ci
         function initActionBtn() {
             const btn = document.getElementById('action-btn');
-            const icon = document.getElementById('action-icon');
+            if (!btn) return;
+            
+            // Pour ordinateur (Souris)
             btn.addEventListener('mousedown', startRecording);
-            btn.addEventListener('touchstart', startRecording, { passive: true });
             btn.addEventListener('mouseup', endRecordingOrSend);
-            btn.addEventListener('touchend', endRecordingOrSend, { passive: true });
-            document.getElementById('msg-input').addEventListener('input', updateActionButton);
+            
+            // Pour mobile (Touch) - CORRECTION MAJEURE ICI : passive: false
+            btn.addEventListener('touchstart', startRecording, { passive: false });
+            btn.addEventListener('touchend', endRecordingOrSend, { passive: false }); 
+            
+            // Sécurité : si on glisse le doigt hors du bouton, on annule
+            btn.addEventListener('touchcancel', cancelRecording);
         }
 
-        function updateActionButton() {
-            const input = document.getElementById('msg-input').value.trim();
-            const btn = document.getElementById('action-btn');
-            const icon = document.getElementById('action-icon');
-            if (input.length > 0) {
-                btn.classList.remove('mic-mode');
-                icon.className = 'fa-solid fa-paper-plane';
-            } else {
-                btn.classList.add('mic-mode');
-                icon.className = 'fa-solid fa-microphone';
-            }
-        }
-
-        let isRecording = false;
-        let longPressTimer;
-
+        // Remplace startRecording par celle-ci
         async function startRecording(e) {
-            if (document.getElementById('msg-input').value.trim()) return;
-            e.preventDefault();
+            const input = document.getElementById('msg-input');
+            
+            // Si on a du texte, on ne fait rien ici (le clic 'end' enverra le message)
+            if(input.value.trim().length > 0) return;
+
+            // Empêcher le comportement par défaut (scroll, zoom, focus)
+            if(e.cancelable && e.type === 'touchstart') {
+                e.preventDefault();
+            }
+
+            // On lance le timer pour détecter l'appui long
             longPressTimer = setTimeout(async () => {
                 isRecording = true;
-                document.getElementById('msg-input').classList.add('hidden');
+                
+                // UI Update
+                input.classList.add('hidden');
                 document.getElementById('recording-ui').classList.remove('hidden');
+                
                 try {
+                    // Demande l'accès au micro
                     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    
                     mediaRecorder = new MediaRecorder(stream);
                     audioChunks = [];
-                    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+                    
+                    mediaRecorder.ondataavailable = event => {
+                        if (event.data.size > 0) audioChunks.push(event.data);
+                    };
+                    
                     mediaRecorder.start();
-                    startTimer();
-                } catch (err) {
+                    startTimer(); // Lance le compteur visuel 0:00
+                    
+                } catch(err) {
+                    console.error("Erreur micro:", err);
+                    alert("Impossible d'accéder au micro. Vérifiez les permissions.");
                     cancelRecording();
                 }
-            }, 300);
+            }, 500); // Augmenté à 500ms pour éviter les faux positifs quand on tape vite
         }
 
+        // Remplace endRecordingOrSend par celle-ci
         async function endRecordingOrSend(e) {
-            clearTimeout(longPressTimer);
-            if (document.getElementById('msg-input').value.trim()) {
-                sendTextMessage();
+            // Empêcher les doubles clics fantômes
+            if(e.cancelable && e.type === 'touchend') {
+                e.preventDefault();
+            }
+
+            // Si le timer n'est pas fini, c'était un clic court -> ENVOI TEXTE
+            if (longPressTimer) {
+                clearTimeout(longPressTimer);
+                longPressTimer = null;
+            }
+
+            const input = document.getElementById('msg-input');
+            
+            // 1. CAS ENVOI MESSAGE TEXTE
+            // Si on n'était pas en train d'enregistrer et qu'il y a du texte
+            if(!isRecording && input.value.trim().length > 0) {
+                // Petit délai pour assurer que l'UI est prête
+                setTimeout(() => {
+                    sendTextMessage();
+                }, 50);
                 return;
             }
-            if (isRecording) {
+
+            // 2. CAS FIN ENREGISTREMENT VOCAL
+            if(isRecording) {
                 isRecording = false;
                 stopTimer();
-                document.getElementById('msg-input').classList.remove('hidden');
+                
+                // Reset UI
+                input.classList.remove('hidden');
                 document.getElementById('recording-ui').classList.add('hidden');
-                if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-                    mediaRecorder.stop();
+                
+                if(mediaRecorder && mediaRecorder.state !== 'inactive') {
+                    mediaRecorder.stop(); // Arrête l'enregistrement
+                    
                     mediaRecorder.onstop = async () => {
-                        const mimeType = mediaRecorder.mimeType || 'audio/webm';
-                        const ext = mimeType.includes('webm') ? 'webm' : mimeType.includes('ogg') ? 'ogg' : 'webm';
-                        const audioBlob = new Blob(audioChunks, { type: mimeType });
-                        document.getElementById('upload-loading').classList.remove('hidden');
-                        try {
-                            await uploadFile(audioBlob, `voice_${Date.now()}.${ext}`, mimeType);
-                        } finally {
-                            document.getElementById('upload-loading').classList.add('hidden');
+                        // On vérifie qu'on a bien des données
+                        if (audioChunks.length > 0) {
+                            const audioBlob = new Blob(audioChunks, { type: 'audio/mp3' });
+                            
+                            // Si l'audio est trop court (moins de 1 seconde), on annule (erreur de manip)
+                            if (audioBlob.size < 1000) { 
+                                console.log("Audio trop court, annulé.");
+                                return; 
+                            }
+
+                            document.getElementById('upload-loading').classList.remove('hidden');
+                            try {
+                                await uploadFile(audioBlob, `voice_${Date.now()}.mp3`, 'audio/mp3');
+                            } catch (err) {
+                                alert("Erreur d'envoi du vocal");
+                            } finally {
+                                document.getElementById('upload-loading').classList.add('hidden');
+                            }
                         }
                     };
                 }
             }
         }
-
+        
         function cancelRecording() {
             isRecording = false;
             stopTimer();
-            if (mediaRecorder) mediaRecorder.stop();
+            if(mediaRecorder) mediaRecorder.stop();
             document.getElementById('msg-input').classList.remove('hidden');
             document.getElementById('recording-ui').classList.add('hidden');
         }
 
         function startTimer() {
             let sec = 0;
+            const timerEl = document.getElementById('rec-timer');
             recordTimerInterval = setInterval(() => {
                 sec++;
-                const m = Math.floor(sec / 60).toString().padStart(2, '0');
-                const s = (sec % 60).toString().padStart(2, '0');
-                document.getElementById('rec-timer').innerText = `${m}:${s}`;
+                let m = Math.floor(sec/60);
+                let s = sec%60;
+                timerEl.innerText = `${m}:${s<10?'0':''}${s}`;
             }, 1000);
         }
-
-        function stopTimer() {
-            clearInterval(recordTimerInterval);
-            document.getElementById('rec-timer').innerText = '0:00';
-        }
+        function stopTimer() { clearInterval(recordTimerInterval); document.getElementById('rec-timer').innerText = "0:00"; }
 
         async function handleFileSelect(input) {
             const file = input.files[0];
-            if (!file) return;
+            if(!file) return;
+            
             document.getElementById('upload-loading').classList.remove('hidden');
             try {
                 await uploadFile(file, file.name, file.type);
             } finally {
                 document.getElementById('upload-loading').classList.add('hidden');
-                input.value = '';
             }
+            input.value = "";
         }
 
-        async function uploadFile(blob, filename, mimeType) {
+        async function uploadFile(file, filename, type) {
             let attempts = 0;
             const maxAttempts = 5;
             while (attempts < maxAttempts) {
                 try {
                     const uniqueName = `${crypto.randomUUID()}_${filename}`;
-                    const res = await fetchWithTimeout(`${UPLOAD_URL}${uniqueName}`, {
+                    const uploadRes = await fetch(`${UPLOAD_URL}/${uniqueName}`, {
                         method: 'PUT',
-                        headers: { 'Content-Type': mimeType },
-                        body: blob
+                        headers: {'Content-Type': type},
+                        body: file
                     });
-                    if (res.ok) {
-                        const url = await res.text();
-                        let content = url.trim();
+                    if (uploadRes.ok) {
+                        const url = await uploadRes.text();
+                        let content = url;
                         if (replyingTo) {
-                            content = REPLY_START + replyingTo.id + REPLY_END + replyingTo.sender + REPLY_END + replyingTo.quoted + REPLY_END + '\n\n' + content;
+                            content = REPLY_START + replyingTo.id + REPLY_END + replyingTo.sender + REPLY_END + replyingTo.quoted + REPLY_END + '\n\n' + url;
+                            replyingTo = null;
                             cancelReply();
                         }
                         await sendMessage(content);
                         return;
+                    } else {
+                        attempts++;
                     }
-                } catch (e) {}
-                attempts++;
+                } catch(e) {
+                    console.error(e);
+                    attempts++;
+                }
             }
+            alert(translations[currentLanguage]["upload_failed"]);
         }
 
         function showLang() {
             document.getElementById('backdrop').classList.add('show');
             document.getElementById('lang-sheet').classList.add('show');
         }
-
         function closeOverlays() {
             document.getElementById('backdrop').classList.remove('show');
             document.getElementById('lang-sheet').classList.remove('show');
         }
-
         function changeLanguage(lang) {
             currentLanguage = lang;
             localStorage.setItem('language', lang);
             document.querySelectorAll('[data-key]').forEach(el => {
                 const key = el.dataset.key;
                 if (translations[lang][key]) {
-                    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') el.placeholder = translations[lang][key];
-                    else el.innerText = translations[lang][key];
+                    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+                        el.placeholder = translations[lang][key];
+                    } else {
+                        el.innerText = translations[lang][key];
+                    }
                 }
             });
             closeOverlays();
+            if (document.querySelector('.no-contacts')) {
+                document.querySelector('.no-contacts').textContent = translations[lang].no_contacts;
+            }
+        }
+
+        let currentText = '';
+        function showCopyMenu(x, y, text) {
+            currentText = text;
+            const menu = document.getElementById('copy-menu');
+            menu.style.left = `${x - 40}px`;
+            menu.style.top = `${y + 10}px`;
+            menu.classList.remove('hidden');
+            document.getElementById('copy-btn').innerText = translations[currentLanguage].copy;
+            document.getElementById('reply-btn').innerText = translations[currentLanguage].reply;
+            document.getElementById('copy-btn').onclick = () => {
+                copyToClipboard(text);
+                hideCopyMenu();
+            };
+            document.getElementById('reply-btn').onclick = () => {
+                replyToMessage(text, document.getElementById('chat-messages').lastChild.classList.contains('me') ? translations[currentLanguage].you : document.getElementById('chat-peer-name').innerText);
+                hideCopyMenu();
+            };
+            document.addEventListener('touchstart', handleOutsideTouch);
+            document.addEventListener('mousedown', handleOutsideTouch);
+        }
+
+        function hideCopyMenu() {
+            document.getElementById('copy-menu').classList.add('hidden');
+            document.removeEventListener('touchstart', handleOutsideTouch);
+            document.removeEventListener('mousedown', handleOutsideTouch);
+        }
+
+        function handleOutsideTouch(e) {
+            if (!document.getElementById('copy-menu').contains(e.target)) {
+                hideCopyMenu();
+            }
         }
 
         function copyToClipboard(text) {
-            navigator.clipboard.writeText(text);
+            navigator.clipboard.writeText(text).then(() => {
+                const toast = document.createElement('div');
+                toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-50 text-white px-4 py-2 rounded-full';
+                toast.textContent = translations[currentLanguage].copied;
+                document.body.appendChild(toast);
+                setTimeout(() => toast.remove(), 1500);
+            }).catch(e => console.error(e));
         }
 
-        function addLongPressListeners(el, longCb, shortCb = null) {
-            let timer;
-            let touchX, touchY;
-            el.addEventListener('touchstart', e => {
-                touchX = e.touches[0].clientX;
-                touchY = e.touches[0].clientY;
-                timer = setTimeout(() => longCb(), 500);
-            }, { passive: true });
-            el.addEventListener('touchend', () => clearTimeout(timer), { passive: true });
-            el.addEventListener('touchmove', e => {
-                if (Math.abs(e.touches[0].clientX - touchX) > 10 || Math.abs(e.touches[0].clientY - touchY) > 10) clearTimeout(timer);
-            }, { passive: true });
-            if (shortCb) el.addEventListener('click', shortCb);
+        function addLongPressListeners(element, longPressCallback, shortPressCallback = null) {
+            let longPressTimer;
+            let isLongPress = false;
+            let startX, startY;
+            let isTouch = false;
+
+            const start = (e) => {
+                isTouch = e.type === 'touchstart';
+                const pos = isTouch ? e.touches[0] : e;
+                startX = pos.clientX;
+                startY = pos.clientY;
+                isLongPress = false;
+                longPressTimer = setTimeout(() => {
+                    isLongPress = true;
+                    longPressCallback(startX, startY);
+                }, 500);
+            };
+
+            const end = (e) => {
+                clearTimeout(longPressTimer);
+                if (!isLongPress && shortPressCallback) {
+                    shortPressCallback();
+                }
+            };
+
+            const move = (e) => {
+                const pos = isTouch ? e.touches[0] : e;
+                if (Math.abs(pos.clientX - startX) > 10 || Math.abs(pos.clientY - startY) > 10) {
+                    clearTimeout(longPressTimer);
+                }
+            };
+
+            element.addEventListener('touchstart', start, { passive: true });
+            element.addEventListener('touchend', end, { passive: true });
+            element.addEventListener('touchmove', move, { passive: true });
+            element.addEventListener('mousedown', start);
+            element.addEventListener('mouseup', end);
+            element.addEventListener('mousemove', move);
+            element.addEventListener('mouseleave', () => clearTimeout(longPressTimer));
+        }
+
+        async function showContactPreview(peer) {
+            if (!peer) return;
+            document.getElementById('preview-overlay').classList.remove('hidden');
+            const preview = document.getElementById('contact-preview');
+            preview.classList.remove('hidden');
+            preview.innerHTML = `
+                <h3 class="font-bold text-lg mb-1">${peer.prenom} ${peer.nom}</h3>
+                <p class="text-[10px] text-zinc-500 mb-4 copyable" onclick="copyToClipboard('${peer.tfid}')">${peer.tfid}</p>
+                <div class="mini-chat"></div>
+            `;
+            try {
+                const res = await fetch(`${API}/messages`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user1_tfid: user.tfid, user2_tfid: peer.tfid })
+                });
+                if (!res.ok) throw new Error('Failed to fetch messages');
+                const messages = await res.json();
+                const msgDiv = preview.querySelector('.mini-chat');
+                const last7 = messages.filter(m => m.text !== 'ok').slice(-7);
+                last7.forEach(m => {
+                    const isMe = m.from === user.tfid;
+                    const div = document.createElement('div');
+                    div.className = `mini-bubble ${isMe ? 'me' : 'them'}`;
+                    div.innerText = getPreviewText(getMainMessage(m.text));
+                    msgDiv.appendChild(div);
+                });
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function hideContactPreview() {
+            document.getElementById('preview-overlay').classList.add('hidden');
+            const preview = document.getElementById('contact-preview');
+            preview.classList.add('hidden');
+            preview.innerHTML = '';
         }
 
         function renderText(text, isMe) {
-            if (text.startsWith(PUBLIC_URL)) {
+            if (text.startsWith(PUBLIC_URL) || text.startsWith('https://url.adamdh7.org/')) {
                 const filename = text.split('/').pop();
                 const ext = filename.split('.').pop().toLowerCase();
-                if (['jpg','jpeg','png','gif','webp','heic','avif','bmp','tiff','svg'].includes(ext)) {
-                    return `<div class="media-content" onclick="openFullscreen('${text}','image')"><img src="${text}" loading="lazy"></div>`;
-                }
-                if (['mp4','mov','avi','mkv','webm','ogv','3gp'].includes(ext)) {
-                    return `<div class="media-content" onclick="openFullscreen('${text}','video')"><video src="${text}" playsinline muted preload="metadata"></video></div>`;
-                }
-                if (['mp3','wav','ogg','aac','m4a','flac','webm'].includes(ext)) {
+                if (['jpeg','jpg','gif','png','heic','webp','avif','bmp','tiff','svg'].includes(ext)) {
+                    return `<div class="media-content" onclick="openFullscreen('${text}', 'image')"><img src="${text}" loading="lazy" alt="${filename}" /></div>`;
+                } else if (['mp4','mov','avi','mkv','hevc','webm','ogv','3gp'].includes(ext)) {
+                    return `<div class="media-content" onclick="openFullscreen('${text}', 'video')"><video src="${text}" playsinline muted preload="metadata" poster="${text}#t=0.1"></video></div>`;
+                } else if (['mp3','wav','ogg','aac','m4a','flac'].includes(ext)) {
                     return renderCustomVoicePlayer(text);
+                } else {
+                    return `<div class="file-preview" onclick="openFileInNewTab('${text}')"><i class="fa-solid fa-file file-icon"></i><span class="file-link">${filename}</span></div>`;
                 }
-                return `<div class="file-preview" onclick="window.open('${text}')"><i class="fa-solid fa-file file-icon"></i><span class="file-link">${filename}</span></div>`;
             }
-            let html = text.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" class="text-blue-300 underline">$1</a>');
-            html = html.replace(/(TF-\w+)|(\w+@dh7\.tf)/g, '<span class="text-blue-300 cursor-pointer" onclick="openChatByIdentifier(\'$1$2\')">$1$2</span>');
+            
+            let processedText = text.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" class="underline text-blue-300">$1</a>');
+            processedText = processedText.replace(/(TF-\w+)|(\w+@dh7\.tf)/g, '<span class="text-blue-300 cursor-pointer" onclick="openChatByIdentifier(\'$1$2\')">$1$2</span>');
+
+            return truncateText(processedText);
+        }
+
+        function truncateText(text) {
+            const CHUNK_SIZE = 700;
+            if (text.length <= CHUNK_SIZE) return `<span class="message-text">${text}</span>`;
+            let html = '';
+            let remaining = text;
+            let chunkId = 0;
+            while (remaining.length > 0) {
+                const chunk = remaining.substring(0, CHUNK_SIZE);
+                remaining = remaining.substring(CHUNK_SIZE);
+                html += `<span class="message-text chunk-${chunkId}" ${chunkId > 0 ? 'style="display:none;"' : ''}>${chunk}</span>`;
+                if (remaining.length > 0) {
+                    html += `<span class="see-more" onclick="showMore(this, ${chunkId})">${translations[currentLanguage]["see-more"]}</span>`;
+                }
+                chunkId++;
+            }
             return html;
         }
 
+        function showMore(el, id) {
+            const nextChunk = el.parentElement.querySelector(`.chunk-${id + 1}`);
+            if (nextChunk) {
+                nextChunk.style.display = 'block';
+            }
+            el.remove();
+        }
+
         function renderCustomVoicePlayer(src) {
-            const id = crypto.randomUUID();
+            const playerId = `${crypto.randomUUID()}`;
             return `
-                <div class="voice-player attached" data-src="${src}" id="${id}">
-                    <svg class="play-pause" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>
-                    <div class="progress-bar"><div class="wave-form"></div><div class="seeker" style="left:0%"></div></div>
+                <div class="voice-player" data-src="${src}" id="${playerId}">
+                    <svg class="play-pause" viewBox="0 0 24 24" fill="white">
+                        <path d="M8 5v14l11-7z"/>
+                    </svg>
+                    <div class="progress-bar">
+                        <div class="wave-form"></div>
+                        <div class="seeker" style="left: 0%;"></div>
+                    </div>
                     <span class="time-display">0:00</span>
                     <span class="speed-control">1x</span>
                 </div>
@@ -1639,110 +2123,229 @@
         }
 
         function attachVoicePlayers() {
-            document.querySelectorAll('.voice-player:not(.init)').forEach(p => {
-                p.classList.add('init');
-                const audio = new Audio(p.dataset.src);
-                const pp = p.querySelector('.play-pause');
-                const bar = p.querySelector('.progress-bar');
-                const wf = p.querySelector('.wave-form');
-                const seeker = p.querySelector('.seeker');
-                const time = p.querySelector('.time-display');
-                const speed = p.querySelector('.speed-control');
-                let playing = false;
-                let seeking = false;
-                let rates = [1, 1.5, 2];
-                let rateIdx = 0;
+            document.querySelectorAll('.voice-player:not(.attached)').forEach(player => {
+                player.classList.add('attached');
+                const audio = new Audio(player.dataset.src);
+                const playPause = player.querySelector('.play-pause');
+                const progressBar = player.querySelector('.progress-bar');
+                const waveForm = player.querySelector('.wave-form');
+                const seeker = player.querySelector('.seeker');
+                const timeDisplay = player.querySelector('.time-display');
+                const speedControl = player.querySelector('.speed-control');
+                let isPlaying = false;
+                let isSeeking = false;
+                let speeds = ['1x', '1.5x', '2x'];
+                let currentSpeedIndex = 0;
                 audio.playbackRate = 1;
 
                 for (let i = 0; i < 50; i++) {
-                    const b = document.createElement('div');
-                    b.className = 'wave-bar';
-                    b.style.height = `${Math.random() * 80 + 20}%`;
-                    wf.appendChild(b);
+                    const bar = document.createElement('div');
+                    bar.className = 'wave-bar';
+                    bar.style.height = `${Math.random() * 80 + 20}%`;
+                    waveForm.appendChild(bar);
                 }
-                const bars = wf.querySelectorAll('.wave-bar');
+                const waveBars = waveForm.querySelectorAll('.wave-bar');
 
-                speed.onclick = () => {
-                    rateIdx = (rateIdx + 1) % rates.length;
-                    speed.textContent = rates[rateIdx] + 'x';
-                    audio.playbackRate = rates[rateIdx];
-                };
+                speedControl.addEventListener('click', () => {
+                    currentSpeedIndex = (currentSpeedIndex + 1) % speeds.length;
+                    speedControl.textContent = speeds[currentSpeedIndex];
+                    audio.playbackRate = parseFloat(speeds[currentSpeedIndex]);
+                });
 
-                pp.onclick = () => {
-                    if (playing) audio.pause(); else audio.play();
-                    playing = !playing;
-                    pp.innerHTML = playing ? '<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>' : '<path d="M8 5v14l11-7z"/>';
-                };
+                playPause.addEventListener('click', () => {
+                    if (isPlaying) {
+                        audio.pause();
+                        playPause.innerHTML = '<path d="M8 5v14l11-7z"/>';
+                    } else {
+                        audio.play();
+                        playPause.innerHTML = '<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>';
+                    }
+                    isPlaying = !isPlaying;
+                });
 
-                audio.ontimeupdate = () => {
-                    if (seeking) return;
-                    const pct = (audio.currentTime / audio.duration || 0) * 100;
-                    seeker.style.left = pct + '%';
-                    time.textContent = fmt(audio.currentTime);
-                    bars.forEach((b, i) => b.classList.toggle('progressed', i < pct / 100 * bars.length));
-                };
+                audio.addEventListener('timeupdate', () => {
+                    if (!isSeeking) {
+                        const progress = (audio.currentTime / audio.duration) * 100;
+                        seeker.style.left = `${progress}%`;
+                        timeDisplay.textContent = formatTime(audio.currentTime);
+                        updateWaveProgress(progress);
+                    }
+                });
 
-                audio.onloadedmetadata = () => time.textContent = fmt(audio.duration || 0);
-                audio.onended = () => {
-                    playing = false;
-                    pp.innerHTML = '<path d="M8 5v14l11-7z"/>';
+                audio.addEventListener('loadedmetadata', () => {
+                    timeDisplay.textContent = formatTime(audio.duration);
+                });
+
+                audio.addEventListener('ended', () => {
+                    isPlaying = false;
+                    playPause.innerHTML = '<path d="M8 5v14l11-7z"/>';
                     seeker.style.left = '0%';
-                    bars.forEach(b => b.classList.remove('progressed'));
-                };
+                    timeDisplay.textContent = formatTime(audio.duration);
+                    updateWaveProgress(0);
+                });
 
-                bar.onmousedown = bar.ontouchstart = e => {
-                    seeking = true;
+                progressBar.addEventListener('touchstart', startSeek);
+                progressBar.addEventListener('mousedown', startSeek);
+
+                function startSeek(e) {
+                    isSeeking = true;
                     seek(e);
-                    document.onmousemove = document.ontouchmove = seek;
-                    document.onmouseup = document.ontouchend = () => {
-                        seeking = false;
-                        document.onmousemove = document.ontouchmove = null;
-                        document.onmouseup = document.ontouchend = null;
-                        if (playing) audio.play();
-                    };
-                };
+                    const moveEvent = 'ontouchstart' in window ? 'touchmove' : 'mousemove';
+                    const endEvent = 'ontouchstart' in window ? 'touchend' : 'mouseup';
+                    document.addEventListener(moveEvent, seek);
+                    document.addEventListener(endEvent, endSeek);
+                }
 
                 function seek(e) {
                     const touch = e.touches ? e.touches[0] : e;
-                    const rect = bar.getBoundingClientRect();
-                    const pct = Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width));
-                    seeker.style.left = (pct * 100) + '%';
-                    audio.currentTime = pct * audio.duration;
-                    bars.forEach((b, i) => b.classList.toggle('progressed', i < pct * bars.length));
+                    const rect = progressBar.getBoundingClientRect();
+                    const x = touch.clientX - rect.left;
+                    const progress = Math.min(1, Math.max(0, x / rect.width));
+                    seeker.style.left = `${progress * 100}%`;
+                    audio.currentTime = progress * audio.duration;
+                    updateWaveProgress(progress * 100);
                 }
 
-                function fmt(s) {
-                    const m = Math.floor(s / 60);
-                    const sec = Math.floor(s % 60);
-                    return `${m}:${sec < 10 ? '0' : ''}${sec}`;
+                function endSeek() {
+                    isSeeking = false;
+                    const moveEvent = 'ontouchstart' in window ? 'touchmove' : 'mousemove';
+                    const endEvent = 'ontouchstart' in window ? 'touchend' : 'mouseup';
+                    document.removeEventListener(moveEvent, seek);
+                    document.removeEventListener(endEvent, endSeek);
+                    if (isPlaying) audio.play();
+                }
+
+                function updateWaveProgress(progress) {
+                    const progressedCount = Math.floor((progress / 100) * waveBars.length);
+                    waveBars.forEach((bar, index) => {
+                        if (index < progressedCount) {
+                            bar.classList.add('progressed');
+                        } else {
+                            bar.classList.remove('progressed');
+                        }
+                    });
+                }
+
+                function formatTime(seconds) {
+                    const m = Math.floor(seconds / 60);
+                    const s = Math.floor(seconds % 60);
+                    return `${m}:${s < 10 ? '0' : ''}${s}`;
                 }
             });
         }
 
-        function openFullscreen(url, type) {
+        function openFullscreen(dataUrl, type) {
             const fs = document.getElementById('fs-media');
-            fs.innerHTML = type === 'image' ? `<img src="${url}" id="zoom-img">` : `<video src="${url}" controls autoplay playsinline></video>`;
-            fs.innerHTML += `<svg class="fullscreen-close" onclick="closeFullscreen()" fill="none" stroke="white" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>`;
-            fs.classList.remove('hidden');
+            let content = '';
             if (type === 'image') {
-                const img = document.getElementById('zoom-img');
-                let scale = 1;
-                fs.ontouchstart = e => { if (e.touches.length === 2) e.preventDefault(); };
+                content = `<img src="${dataUrl}" alt="Fullscreen Image" id="zoom-img" />`;
+            } else if (type === 'video') {
+                content = `<video src="${dataUrl}" controls autoplay playsinline loop></video>`;
+            } else if (type === 'audio') {
+                content = `<audio src="${dataUrl}" controls autoplay></audio>`;
             }
+            fs.innerHTML = content + `<svg class="fullscreen-close w-8 h-8" onclick="closeFullscreen()" fill="none" stroke="white" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>`;
+            fs.classList.remove('hidden');
+            history.pushState({ screen: type === 'video' ? 'scr-video' : 'scr-photo' }, '', `/${type === 'video' ? 'videyo' : 'foto'}`);
+            if (type === 'image') {
+                enablePinchZoom();
+            }
+        }
+
+        function enablePinchZoom() {
+            const img = document.getElementById('zoom-img');
+            let scale = 1;
+            let initialScale = 1;
+            let initialDistance = 0;
+            const fs = document.getElementById('fs-media');
+            fs.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 2) {
+                    initialDistance = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
+                    initialScale = scale;
+                    e.preventDefault();
+                }
+            });
+            fs.addEventListener('touchmove', (e) => {
+                if (e.touches.length === 2) {
+                    const dist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
+                    scale = initialScale * (dist / initialDistance);
+                    img.style.transform = `scale(${scale})`;
+                    e.preventDefault();
+                }
+            });
         }
 
         function closeFullscreen() {
-            document.getElementById('fs-media').classList.add('hidden');
-            document.getElementById('fs-media').innerHTML = '';
+            const fs = document.getElementById('fs-media');
+            fs.classList.add('hidden');
+            fs.innerHTML = '';
             history.back();
         }
 
-        document.getElementById('msg-input')?.addEventListener('keypress', e => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendTextMessage();
+        function openFileInNewTab(dataUrl) {
+            const newTab = window.open();
+            newTab.document.write('<iframe src="' + dataUrl + '" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>');
+        }
+
+        function initPasteHandlers() {
+            const msgInput = document.getElementById('msg-input');
+            const searchInput = document.getElementById('search-q');
+            if (msgInput) {
+                msgInput.addEventListener('paste', handlePaste);
             }
-        });
+            if (searchInput) {
+                searchInput.addEventListener('paste', handlePaste);
+            }
+        }
+
+        async function handlePaste(e) {
+            e.preventDefault();
+            const items = e.clipboardData.items;
+            for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                if (item.kind === 'file') {
+                    const file = item.getAsFile();
+                    if (file) {
+                        document.getElementById('upload-loading').classList.remove('hidden');
+                        try {
+                            await uploadFile(file, file.name || 'pasted_file', file.type);
+                        } finally {
+                            document.getElementById('upload-loading').classList.add('hidden');
+                        }
+                    }
+                } else if (item.kind === 'string') {
+                    item.getAsString((text) => {
+                        document.execCommand('insertText', false, text);
+                    });
+                }
+            }
+        }
+
+        document.addEventListener('gesturestart', function (e) { e.preventDefault(); });
+        document.addEventListener('touchmove', function (e) { if (e.scale !== 1) { e.preventDefault(); } } , { passive: false });
+        document.addEventListener('contextmenu', (e) => e.preventDefault());
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/sw.js').then(function(registration) {
+                    console.log('Service Worker registered');
+                }).catch(function(err) {
+                    console.log('Service Worker registration failed: ', err);
+                });
+            });
+        }
+
+        const msgInput = document.getElementById('msg-input');
+        if (msgInput) {
+            msgInput.onkeypress = (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendTextMessage();
+                }
+            };
+        }
 
         changeLanguage(currentLanguage);
     </script>
