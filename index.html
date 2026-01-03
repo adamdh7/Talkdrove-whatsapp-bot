@@ -235,31 +235,6 @@
             transition: transform 0.3s ease;
         }
 
-        .input-wrapper {
-            flex: 1;
-            background: var(--bg-input);
-            border-radius: 20px;
-            display: flex;
-            align-items: flex-end;
-            padding: 8px 12px;
-            min-height: 40px;
-        }
-
-        #msg-input {
-            width: 100%;
-            background: transparent;
-            border: none;
-            color: white;
-            outline: none;
-            font-size: 1rem;
-            max-height: 100px;
-            resize: none;
-            padding: 0;
-            line-height: 1.4;
-            user-select: text;
-            -webkit-user-select: text;
-        }
-
         .action-btn {
             width: 45px;
             height: 45px;
@@ -273,23 +248,12 @@
             transition: all 0.2s;
             cursor: pointer;
         }
-        .action-btn.mic-mode { background: var(--msg-them); }
 
         .icon-btn {
             color: var(--accent);
             padding: 5px;
             cursor: pointer;
         }
-
-        #recording-ui {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            color: #ff3b30;
-            font-weight: 600;
-            animation: pulse 1s infinite;
-        }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
 
         .hidden { display: none !important; }
         .copyable { cursor: pointer; }
@@ -621,6 +585,10 @@
                 <i class="fa-solid fa-plus text-xl"></i>
             </button>
             <input type="file" id="file-input" class="hidden" accept="image/*,video/*,audio/*,*/*" onchange="handleFileSelect(this)">
+
+            <div id="action-btn" class="action-btn" onclick="sendLink()">
+                <i class="fa-solid fa-link text-lg" id="action-icon"></i>
+            </div>
         </div>
 
         <div id="scroll-down-btn" class="hidden" onclick="scrollToBottom()">
@@ -1441,16 +1409,6 @@
             });
         }
 
-        function setupScrollListener() {
-            const container = document.getElementById('chat-messages');
-            if (!container) return;
-            const scrollDownBtn = document.getElementById('scroll-down-btn');
-            container.addEventListener('scroll', () => {
-                const isScrolledUp = container.scrollHeight - container.scrollTop - container.clientHeight > 50;
-                scrollDownBtn.classList.toggle('hidden', !isScrolledUp);
-            });
-        }
-
         function scrollToBottom() {
             const d = document.getElementById('chat-messages');
             d.scrollTo({ top: d.scrollHeight, behavior: 'smooth' });
@@ -1516,6 +1474,13 @@
             }
         }
 
+        async function sendLink() {
+            const link = prompt("Enter the link to send");
+            if (link && link.trim()) {
+                await sendMessage(link.trim());
+            }
+        }
+
         async function handleFileSelect(input) {
             const file = input.files[0];
             if(!file) return;
@@ -1542,8 +1507,7 @@
                     });
                     if (uploadRes.ok) {
                         const url = await uploadRes.text();
-                        let content = url;
-                        await sendMessage(content);
+                        await sendMessage(url);
                         return;
                     } else {
                         attempts++;
