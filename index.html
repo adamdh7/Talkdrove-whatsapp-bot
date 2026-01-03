@@ -1641,29 +1641,18 @@
         }
 
         // Fonction unique pour envoyer tous les messages (texte, média, voix, reply)
-        async function sendMessage(content) {
-            if (!content || !activePeer) return;
-
+        async function postData(content) {
             try {
-                const response = await fetch(`https://server.adamdh7.org/send`, {
+                await fetch(`${API}/send`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
                         sender_tfid: user.tfid,
                         receiver_tfid: activePeer.tfid,
                         message: content
                     })
                 });
-
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                syncChatSilently();
-            } catch (e) {
-                console.error("Erreur envoi message:", e);
-                alert("Mesaj pa ale. Verifiez console pou plis detay.");
-            }
+            } catch(e) { console.error("Send failed", e); }
         }
 
         // Envoi texte avec gestion reply
@@ -1682,7 +1671,8 @@
             input.style.height = 'auto';
             updateActionButton();
 
-            await sendMessage(text);
+            await postData(text);
+            syncChatSilently();
         }
 
         function replyToMessage(quoted, sender, messageId) {
@@ -1722,121 +1712,85 @@
             updateActionButton();
         }
 
-        // Remplace initActionBtn par celle-ci
         function initActionBtn() {
             const btn = document.getElementById('action-btn');
             if (!btn) return;
-            
-            // Pour ordinateur (Souris)
+            const icon = document.getElementById('action-icon');
+            const input = document.getElementById('msg-input');
+
             btn.addEventListener('mousedown', startRecording);
+            btn.addEventListener('touchstart', startRecording, { passive: true });
+            
             btn.addEventListener('mouseup', endRecordingOrSend);
-            
-            // Pour mobile (Touch) - CORRECTION MAJEURE ICI : passive: false
-            btn.addEventListener('touchstart', startRecording, { passive: false });
-            btn.addEventListener('touchend', endRecordingOrSend, { passive: false }); 
-            
-            // Sécurité : si on glisse le doigt hors du bouton, on annule
-            btn.addEventListener('touchcancel', cancelRecording);
+            btn.addEventListener('touchend', endRecordingOrSend, { passive: true });
         }
 
-        // Remplace startRecording par celle-ci
+        function updateActionButton() {
+            const input = document.getElementById('msg-input');
+            if (!input) return;
+            const btn = document.getElementById('action-btn');
+            const icon = document.getElementById('action-icon');
+            
+            if(input.value.trim().length > 0) {
+                btn.classList.remove('mic-mode');
+                icon.className = "fa-solid fa-paper-plane";
+            } else {
+                btn.classList.add('mic-mode');
+                icon.className = "fa-solid fa-microphone";
+            }
+        }
+
+        let longPressTimer;
+        let isRecording = false;
+
         async function startRecording(e) {
             const input = document.getElementById('msg-input');
-            
-            // Si on a du texte, on ne fait rien ici (le clic 'end' enverra le message)
             if(input.value.trim().length > 0) return;
 
-            // Empêcher le comportement par défaut (scroll, zoom, focus)
-            if(e.cancelable && e.type === 'touchstart') {
-                e.preventDefault();
-            }
-
-            // On lance le timer pour détecter l'appui long
+            e.preventDefault();
             longPressTimer = setTimeout(async () => {
                 isRecording = true;
-                
-                // UI Update
-                input.classList.add('hidden');
+                document.getElementById('msg-input').classList.add('hidden');
                 document.getElementById('recording-ui').classList.remove('hidden');
                 
                 try {
-                    // Demande l'accès au micro
                     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    
                     mediaRecorder = new MediaRecorder(stream);
                     audioChunks = [];
-                    
-                    mediaRecorder.ondataavailable = event => {
-                        if (event.data.size > 0) audioChunks.push(event.data);
-                    };
-                    
+                    mediaRecorder.ondataavailable = event => audioChunks.push(event.data);
                     mediaRecorder.start();
-                    startTimer(); // Lance le compteur visuel 0:00
-                    
+                    startTimer();
                 } catch(err) {
-                    console.error("Erreur micro:", err);
-                    alert("Impossible d'accéder au micro. Vérifiez les permissions.");
+                    alert("Microphone non autorisé");
                     cancelRecording();
                 }
-            }, 500); // Augmenté à 500ms pour éviter les faux positifs quand on tape vite
+            }, 300);
         }
 
-        // Remplace endRecordingOrSend par celle-ci
         async function endRecordingOrSend(e) {
-            // Empêcher les doubles clics fantômes
-            if(e.cancelable && e.type === 'touchend') {
-                e.preventDefault();
-            }
-
-            // Si le timer n'est pas fini, c'était un clic court -> ENVOI TEXTE
-            if (longPressTimer) {
-                clearTimeout(longPressTimer);
-                longPressTimer = null;
-            }
-
+            clearTimeout(longPressTimer);
             const input = document.getElementById('msg-input');
             
-            // 1. CAS ENVOI MESSAGE TEXTE
-            // Si on n'était pas en train d'enregistrer et qu'il y a du texte
-            if(!isRecording && input.value.trim().length > 0) {
-                // Petit délai pour assurer que l'UI est prête
-                setTimeout(() => {
-                    sendTextMessage();
-                }, 50);
+            if(input.value.trim().length > 0) {
+                sendTextMessage();
                 return;
             }
 
-            // 2. CAS FIN ENREGISTREMENT VOCAL
             if(isRecording) {
-                isRecording = false;
                 stopTimer();
-                
-                // Reset UI
-                input.classList.remove('hidden');
+                isRecording = false;
+                document.getElementById('msg-input').classList.remove('hidden');
                 document.getElementById('recording-ui').classList.add('hidden');
                 
                 if(mediaRecorder && mediaRecorder.state !== 'inactive') {
-                    mediaRecorder.stop(); // Arrête l'enregistrement
-                    
+                    mediaRecorder.stop();
                     mediaRecorder.onstop = async () => {
-                        // On vérifie qu'on a bien des données
-                        if (audioChunks.length > 0) {
-                            const audioBlob = new Blob(audioChunks, { type: 'audio/mp3' });
-                            
-                            // Si l'audio est trop court (moins de 1 seconde), on annule (erreur de manip)
-                            if (audioBlob.size < 1000) { 
-                                console.log("Audio trop court, annulé.");
-                                return; 
-                            }
-
-                            document.getElementById('upload-loading').classList.remove('hidden');
-                            try {
-                                await uploadFile(audioBlob, `voice_${Date.now()}.mp3`, 'audio/mp3');
-                            } catch (err) {
-                                alert("Erreur d'envoi du vocal");
-                            } finally {
-                                document.getElementById('upload-loading').classList.add('hidden');
-                            }
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/mp3' });
+                        document.getElementById('upload-loading').classList.remove('hidden');
+                        try {
+                            await uploadFile(audioBlob, `voice_${Date.now()}.mp3`, 'audio/mp3');
+                        } finally {
+                            document.getElementById('upload-loading').classList.add('hidden');
                         }
                     };
                 }
@@ -1895,7 +1849,7 @@
                             replyingTo = null;
                             cancelReply();
                         }
-                        await sendMessage(content);
+                        await postData(content);
                         return;
                     } else {
                         attempts++;
@@ -2074,7 +2028,7 @@
             }
             
             let processedText = text.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" class="underline text-blue-300">$1</a>');
-            processedText = processedText.replace(/(TF-\w+)|(\w+@dh7\.tf)/g, '<span class="text-blue-300 cursor-pointer" onclick="openChatByIdentifier(\'$1$2\')">$1$2</span>');
+            processedText = processedText.replace(/(TF-\w+)|(\w+@dh7\.tf)/g, '<span class="text-text-blue-300 cursor-pointer" onclick="openChatByIdentifier(\'$1$2\')">$1$2</span>');
 
             return truncateText(processedText);
         }
@@ -2351,3 +2305,4 @@
     </script>
 </body>
 </html>
+``` "DH
