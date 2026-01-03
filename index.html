@@ -1,143 +1,106 @@
 <!doctype html>
 <html lang="fr">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Page de test - Ads safe</title>
-
-  <!--
-    Content Security Policy par défaut : bloque tout script externe.
-    Si tu veux autoriser un domaine après l'avoir vérifié, ajoute ses hôtes dans script-src.
-    Exemple (à ne PAS coller sans vérification) :
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://pl28135197.effectivegatecpm.com https://pl28135185.effectivegatecpm.com;">
-  -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; object-src 'none'; frame-ancestors 'self'; base-uri 'self';">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>D'H7 – Page avec pubs</title>
 
   <style>
-    body { font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; margin: 0; padding: 24px; background:#f7fafc; color:#0f172a; }
-    .container { max-width:900px; margin:0 auto; }
-    header { display:flex; gap:12px; align-items:center; margin-bottom:18px; }
-    button { padding:10px 14px; border-radius:8px; border:1px solid #cbd5e1; background:white; cursor:pointer; }
-    .ad-box { border:1px dashed #cbd5e1; padding:12px; border-radius:8px; background:#fff; margin-top:18px; position:relative; }
-    .ad-close { position:absolute; top:6px; right:6px; font-size:14px; cursor:pointer; }
-    .warning { background:#fff7ed; border:1px solid #fcd34d; padding:10px; border-radius:6px; margin-top:12px; }
-    .muted { color:#6b7280; font-size:0.95rem; }
+    body{
+      margin:0;
+      font-family: Arial, Helvetica, sans-serif;
+      background:#0b0f19;
+      color:#e5e7eb;
+    }
+    header, footer{
+      background:#020617;
+      padding:12px;
+      text-align:center;
+    }
+    main{
+      max-width:1000px;
+      margin:auto;
+      padding:16px;
+    }
+    .ads-links{
+      display:flex;
+      gap:12px;
+      flex-wrap:wrap;
+      justify-content:center;
+      margin:20px 0;
+    }
+    .ads-links a{
+      background:#111827;
+      border:1px solid #1f2933;
+      padding:12px 16px;
+      border-radius:8px;
+      color:#38bdf8;
+      text-decoration:none;
+      font-weight:600;
+    }
+    .ads-links a:hover{
+      background:#020617;
+    }
+    .ad-slot{
+      margin:20px 0;
+      padding:12px;
+      border:1px dashed #334155;
+      border-radius:8px;
+      text-align:center;
+      background:#020617;
+    }
+    .label{
+      font-size:13px;
+      color:#94a3b8;
+      margin-bottom:6px;
+    }
   </style>
 </head>
+
 <body>
-  <div class="container">
-    <header>
-      <h1>Page de test — intégration d'annonces (sécurisée)</h1>
-      <div style="margin-left:auto">
-        <button id="toggle-ads">Activer les publicités (après vérification)</button>
-      </div>
-    </header>
 
-    <p class="muted">
-      Ce modèle charge les scripts publicitaires **uniquement** après ton consentement explicite.
-      N’intègre pas de scripts avant d’avoir vérifié leur réputation et conformité avec Adsterra. 
-    </p>
+<header>
+  <h1>D'H7 – Publicités & Social Bar</h1>
+</header>
 
-    <div class="warning">
-      <strong>Attention :</strong> certaines URL de type <code>effectivegatecpm.com</code> ont des signalements publics et peuvent déclencher bloqueurs / plaintes. Vérifie avant usage. Si tu as un compte Adsterra, contacte leur support pour confirmer la légitimité d’un script. 
-    </div>
+<main>
 
-    <!-- Zone publicitaire (non intrusive, contrôlable) -->
-    <div id="ad-slot" class="ad-box" aria-live="polite" hidden>
-      <button class="ad-close" id="close-ad" title="Fermer">✕</button>
-      <div id="ad-container">
-        <!-- Les scripts publicitaires seront injectés ici quand l'éditeur les aura vérifiés -->
-        <p class="muted">Les annonces apparaitront ici après activation.</p>
-      </div>
-    </div>
+  <!-- LIENS DE PUB (CLIQUABLES) -->
+  <div class="ads-links">
+    <a href="https://www.effectivegatecpm.com/h5d719bhae?key=5d76ce4bb78c40c2664a52c31c4f62e8" target="_blank" rel="noopener">
+      Sponsor 1
+    </a>
 
-    <section style="margin-top:24px;">
-      <h2>Instructions</h2>
-      <ol>
-        <li>Vérifie la réputation des domaines de script (ex : urlscan, VirusTotal, contact Adsterra).</li>
-        <li>Si vérifié, ouvre ce fichier et renseigne `adScriptUrls` (voir ci-dessous) avec les URLs autorisées.</li>
-        <li>Test sur un sous-domaine/staging avant déploiement public.</li>
-      </ol>
-    </section>
+    <a href="https://www.effectivegatecpm.com/wk5jeby8xz?key=de0be4e31623a8c289fd544b493568d9" target="_blank" rel="noopener">
+      Sponsor 2
+    </a>
   </div>
 
-  <script>
-    // --- CONFIGURATION ---
-    // Place ici les URLs de script APRES VÉRIFICATION.
-    // <!!> NE PAS laisser les domaines suspects actifs sur un site en production sans validation.
-    const adScriptUrls = [
-      // Exemple (commenté) : décommente seulement après vérification manuelle.
-      // "https://pl28135197.effectivegatecpm.com/3b/5a/09/3b5a097d28211945158c20a3f4879260.js",
-      // "https://pl28135185.effectivegatecpm.com/ab/a0/a6/aba0a6f1c28342ac28bee277a579e2a8.js"
-    ];
+  <!-- ESPACE SOCIAL BAR / PUB SCRIPT 1 -->
+  <div class="ad-slot">
+    <div class="label">Social bar / Ad script #1</div>
+    <script src="https://pl28135197.effectivegatecpm.com/3b/5a/09/3b5a097d28211945158c20a3f4879260.js"></script>
+  </div>
 
-    const adsConsentKey = 'site_ads_consent_v1';
+  <!-- CONTENU PRINCIPAL -->
+  <section>
+    <h2>Contenu</h2>
+    <p>
+      Ton contenu principal ici (films, séries, posts, infos, etc.).
+    </p>
+  </section>
 
-    // --- UTILITAIRES ---
-    function saveConsent(v) { localStorage.setItem(adsConsentKey, v ? '1' : '0'); }
-    function getConsent() { return localStorage.getItem(adsConsentKey) === '1'; }
+  <!-- ESPACE SOCIAL BAR / PUB SCRIPT 2 -->
+  <div class="ad-slot">
+    <div class="label">Social bar / Ad script #2</div>
+    <script src="https://pl28135185.effectivegatecpm.com/ab/a0/a6/aba0a6f1c28342ac28bee277a579e2a8.js"></script>
+  </div>
 
-    // charge dynamiquement les scripts (après consentement)
-    function loadAdScripts(urls) {
-      const container = document.getElementById('ad-container');
-      if (!urls || urls.length === 0) {
-        container.innerHTML = '<p class="muted">Aucun script configuré. Ajoute des URLs vérifiées dans adScriptUrls.</p>';
-        return;
-      }
+</main>
 
-      urls.forEach((u) => {
-        try {
-          const s = document.createElement('script');
-          s.src = u;
-          s.async = true;
-          // Ne pas insérer d'inline onload dangereux ici — garde simple
-          document.head.appendChild(s);
-        } catch (e) {
-          console.error('Erreur en ajoutant le script d\'annonce', u, e);
-        }
-      });
+<footer>
+  <small>© D'H7</small>
+</footer>
 
-      container.innerHTML = '<p class="muted">Scripts d\'annonces injectés — vérifie le rendu & bloqueurs.</p>';
-    }
-
-    // UI
-    const btn = document.getElementById('toggle-ads');
-    const adSlot = document.getElementById('ad-slot');
-    const closeAd = document.getElementById('close-ad');
-
-    function updateUI() {
-      if (getConsent()) {
-        btn.textContent = 'Publicités activées (cliquer pour désactiver)';
-        adSlot.hidden = false;
-      } else {
-        btn.textContent = 'Activer les publicités (après vérification)';
-        adSlot.hidden = true;
-      }
-    }
-
-    btn.addEventListener('click', () => {
-      const consent = !getConsent();
-      if (consent) {
-        // CONFIRMATION SIMPLE : demande double consentement
-        const ok = confirm('Tu as vérifié les scripts et autorises leur chargement ? (OK pour oui)');
-        if (!ok) return;
-      }
-      saveConsent(consent);
-      updateUI();
-      if (consent) loadAdScripts(adScriptUrls);
-    });
-
-    closeAd.addEventListener('click', () => {
-      adSlot.hidden = true;
-      // On conserve le consentement mais l'utilisateur peut toujours fermer l'unité.
-    });
-
-    // Au chargement : si on a déjà un consentement stocké, charge les scripts (utile en dev)
-    if (getConsent()) {
-      adSlot.hidden = false;
-      loadAdScripts(adScriptUrls);
-    }
-    updateUI();
-  </script>
 </body>
 </html>
