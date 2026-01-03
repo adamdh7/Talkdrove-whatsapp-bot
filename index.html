@@ -3,56 +3,41 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>D'H7 – Page avec pubs</title>
+  <title>D'H7 – Ads test</title>
 
   <style>
     body{
       margin:0;
-      font-family: Arial, Helvetica, sans-serif;
+      font-family:Arial,Helvetica,sans-serif;
       background:#0b0f19;
       color:#e5e7eb;
-    }
-    header, footer{
-      background:#020617;
-      padding:12px;
       text-align:center;
     }
-    main{
-      max-width:1000px;
-      margin:auto;
+    header{
       padding:16px;
+      background:#020617;
     }
-    .ads-links{
-      display:flex;
-      gap:12px;
-      flex-wrap:wrap;
-      justify-content:center;
-      margin:20px 0;
+    main{
+      padding:20px;
     }
-    .ads-links a{
-      background:#111827;
-      border:1px solid #1f2933;
-      padding:12px 16px;
-      border-radius:8px;
-      color:#38bdf8;
+    .btn{
+      display:inline-block;
+      margin:20px;
+      padding:14px 20px;
+      background:#2563eb;
+      color:#fff;
+      border-radius:10px;
       text-decoration:none;
       font-weight:600;
     }
-    .ads-links a:hover{
-      background:#020617;
-    }
-    .ad-slot{
-      margin:20px 0;
-      padding:12px;
-      border:1px dashed #334155;
+    .ads-links a{
+      display:inline-block;
+      margin:10px;
+      padding:12px 16px;
+      background:#111827;
+      color:#38bdf8;
+      text-decoration:none;
       border-radius:8px;
-      text-align:center;
-      background:#020617;
-    }
-    .label{
-      font-size:13px;
-      color:#94a3b8;
-      margin-bottom:6px;
     }
   </style>
 </head>
@@ -60,47 +45,48 @@
 <body>
 
 <header>
-  <h1>D'H7 – Publicités & Social Bar</h1>
+  <h1>D'H7 – Publicités</h1>
 </header>
 
 <main>
 
-  <!-- LIENS DE PUB (CLIQUABLES) -->
+  <!-- LIENS DE PUB -->
   <div class="ads-links">
-    <a href="https://www.effectivegatecpm.com/h5d719bhae?key=5d76ce4bb78c40c2664a52c31c4f62e8" target="_blank" rel="noopener">
+    <a href="https://www.effectivegatecpm.com/h5d719bhae?key=5d76ce4bb78c40c2664a52c31c4f62e8" target="_blank">
       Sponsor 1
     </a>
 
-    <a href="https://www.effectivegatecpm.com/wk5jeby8xz?key=de0be4e31623a8c289fd544b493568d9" target="_blank" rel="noopener">
+    <a href="https://www.effectivegatecpm.com/wk5jeby8xz?key=de0be4e31623a8c289fd544b493568d9" target="_blank">
       Sponsor 2
     </a>
   </div>
 
-  <!-- ESPACE SOCIAL BAR / PUB SCRIPT 1 -->
-  <div class="ad-slot">
-    <div class="label">Social bar / Ad script #1</div>
-    <script src="https://pl28135197.effectivegatecpm.com/3b/5a/09/3b5a097d28211945158c20a3f4879260.js"></script>
-  </div>
-
-  <!-- CONTENU PRINCIPAL -->
-  <section>
-    <h2>Contenu</h2>
-    <p>
-      Ton contenu principal ici (films, séries, posts, infos, etc.).
-    </p>
-  </section>
-
-  <!-- ESPACE SOCIAL BAR / PUB SCRIPT 2 -->
-  <div class="ad-slot">
-    <div class="label">Social bar / Ad script #2</div>
-    <script src="https://pl28135185.effectivegatecpm.com/ab/a0/a6/aba0a6f1c28342ac28bee277a579e2a8.js"></script>
-  </div>
+  <!-- BOUTON OBLIGATOIRE POUR ACTIVER ADS -->
+  <a href="#" class="btn" id="loadAds">Activer la publicité</a>
 
 </main>
 
-<footer>
-  <small>© D'H7</small>
-</footer>
+<script>
+  let adsLoaded = false;
+
+  document.getElementById("loadAds").addEventListener("click", function(e){
+    e.preventDefault();
+    if(adsLoaded) return;
+    adsLoaded = true;
+
+    // SCRIPT 1
+    const s1 = document.createElement("script");
+    s1.src = "https://pl28135197.effectivegatecpm.com/3b/5a/09/3b5a097d28211945158c20a3f4879260.js";
+    s1.async = true;
+    document.body.appendChild(s1);
+
+    // SCRIPT 2
+    const s2 = document.createElement("script");
+    s2.src = "https://pl28135185.effectivegatecpm.com/ab/a0/a6/aba0a6f1c28342ac28bee277a579e2a8.js";
+    s2.async = true;
+    document.body.appendChild(s2);
+  });
+</script>
 
 </body>
 </html>
