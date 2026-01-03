@@ -90,7 +90,7 @@
         /* Force reflow on resize/orientation change */
         @media screen and (orientation: portrait), screen and (orientation: landscape) {
             .scroll-container {
-                height: calc(var(--vh) * 100 - var(--header-height, 0px) - var(--input-height, 0px));
+                height: calc(100vh - var(--header-height, 0px) - var(--input-height, 0px));
             }
         }
 
@@ -261,11 +261,11 @@
             align-items: flex-end;
             gap: 0.5rem;
             border-top: 0.5px solid rgba(255,255,255,0.1);
-            position: sticky;
+            position: absolute;
             bottom: 0;
             left: 0;
             right: 0;
-            z-index: 20;
+            transition: transform 0.3s ease;
         }
 
         .input-wrapper {
@@ -676,18 +676,18 @@
         <div id="chat-messages" class="chat-body scroll-container">
         </div>
 
-        <div class="input-area">
-            <div id="reply-preview" class="hidden mx-2 mt-2 bg-zinc-800 p-2 rounded-lg border-l-4 border-blue-500 flex justify-between items-center">
-                <div class="overflow-hidden flex items-center">
-                    <div id="reply-media-preview"></div>
-                    <div>
-                        <p class="text-xs text-blue-400 font-bold" id="reply-to-name">Répondre à...</p>
-                        <p class="text-xs text-gray-300 truncate" id="reply-content"></p>
-                    </div>
+        <div id="reply-preview" class="hidden mx-2 mt-2 bg-zinc-800 p-2 rounded-lg border-l-4 border-blue-500 flex justify-between items-center">
+            <div class="overflow-hidden flex items-center">
+                <div id="reply-media-preview"></div>
+                <div>
+                    <p class="text-xs text-blue-400 font-bold" id="reply-to-name">Répondre à...</p>
+                    <p class="text-xs text-gray-300 truncate" id="reply-content"></p>
                 </div>
-                <button onclick="cancelReply()" class="text-gray-400 px-2">×</button>
             </div>
+            <button onclick="cancelReply()" class="text-gray-400 px-2">×</button>
+        </div>
 
+        <div class="input-area">
             <button class="icon-btn text-blue-500" onclick="document.getElementById('file-input').click()">
                 <i class="fa-solid fa-plus text-xl"></i>
             </button>
@@ -723,7 +723,6 @@
 
     <section id="scr-menu" class="screen hidden-right">
         <div class="flex-1 flex flex-col items-center justify-center p-10 text-center">
-            <h1 class="text-7xl font-black tracking-tighter mb-2 italic logo" data-key="logo" onclick="showLang()">D'H7</h1>
             <div class="w-24 h-24 bg-zinc-900 rounded-full mb-4 flex items-center justify-center text-4xl font-black border border-zinc-800" id="m-init">?</div>
             <h2 id="m-name" class="text-4xl font-black mb-1">---</h2>
             <p id="m-dh7" class="text-zinc-500 font-mono mb-4 copyable" onclick="copyToClipboard(this.innerText)">---</p>
@@ -941,12 +940,21 @@
         let recordTimerInterval = null;
 
         // Keyboard handling
-        function setVh() {
-            document.documentElement.style.setProperty('--vh', `${window.innerHeight / 100}px`);
+        let fullHeight = window.innerHeight;
+        window.addEventListener('resize', () => {
+            const newHeight = window.innerHeight;
+            const inputArea = document.querySelector('.input-area');
+            if (newHeight < fullHeight) {
+                // Keyboard open
+                const keyboardHeight = fullHeight - newHeight;
+                inputArea.style.transform = `translateY(-${keyboardHeight}px)`;
+            } else {
+                // Keyboard closed
+                inputArea.style.transform = '';
+                fullHeight = newHeight;
+            }
             forceScrollRecalc();
-        }
-        window.addEventListener('resize', setVh);
-        setVh();
+        });
 
         // --- INIT & AUTH ---
         if(user) {
@@ -1125,7 +1133,7 @@
                     if (peer) openChat(peer);
                 });
             }
-            setVh();
+            forceScrollRecalc(); // Reflow after nav
         }
 
         window.onpopstate = (event) => {
@@ -1690,8 +1698,8 @@
             input.value = "";
             input.style.height = 'auto';
             try {
-                await fetch(`${API}/send`, {
-                    method: 'POST',
+                await fetch(`${API}/send`, { 
+                    method: 'POST', 
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ sender_tfid: user.tfid, receiver_tfid: activePeer.tfid, message: text }) 
                 });
