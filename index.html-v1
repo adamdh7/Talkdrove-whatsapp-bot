@@ -2,7 +2,7 @@
 <html lang="ht">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5, user-scalable=yes, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     
     <title>D'H7 | Digital Hub 7</title>
     <meta name="description" content="D'H7 (Digital Hub 7) se yon platfòm kominikasyon sekirize ki pèmèt ou jere idantite dijital ou ak yon TFID/D'H7 inik. Konekte kounye a pou w jwenn aksè nan yon rezo pwoteje, miltiling (Kreyòl, Fransè, Angle, Espanyòl), epi fasil pou itilize.">
@@ -44,6 +44,7 @@
             --text-dim: #8e8e93;
             --msg-me: #007aff;
             --msg-them: #262628;
+            --vh: 1vh;
         }
 
         * {
@@ -57,34 +58,39 @@
             background-color: var(--bg-pure);
             color: white;
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            height: 100vh;
+            height: calc(var(--vh) * 100);
             width: 100vw;
             overflow: hidden;
             user-select: none;
             -webkit-user-select: none;
+            touch-action: manipulation;
+            position: fixed;
+            inset: 0;
         }
-/* Scroll fixes for cross-browser (Android/Chrome/Edge + iOS/Safari) */
-.scroll-container {
-    overflow-y: auto;
-    overflow-x: hidden;
-    touch-action: pan-y;
-    overscroll-behavior-y: contain;
-    scroll-behavior: smooth;
-    -webkit-overflow-scrolling: touch; /* Fluidité iOS */
-    
-    /* Correction Android : On utilise Flexbox au lieu de height 100% */
-    flex: 1;
-    min-height: 0;
-    
-    /* Cacher la scrollbar */
-    -ms-overflow-style: none; /* IE/Edge */
-    scrollbar-width: none; /* Firefox */
-}
 
-.scroll-container::-webkit-scrollbar { 
-    display: none; 
-    width: 0 !important; 
-}
+        .scroll-container {
+            overflow-y: scroll;
+            -webkit-overflow-scrolling: touch;
+            touch-action: pan-y;
+            overscroll-behavior-y: contain;
+            scroll-behavior: smooth;
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+            position: relative;
+            height: 100%;
+            max-height: 100%;
+        }
+        
+        .scroll-container::-webkit-scrollbar { 
+            width: 0; 
+            display: none; 
+        }
+
+        @media screen and (orientation: portrait), screen and (orientation: landscape) {
+            .scroll-container {
+                height: calc(100vh - var(--header-height, 0px) - var(--input-height, 0px));
+            }
+        }
 
         .screen {
             position: fixed;
@@ -96,11 +102,11 @@
             flex-direction: column;
             background-color: var(--bg-pure);
             z-index: 10;
-            transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.2s; /* iOS slide transition */
+            transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.2s;
         }
 
-        .screen.hidden-left { transform: translateX(-30%); opacity: 0; pointer-events: none; } /* Parallax effect */
-        .screen.hidden-right { transform: translateX(100%); opacity: 1; pointer-events: none; } /* Slide in from right */
+        .screen.hidden-left { transform: translateX(-30%); opacity: 0; pointer-events: none; }
+        .screen.hidden-right { transform: translateX(100%); opacity: 1; pointer-events: none; }
         .screen.active { transform: translateX(0); opacity: 1; pointer-events: auto; }
 
         .ios-header {
@@ -114,17 +120,16 @@
             border-bottom: 0.5px solid rgba(255,255,255,0.1);
         }
 
-        /* Chat Layout */
         .chat-body {
             flex: 1;
             padding: 1rem;
             display: flex;
             flex-direction: column;
-            gap: 2px; /* WhatsApp style gap */
+            gap: 2px;
         }
 
         .bubble {
-            max-width: 85%; /* Wider like WhatsApp for voice */
+            max-width: 85%;
             padding: 0.5rem 0.8rem;
             font-size: 1rem;
             line-height: 1.4;
@@ -151,7 +156,6 @@
             border-radius: 12px 12px 12px 0;
         }
 
-        /* Media Support Styles */
         .media-content {
             border-radius: 8px;
             overflow: hidden;
@@ -164,16 +168,6 @@
             max-width: 100%;
             height: auto;
             display: block;
-        }
-        .media-loading {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: white;
-            background: rgba(0,0,0,0.5);
-            padding: 10px;
-            border-radius: 10px;
         }
         .fullscreen-media {
             position: fixed;
@@ -211,27 +205,11 @@
             margin: 20px auto;
         }
 
-        /* File Link Style */
         .file-link {
             color: #66e0ff;
             text-decoration: underline;
             cursor: pointer;
         }
-
-        /* Reply Styles */
-        .reply-bar {
-            background: rgba(0,0,0,0.2);
-            border-radius: 6px;
-            padding: 4px 8px;
-            margin-bottom: 4px;
-            font-size: 0.75rem;
-            border-left: 3px solid rgba(255,255,255,0.5);
-            cursor: pointer;
-            display: flex;
-            flex-direction: column;
-        }
-        .reply-name { font-weight: 700; color: rgba(255,255,255,0.9); margin-bottom: 2px; }
-        .reply-text { color: rgba(255,255,255,0.7); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
         .status {
             font-size: 0.65rem;
@@ -243,7 +221,6 @@
         }
         .status.read { color: #66e0ff; }
 
-        /* Input Area - WhatsApp Style */
         .input-area {
             padding: 0.5rem 0.5rem calc(0.5rem + env(safe-area-inset-bottom)) 0.5rem;
             background: var(--bg-pure);
@@ -251,31 +228,11 @@
             align-items: flex-end;
             gap: 0.5rem;
             border-top: 0.5px solid rgba(255,255,255,0.1);
-        }
-
-        .input-wrapper {
-            flex: 1;
-            background: var(--bg-input);
-            border-radius: 20px;
-            display: flex;
-            align-items: flex-end;
-            padding: 8px 12px;
-            min-height: 40px;
-        }
-
-        #msg-input {
-            width: 100%;
-            background: transparent;
-            border: none;
-            color: white;
-            outline: none;
-            font-size: 1rem;
-            max-height: 100px;
-            resize: none;
-            padding: 0;
-            line-height: 1.4;
-            user-select: text;
-            -webkit-user-select: text;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            transition: transform 0.3s ease;
         }
 
         .action-btn {
@@ -291,7 +248,6 @@
             transition: all 0.2s;
             cursor: pointer;
         }
-        .action-btn.mic-mode { background: var(--msg-them); }
 
         .icon-btn {
             color: var(--accent);
@@ -299,18 +255,6 @@
             cursor: pointer;
         }
 
-        /* Voice Recorder UI */
-        #recording-ui {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            color: #ff3b30;
-            font-weight: 600;
-            animation: pulse 1s infinite;
-        }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
-
-        /* Helpers */
         .hidden { display: none !important; }
         .copyable { cursor: pointer; }
         .contact-card {
@@ -347,7 +291,6 @@
             -webkit-user-select: text;
         }
 
-        /* Language Overlay Bottom Sheet */
         .language-overlay {
             position: fixed;
             bottom: 0; left: 0; width: 100%;
@@ -484,40 +427,16 @@
 
         audio {
             width: 100%;
-            height: 30px; /* Same size */
+            height: 30px;
         }
 
-        .reply-preview {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-
-        .reply-preview img {
-            width: 40px;
-            height: 40px;
-            object-fit: cover;
-            border-radius: 4px;
-        }
-
-        .reply-preview i {
-            font-size: 20px;
-            color: var(--accent);
-        }
-
-        .reply-preview span {
-            font-size: 0.8rem;
-            color: var(--text-dim);
-        }
-
-        /* Updated Voice Player (WhatsApp iOS Style) */
         .voice-player {
             display: flex;
             align-items: center;
             gap: 8px;
-            padding: 0; /* No background padding, integrates into bubble */
-            width: auto; /* Fits bubble width */
-            max-width: 250px; /* Typical WhatsApp size */
+            padding: 0;
+            width: auto;
+            max-width: 200px;
         }
         .play-pause {
             cursor: pointer;
@@ -537,21 +456,21 @@
             height: 100%;
             width: 100%;
             display: flex;
-            gap: 1px; /* Tighter for more bars */
+            gap: 0.5px;
         }
         .wave-bar {
-            width: 2px;
-            background: rgba(255,255,255,0.3); /* Default gray */
-            border-radius: 2px; /* Rounded like WhatsApp */
+            width: 1.5px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 2px;
         }
         .bubble.me .wave-bar {
-            background: rgba(255,255,255,0.8); /* White in blue bubble */
+            background: rgba(255,255,255,0.8);
         }
         .bubble.them .wave-bar.progressed {
-            background: var(--accent); /* Blue progress in gray bubble */
+            background: var(--accent);
         }
         .bubble.me .wave-bar.progressed {
-            background: white; /* White progress in blue bubble */
+            background: white;
         }
         .seeker {
             position: absolute;
@@ -566,7 +485,7 @@
             font-size: 0.8rem;
             color: rgba(255,255,255,0.7);
             min-width: 30px;
-            display: block; /* Always shown */
+            display: block;
         }
         .speed-control {
             font-size: 0.8rem;
@@ -585,6 +504,18 @@
             z-index: 50;
             color: white;
             font-size: 1.2rem;
+        }
+
+        .message-text {
+            display: block;
+        }
+
+        .see-more {
+            color: var(--accent);
+            cursor: pointer;
+            font-size: 0.8rem;
+            margin-top: 4px;
+            display: block;
         }
     </style>
 </head>
@@ -631,7 +562,7 @@
             </div>
         </header>
         
-        <div id="contact-list" class="flex-1 overflow-y-auto p-6 custom-scroll scroll-container">
+        <div id="contact-list" class="flex-1 scroll-container p-6">
         </div>
     </section>
 
@@ -646,35 +577,17 @@
             </div>
         </header>
 
-        <div id="chat-messages" class="chat-container chat-body scroll-container">
-        </div>
-
-        <div id="reply-preview" class="hidden mx-2 mt-2 bg-zinc-800 p-2 rounded-lg border-l-4 border-blue-500 flex justify-between items-center">
-            <div class="overflow-hidden flex items-center">
-                <div id="reply-media-preview"></div>
-                <div>
-                    <p class="text-xs text-blue-400 font-bold" id="reply-to-name">Répondre à...</p>
-                    <p class="text-xs text-gray-300 truncate" id="reply-content"></p>
-                </div>
-            </div>
-            <button onclick="cancelReply()" class="text-gray-400 px-2">×</button>
+        <div id="chat-messages" class="chat-body scroll-container">
         </div>
 
         <div class="input-area">
             <button class="icon-btn text-blue-500" onclick="document.getElementById('file-input').click()">
                 <i class="fa-solid fa-plus text-xl"></i>
             </button>
-            <input type="file" id="file-input" class="hidden" accept="image/*,video/*,audio/*" onchange="handleFileSelect(this)">
+            <input type="file" id="file-input" class="hidden" accept="image/*,video/*,audio/*,*/*" onchange="handleFileSelect(this)">
 
-            <div class="input-wrapper transition-all duration-200" id="input-wrapper">
-                <div id="recording-ui" class="hidden flex-1">
-                    <i class="fa-solid fa-circle text-xs"></i> <span>Enregistrement... <span id="rec-timer">0:00</span></span>
-                </div>
-                <textarea id="msg-input" data-key="message-placeholder" placeholder="" rows="1" oninput="handleInput(this)"></textarea>
-            </div>
-
-            <div id="action-btn" class="action-btn mic-mode">
-                <i class="fa-solid fa-microphone text-lg" id="action-icon"></i>
+            <div id="action-btn" class="action-btn" onclick="sendLink()">
+                <i class="fa-solid fa-link text-lg" id="action-icon"></i>
             </div>
         </div>
 
@@ -690,13 +603,13 @@
             <input type="text" id="search-q" oninput="doSearch()" data-key="search-placeholder" placeholder="Chèche nan D'H7..." class="flex-1 modern-input">
             <button onclick="navTo('scr-home')" class="text-sm font-bold text-zinc-400" data-key="close">ANILE</button>
         </header>
-        <div id="search-results" class="flex-1 overflow-y-auto p-6 scroll-container">
+        <div id="search-results" class="flex-1 scroll-container p-6">
         </div>
     </section>
 
     <section id="scr-menu" class="screen hidden-right">
         <div class="flex-1 flex flex-col items-center justify-center p-10 text-center">
-            <div class="w-24 h-24 bg-zinc-900 rounded-full mb-4 flex items-center justify-content: center text-4xl font-black border border-zinc-800" id="m-init">?</div>
+            <div class="w-24 h-24 bg-zinc-900 rounded-full mb-4 flex items-center justify-center text-4xl font-black border border-zinc-800" id="m-init">?</div>
             <h2 id="m-name" class="text-4xl font-black mb-1">---</h2>
             <p id="m-dh7" class="text-zinc-500 font-mono mb-4 copyable" onclick="copyToClipboard(this.innerText)">---</p>
             
@@ -731,7 +644,6 @@
     <div id="contact-preview" class="hidden"></div>
     <div id="copy-menu" class="hidden flex flex-col gap-2">
         <button id="copy-btn" data-key="copy"></button>
-        <button id="reply-btn" data-key="reply"></button>
     </div>
 
     <div id="upload-loading" class="hidden">
@@ -758,9 +670,6 @@
             localStorage.setItem('language', currentLanguage);
         }
         let shownTfids = new Set();
-        let replyingTo = null;
-        const REPLY_START = '\u2063'; // Invisible separator for start of reply
-        const REPLY_END = '\u2064'; // Invisible separator for end of reply
         let displayedMessageIds = new Set();
         const translations = {
             ht: {
@@ -791,10 +700,12 @@
                 copied: "Kopi",
                 you: "Ou",
                 "image-message": "Imaj",
+                "video-message": "Videyo",
                 "voice-message": "Mesaj vwa",
                 "file-message": "Fichye",
                 "loading": "Patiyans tanpri...",
-                "upload_failed": "Echèk upload apre plizyè esè"
+                "upload_failed": "Echèk upload apre plizyè esè",
+                "see-more": "Wè plis"
             },
             fr: {
                 logo: "D'H7",
@@ -824,10 +735,12 @@
                 copied: "Copié",
                 you: "Vous",
                 "image-message": "Image",
+                "video-message": "Vidéo",
                 "voice-message": "Message vocal",
                 "file-message": "Fichier",
                 "loading": "Patientez s'il vous plaît...",
-                "upload_failed": "Échec de l'upload après plusieurs tentatives"
+                "upload_failed": "Échec de l'upload après plusieurs tentatives",
+                "see-more": "Voir plus"
             },
             en: {
                 logo: "D'H7",
@@ -857,10 +770,12 @@
                 copied: "Copied",
                 you: "You",
                 "image-message": "Image",
+                "video-message": "Video",
                 "voice-message": "Voice Message",
                 "file-message": "File",
                 "loading": "Please wait...",
-                "upload_failed": "Upload failed after several attempts"
+                "upload_failed": "Upload failed after several attempts",
+                "see-more": "See more"
             },
             es: {
                 logo: "D'H7",
@@ -890,21 +805,29 @@
                 copied: "Copiado",
                 you: "Tú",
                 "image-message": "Imagen",
+                "video-message": "Vídeo",
                 "voice-message": "Mensaje de voz",
                 "file-message": "Archivo",
                 "loading": "Por favor espere...",
-                "upload_failed": "Fallo de carga después de varios intentos"
+                "upload_failed": "Fallo de carga después de varios intentos",
+                "see-more": "Ver más"
             }
         };
 
-        // CONFIG & STATE
-        // Voice Recording State
-        let mediaRecorder = null;
-        let audioChunks = [];
-        let recordStartTime = 0;
-        let recordTimerInterval = null;
+        let fullHeight = window.innerHeight;
+        window.addEventListener('resize', () => {
+            const newHeight = window.innerHeight;
+            const inputArea = document.querySelector('.input-area');
+            if (newHeight < fullHeight) {
+                const keyboardHeight = fullHeight - newHeight;
+                inputArea.style.transform = `translateY(-${keyboardHeight}px)`;
+            } else {
+                inputArea.style.transform = '';
+                fullHeight = newHeight;
+            }
+            forceScrollRecalc();
+        });
 
-        // --- INIT & AUTH ---
         if(user) {
             startApp();
         } else {
@@ -920,20 +843,26 @@
             changeLanguage(currentLanguage);
             handleRouting();
             setupNotifications();
-            // Initialiser les écouteurs pour le bouton d'action (Mic/Send)
-            initActionBtn();
-            forceScrollRecalc(); // Initial scroll fix
+            forceScrollRecalc();
         }
 
-        // Scroll reflow fix for Android
         function forceScrollRecalc() {
+            const header = document.querySelector('.ios-header');
+            const inputArea = document.querySelector('.input-area');
+            if (header) document.documentElement.style.setProperty('--header-height', `${header.offsetHeight}px`);
+            if (inputArea) document.documentElement.style.setProperty('--input-height', `${inputArea.offsetHeight}px`);
             const containers = document.querySelectorAll('.scroll-container');
             containers.forEach(c => {
                 c.style.overflowY = 'hidden';
-                setTimeout(() => { c.style.overflowY = 'auto'; }, 100);
+                setTimeout(() => { 
+                    c.style.overflowY = 'scroll'; 
+                    c.scrollTop = c.scrollTop + 1;
+                    c.scrollTop = c.scrollTop - 1;
+                }, 100);
             });
         }
         window.addEventListener('resize', forceScrollRecalc);
+        window.addEventListener('orientationchange', forceScrollRecalc);
         window.addEventListener('load', forceScrollRecalc);
 
         async function getUserByTfid(tfid) {
@@ -1028,7 +957,6 @@
 
         function logout() { localStorage.clear(); location.reload(); }
 
-        // --- NAVIGATION ---
         function navTo(screenId, peerTfid = null) {
             document.querySelectorAll('.screen').forEach(s => {
                 s.classList.remove('active', 'hidden-left', 'hidden-right');
@@ -1046,10 +974,6 @@
                 path = '/cherche';
             } else if (screenId === 'scr-menu') {
                 path = '/menu';
-            } else if (screenId === 'scr-video') {
-                path = '/videyo';
-            } else if (screenId === 'scr-photo') {
-                path = '/foto';
             }
             history.pushState({ screen: screenId, tfid: peerTfid }, '', path);
 
@@ -1071,7 +995,7 @@
                     if (peer) openChat(peer);
                 });
             }
-            forceScrollRecalc(); // Reflow after nav
+            forceScrollRecalc();
         }
 
         window.onpopstate = (event) => {
@@ -1098,7 +1022,6 @@
             }
         }
 
-        // --- CONTACTS & LIST ---
         async function loadContacts() {
             shownTfids.clear();
             const container = document.getElementById('contact-list');
@@ -1124,7 +1047,7 @@
                         const lastNonOkMsg = [...messages].reverse().find(m => m.text !== 'ok');
                         const lastTimestamp = lastNonOkMsg ? new Date(lastNonOkMsg.time).getTime() : 0;
                         const prefix = lastNonOkMsg && lastNonOkMsg.from === user.tfid ? translations[currentLanguage].you + ' ' : '';
-                        const lastMsgText = prefix + (lastNonOkMsg ? getMainMessage(lastNonOkMsg.text) : '');
+                        const lastMsgText = prefix + (lastNonOkMsg ? getPreviewText(lastNonOkMsg.text) : '');
                         const unread = getUnreadCount(messages, u.tfid);
                         totalUnread += unread;
                         const card = document.createElement('div');
@@ -1224,7 +1147,7 @@
                     const lastTimestamp = lastNonOkMsg ? new Date(lastNonOkMsg.time).getTime() : 0;
                     card.dataset.lastTimestamp = lastTimestamp;
                     const prefix = lastNonOkMsg && lastNonOkMsg.from === user.tfid ? translations[currentLanguage].you + ' ' : '';
-                    const lastMsgText = prefix + (lastNonOkMsg ? getMainMessage(lastNonOkMsg.text) : '');
+                    const lastMsgText = prefix + (lastNonOkMsg ? getPreviewText(lastNonOkMsg.text) : '');
                     const p = card.querySelector('p.text-zinc-500');
                     if (p) p.textContent = lastMsgText.substring(0, 30) + (lastMsgText.length > 30 ? '…' : '');
                 } catch (e) {
@@ -1251,7 +1174,7 @@
                         const lastNonOkMsg = [...messages].reverse().find(m => m.text !== 'ok');
                         const lastTimestamp = lastNonOkMsg ? new Date(lastNonOkMsg.time).getTime() : 0;
                         const prefix = lastNonOkMsg && lastNonOkMsg.from === user.tfid ? translations[currentLanguage].you + ' ' : '';
-                        const lastMsgText = prefix + (lastNonOkMsg ? getMainMessage(lastNonOkMsg.text) : '');
+                        const lastMsgText = prefix + (lastNonOkMsg ? getPreviewText(lastNonOkMsg.text) : '');
                         const unread = getUnreadCount(messages, u.tfid);
                         totalUnread += unread;
                         const card = document.createElement('div');
@@ -1332,7 +1255,7 @@
             document.getElementById('chat-peer-tfid').innerText = peer.tfid;
             navTo('scr-chat');
             resetChatView();
-            await loadInitialMessages(); // Load all existing at once
+            await loadInitialMessages();
             try {
                 const msgsRes = await fetch(`${API}/messages`, {
                     method: 'POST',
@@ -1374,7 +1297,6 @@
                 const messages = await res.json();
                 const container = document.getElementById('chat-messages');
                 
-                // Filter non-'ok' messages
                 const validMessages = messages.filter(m => m.text !== 'ok');
 
                 if (validMessages.length > 0) {
@@ -1402,47 +1324,12 @@
             div.id = `msg-${m.time.replace(/[^a-zA-Z0-9]/g, '-')}`;
             
             let text = m.text;
-            if (text.startsWith(REPLY_START)) {
-                let pos = REPLY_START.length;
-                const idEnd = text.indexOf(REPLY_END, pos);
-                const id = text.substring(pos, idEnd);
-                pos = idEnd + REPLY_END.length;
-                const senderEnd = text.indexOf(REPLY_END, pos);
-                const sender = text.substring(pos, senderEnd);
-                pos = senderEnd + REPLY_END.length;
-                const quoted = text.substring(pos, text.indexOf(REPLY_END, pos));
-                pos = text.indexOf(REPLY_END, pos) + REPLY_END.length;
-                const main = text.substring(pos).trim();
-                const replyDiv = document.createElement('div');
-                replyDiv.className = 'reply-bar';
-                const nameSpan = document.createElement('span');
-                nameSpan.className = 'reply-name';
-                nameSpan.innerText = sender;
-                replyDiv.appendChild(nameSpan);
-                const textSpan = document.createElement('span');
-                textSpan.className = 'reply-text';
-                textSpan.innerHTML = renderReplyPreview(quoted);
-                replyDiv.appendChild(textSpan);
-                replyDiv.classList.add(sender === translations[currentLanguage].you ? 'reply-me' : 'reply-them');
-                replyDiv.onclick = () => {
-                    const original = document.getElementById('msg-' + id);
-                    if (original) {
-                        original.scrollIntoView({behavior: 'smooth'});
-                    }
-                };
-                div.appendChild(replyDiv);
-                const mainSpan = document.createElement('span');
-                mainSpan.className = 'main-message';
-                mainSpan.innerHTML = renderText(main);
-                div.appendChild(mainSpan);
-            } else {
-                div.innerHTML = renderText(text);
-            }
+            div.innerHTML = renderText(text, isMe);
             
             if (isMe) {
                 const status = document.createElement('span');
                 status.className = 'status';
-                status.innerText = '✓'; // Initial, updated later
+                status.innerText = '✓';
                 div.appendChild(status);
             }
 
@@ -1463,77 +1350,46 @@
                 const messages = await res.json();
                 const container = document.getElementById('chat-messages');
                 
-                // On filtre uniquement les messages qui ne sont pas "ok" 
-                // ET qui n'ont pas encore été affichés (ceux qui n'existent pas dans notre Set)
                 const newMessages = messages.filter(m => {
-                    const msgId = m.time + m.from; // Identifiant unique basé sur temps + expéditeur
+                    const msgId = m.time + m.from;
                     return m.text !== 'ok' && !displayedMessageIds.has(msgId);
                 });
 
                 if (newMessages.length > 0) {
-                    // Détecter si l'utilisateur est en train de lire en haut
                     const isAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 150;
 
                     const fragment = document.createDocumentFragment();
                     newMessages.forEach(m => {
                         const msgId = m.time + m.from;
-                        displayedMessageIds.add(msgId); // On le marque comme "existant"
+                        displayedMessageIds.add(msgId);
                         
-                        // Create element and add to fragment
                         const div = createMessageElement(m);
-                        div.classList.add('animate-slide-in'); // Animation only for new
+                        div.classList.add('animate-slide-in');
                         fragment.appendChild(div);
                     });
                     container.appendChild(fragment);
 
-                    // On ne scrolle que si l'utilisateur n'est pas en train de remonter le chat
                     if (isAtBottom) {
                         scrollToBottom();
                     }
                     attachVoicePlayers();
                 }
                 
-                // Mise à jour des status (Checkmarks) sans toucher au texte
                 updateCheckmarks(messages);
 
-            } catch (e) {
-                // En silence total
-            }
+            } catch (e) {}
         }
 
         function resetChatView() {
-            displayedMessageIds.clear(); // Vide le stockage local de la session
-            document.getElementById('chat-messages').innerHTML = ''; // Vide l'écran
-            // currentChatMessages = []; // Commenté si non utilisé
-        }
-
-        function renderReplyPreview(quoted) {
-            if (quoted.startsWith(PUBLIC_URL)) {
-                const filename = quoted.split('/').pop();
-                const ext = filename.split('.').pop().toLowerCase();
-                let preview = '';
-                if (['jpeg','jpg','gif','png','heic'].includes(ext)) {
-                    preview = `<img src="${quoted}" class="reply-preview-media">`;
-                } else if (['mp4','mov','avi','mkv','hevc'].includes(ext)) {
-                    preview = `<video src="${quoted}" class="reply-preview-media" muted></video>`;
-                } else if (['mp3','wav','ogg','aac','m4a'].includes(ext)) {
-                    preview = `<i class="fa-solid fa-microphone reply-preview-icon"></i>`;
-                } else {
-                    preview = `<i class="fa-solid fa-file reply-preview-icon"></i>`;
-                }
-                return preview;
-            } else {
-                const lines = quoted.split('\n');
-                const displayText = lines[0] + (lines.length > 1 ? '…' : '');
-                return displayText;
-            }
+            displayedMessageIds.clear();
+            document.getElementById('chat-messages').innerHTML = '';
         }
 
         function updateCheckmarks(messages) {
             const container = document.getElementById('chat-messages');
             const bubbles = container.querySelectorAll('.bubble.me');
             bubbles.forEach((bubble, idx) => {
-                const msgTime = bubble.id.replace('msg-', '').replace(/-/g, ':'); // Assume time is in id
+                const msgTime = bubble.id.replace('msg-', '').replace(/-/g, ':');
                 const msgIndex = messages.findIndex(m => m.time === msgTime && m.from === user.tfid);
                 if (msgIndex === -1) return;
                 const m = messages[msgIndex];
@@ -1553,172 +1409,315 @@
             });
         }
 
-        function setupScrollListener() {
-            const container = document.getElementById('chat-messages');
-            if (!container) return;
-            const scrollDownBtn = document.getElementById('scroll-down-btn');
-            container.addEventListener('scroll', () => {
-                const isScrolledUp = container.scrollHeight - container.scrollTop - container.clientHeight > 50;
-                scrollDownBtn.classList.toggle('hidden', !isScrolledUp);
-            });
-        }
-
         function scrollToBottom() {
             const d = document.getElementById('chat-messages');
             d.scrollTo({ top: d.scrollHeight, behavior: 'smooth' });
         }
 
         function getMainMessage(text) {
-            if (text.startsWith(REPLY_START)) {
-                let pos = REPLY_START.length;
-                pos = text.indexOf(REPLY_END, pos) + REPLY_END.length;
-                pos = text.indexOf(REPLY_END, pos) + REPLY_END.length;
-                pos = text.indexOf(REPLY_END, pos) + REPLY_END.length;
-                return text.substring(pos).trim();
-            }
             return text.trim();
         }
 
-        function addMessageListeners(bubble, text) {
-            addLongPressListeners(bubble, (x, y) => showCopyMenu(x, y, text, bubble));
-            let touchStartX = 0;
-            bubble.addEventListener('touchstart', (e) => {
-                touchStartX = e.touches[0].clientX;
-            });
-            bubble.addEventListener('touchend', (e) => {
-                const touchEndX = e.changedTouches[0].clientX;
-                const deltaX = touchEndX - touchStartX;
-                if (deltaX > 50) { // Swipe right to reply
-                    const isMe = bubble.classList.contains('me');
-                    const sender = isMe ? translations[currentLanguage].you : document.getElementById('chat-peer-name').innerText;
-                    const messageId = bubble.id.replace('msg-', '');
-                    replyToMessage(getMainMessage(text), sender, messageId);
-                }
-            });
-        }
-
-        async function sendMessage() {
-            const input = document.getElementById('msg-input');
-            let text = input.value.trim();
-            if(!text || !activePeer) return;
-            if (replyingTo) {
-                text = REPLY_START + replyingTo.id + REPLY_END + replyingTo.sender + REPLY_END + replyingTo.quoted + REPLY_END + '\n\n' + text;
-                replyingTo = null;
-                cancelReply();
-            }
-            input.value = "";
-            input.style.height = 'auto';
-            try {
-                await fetch(`${API}/send`, { 
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ sender_tfid: user.tfid, receiver_tfid: activePeer.tfid, message: text }) 
-                });
-                syncChatSilently();
-            } catch (e) {
-                console.error(e);
-                alert("Mesaj pa ale.");
-            }
-        }
-
-        function replyToMessage(quoted, sender, messageId) {
-            replyingTo = {id: messageId, sender: sender, quoted: quoted};
-            const preview = document.getElementById('reply-preview');
-            const replyText = document.getElementById('reply-content');
-            const mediaPreview = document.getElementById('reply-media-preview');
-            mediaPreview.innerHTML = '';
-            if (quoted.startsWith(PUBLIC_URL)) {
-                const ext = quoted.split('.').pop().toLowerCase();
-                if (['jpeg','jpg','gif','png','heic'].includes(ext)) {
-                    mediaPreview.innerHTML = `<img src="${quoted}" class="reply-preview-media">`;
-                } else if (['mp4','mov','avi','mkv','hevc'].includes(ext)) {
-                    mediaPreview.innerHTML = `<video src="${quoted}" class="reply-preview-media" muted></video>`;
-                } else if (['mp3','wav','ogg','aac','m4a'].includes(ext)) {
-                    mediaPreview.innerHTML = `<i class="fa-solid fa-microphone reply-preview-icon"></i>`;
+        function getPreviewText(text) {
+            const main = getMainMessage(text);
+            if (main.startsWith(PUBLIC_URL)) {
+                const filename = main.split('/').pop();
+                const ext = filename.split('.').pop().toLowerCase();
+                if (['jpeg','jpg','gif','png','heic','webp','avif','bmp','tiff','svg'].includes(ext)) {
+                    return translations[currentLanguage]["image-message"];
+                } else if (['mp4','mov','avi','mkv','hevc','webm','ogv','3gp'].includes(ext)) {
+                    return translations[currentLanguage]["video-message"];
+                } else if (['mp3','wav','ogg','aac','m4a','flac'].includes(ext)) {
+                    return translations[currentLanguage]["voice-message"];
                 } else {
-                    mediaPreview.innerHTML = `<i class="fa-solid fa-file reply-preview-icon"></i>`;
+                    return translations[currentLanguage]["file-message"];
                 }
             } else {
-                replyText.textContent = quoted.substring(0, 50) + (quoted.length > 50 ? '…' : '');
+                return main;
             }
-            preview.classList.remove('hidden');
-            const input = document.getElementById('msg-input');
-            input.focus();
         }
 
-        function cancelReply() {
-            replyingTo = null;
-            const preview = document.getElementById('reply-preview');
-            if (preview) preview.classList.add('hidden');
+        function addMessageListeners(bubble, text) {
+            addLongPressListeners(bubble, (x, y) => {
+                if (isTextMessage(text)) {
+                    showCopyMenu(x, y, text, bubble);
+                }
+            });
         }
 
-        function autoResize(el) {
-            el.style.height = 'auto';
-            el.style.height = el.scrollHeight + 'px';
+        function isTextMessage(text) {
+            return !text.startsWith(PUBLIC_URL) && !text.startsWith('https://url.adamdh7.org/');
         }
 
-        async function setupNotifications() {
-            if ('serviceWorker' in navigator && 'PushManager' in window) {
+        async function sendMessage(content) {
+            if (!content || !activePeer) return;
+
+            try {
+                const response = await fetch(`https://server.adamdh7.org/send`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        sender_tfid: user.tfid,
+                        receiver_tfid: activePeer.tfid,
+                        message: content
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                syncChatSilently();
+            } catch (e) {
+                console.error("Erreur envoi message:", e);
+                alert("Mesaj pa ale. Verifiez console pou plis detay.");
+            }
+        }
+
+        async function sendLink() {
+            const link = prompt("Enter the link to send");
+            if (link && link.trim()) {
+                await sendMessage(link.trim());
+            }
+        }
+
+        async function handleFileSelect(input) {
+            const file = input.files[0];
+            if(!file) return;
+            
+            document.getElementById('upload-loading').classList.remove('hidden');
+            try {
+                await uploadFile(file, file.name, file.type);
+            } finally {
+                document.getElementById('upload-loading').classList.add('hidden');
+            }
+            input.value = "";
+        }
+
+        async function uploadFile(file, filename, type) {
+            let attempts = 0;
+            const maxAttempts = 5;
+            while (attempts < maxAttempts) {
                 try {
-                    const permission = await Notification.requestPermission();
-                    if (permission !== 'granted') return;
-                    const registration = await navigator.serviceWorker.ready;
-                    const subscription = await registration.pushManager.subscribe({
-                        userVisibleOnly: true,
-                        applicationServerKey: urlB64ToUint8Array('BFbcgVOdhydPHrXNgaelinKRIj4wUqTzLi13smhuzuzlWE_0F0evS2UxPm3fu-_gdVwNc5o3ursVFTKayf1Mndc') // Remplace par la clé VAPID publique du serveur
+                    const uniqueName = `${crypto.randomUUID()}_${filename}`;
+                    const uploadRes = await fetch(`${UPLOAD_URL}/${uniqueName}`, {
+                        method: 'PUT',
+                        headers: {'Content-Type': type},
+                        body: file
                     });
-                    await fetch(`${API}/subscribe`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ tfid: user.tfid, subscription: subscription })
-                    });
-                } catch (e) {
-                    console.error('Notification setup failed:', e);
+                    if (uploadRes.ok) {
+                        const url = await uploadRes.text();
+                        await sendMessage(url);
+                        return;
+                    } else {
+                        attempts++;
+                    }
+                } catch(e) {
+                    console.error(e);
+                    attempts++;
                 }
             }
+            alert(translations[currentLanguage]["upload_failed"]);
         }
 
-        function urlB64ToUint8Array(base64String) {
-            const padding = '='.repeat((4 - base64String.length % 4) % 4);
-            const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-            const rawData = window.atob(base64);
-            const outputArray = new Uint8Array(rawData.length);
-            for (let i = 0; i < rawData.length; ++i) {
-                outputArray[i] = rawData.charCodeAt(i);
+        function showLang() {
+            document.getElementById('backdrop').classList.add('show');
+            document.getElementById('lang-sheet').classList.add('show');
+        }
+        function closeOverlays() {
+            document.getElementById('backdrop').classList.remove('show');
+            document.getElementById('lang-sheet').classList.remove('show');
+        }
+        function changeLanguage(lang) {
+            currentLanguage = lang;
+            localStorage.setItem('language', lang);
+            document.querySelectorAll('[data-key]').forEach(el => {
+                const key = el.dataset.key;
+                if (translations[lang][key]) {
+                    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+                        el.placeholder = translations[lang][key];
+                    } else {
+                        el.innerText = translations[lang][key];
+                    }
+                }
+            });
+            closeOverlays();
+            if (document.querySelector('.no-contacts')) {
+                document.querySelector('.no-contacts').textContent = translations[lang].no_contacts;
             }
-            return outputArray;
         }
 
-        // --- CORE: MEDIA RENDERING & UTILS ---
-        
-        function renderText(text) {
-            // Détection URL from workers.dev
-            if (text.startsWith(PUBLIC_URL)) {
+        let currentText = '';
+        function showCopyMenu(x, y, text) {
+            currentText = text;
+            const menu = document.getElementById('copy-menu');
+            menu.style.left = `${x - 40}px`;
+            menu.style.top = `${y + 10}px`;
+            menu.classList.remove('hidden');
+            document.getElementById('copy-btn').innerText = translations[currentLanguage].copy;
+            document.getElementById('copy-btn').onclick = () => {
+                copyToClipboard(text);
+                hideCopyMenu();
+            };
+            document.addEventListener('touchstart', handleOutsideTouch);
+            document.addEventListener('mousedown', handleOutsideTouch);
+        }
+
+        function hideCopyMenu() {
+            document.getElementById('copy-menu').classList.add('hidden');
+            document.removeEventListener('touchstart', handleOutsideTouch);
+            document.removeEventListener('mousedown', handleOutsideTouch);
+        }
+
+        function handleOutsideTouch(e) {
+            if (!document.getElementById('copy-menu').contains(e.target)) {
+                hideCopyMenu();
+            }
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                const toast = document.createElement('div');
+                toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-50 text-white px-4 py-2 rounded-full';
+                toast.textContent = translations[currentLanguage].copied;
+                document.body.appendChild(toast);
+                setTimeout(() => toast.remove(), 1500);
+            }).catch(e => console.error(e));
+        }
+
+        function addLongPressListeners(element, longPressCallback, shortPressCallback = null) {
+            let longPressTimer;
+            let isLongPress = false;
+            let startX, startY;
+            let isTouch = false;
+
+            const start = (e) => {
+                isTouch = e.type === 'touchstart';
+                const pos = isTouch ? e.touches[0] : e;
+                startX = pos.clientX;
+                startY = pos.clientY;
+                isLongPress = false;
+                longPressTimer = setTimeout(() => {
+                    isLongPress = true;
+                    longPressCallback(startX, startY);
+                }, 500);
+            };
+
+            const end = (e) => {
+                clearTimeout(longPressTimer);
+                if (!isLongPress && shortPressCallback) {
+                    shortPressCallback();
+                }
+            };
+
+            const move = (e) => {
+                const pos = isTouch ? e.touches[0] : e;
+                if (Math.abs(pos.clientX - startX) > 10 || Math.abs(pos.clientY - startY) > 10) {
+                    clearTimeout(longPressTimer);
+                }
+            };
+
+            element.addEventListener('touchstart', start, { passive: true });
+            element.addEventListener('touchend', end, { passive: true });
+            element.addEventListener('touchmove', move, { passive: true });
+            element.addEventListener('mousedown', start);
+            element.addEventListener('mouseup', end);
+            element.addEventListener('mousemove', move);
+            element.addEventListener('mouseleave', () => clearTimeout(longPressTimer));
+        }
+
+        async function showContactPreview(peer) {
+            if (!peer) return;
+            document.getElementById('preview-overlay').classList.remove('hidden');
+            const preview = document.getElementById('contact-preview');
+            preview.classList.remove('hidden');
+            preview.innerHTML = `
+                <h3 class="font-bold text-lg mb-1">${peer.prenom} ${peer.nom}</h3>
+                <p class="text-[10px] text-zinc-500 mb-4 copyable" onclick="copyToClipboard('${peer.tfid}')">${peer.tfid}</p>
+                <div class="mini-chat"></div>
+            `;
+            try {
+                const res = await fetch(`${API}/messages`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user1_tfid: user.tfid, user2_tfid: peer.tfid })
+                });
+                if (!res.ok) throw new Error('Failed to fetch messages');
+                const messages = await res.json();
+                const msgDiv = preview.querySelector('.mini-chat');
+                const last7 = messages.filter(m => m.text !== 'ok').slice(-7);
+                last7.forEach(m => {
+                    const isMe = m.from === user.tfid;
+                    const div = document.createElement('div');
+                    div.className = `mini-bubble ${isMe ? 'me' : 'them'}`;
+                    div.innerText = getPreviewText(getMainMessage(m.text));
+                    msgDiv.appendChild(div);
+                });
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function hideContactPreview() {
+            document.getElementById('preview-overlay').classList.add('hidden');
+            const preview = document.getElementById('contact-preview');
+            preview.classList.add('hidden');
+            preview.innerHTML = '';
+        }
+
+        function renderText(text, isMe) {
+            if (text.startsWith(PUBLIC_URL) || text.startsWith('https://url.adamdh7.org/')) {
                 const filename = text.split('/').pop();
                 const ext = filename.split('.').pop().toLowerCase();
-                if (['jpeg','jpg','gif','png','heic'].includes(ext)) {
-                    return `<div class="media-content" onclick="openFullscreen('${text}', 'image')"><img src="${text}" loading="lazy" alt="${filename}" onerror="this.onerror=null; this.src=''; this.alt='${translations[currentLanguage]["loading"]}';" /></div>`;
-                } else if (['mp4','mov','avi','mkv','hevc'].includes(ext)) {
-                    return `<div class="media-content" onclick="openFullscreen('${text}', 'video')"><video src="${text}" playsinline muted preload="metadata" poster="${text}#t=0.1" onerror="this.onerror=null; this.poster=''; this.alt='${translations[currentLanguage]["loading"]}';"></video></div>`;
-                } else if (['mp3','wav','ogg','aac','m4a'].includes(ext)) {
+                if (['jpeg','jpg','gif','png','heic','webp','avif','bmp','tiff','svg'].includes(ext)) {
+                    return `<div class="media-content" onclick="openFullscreen('${text}', 'image')"><img src="${text}" loading="lazy" alt="${filename}" /></div>`;
+                } else if (['mp4','mov','avi','mkv','hevc','webm','ogv','3gp'].includes(ext)) {
+                    return `<div class="media-content" onclick="openFullscreen('${text}', 'video')"><video src="${text}" playsinline muted preload="metadata" poster="${text}#t=0.1"></video></div>`;
+                } else if (['mp3','wav','ogg','aac','m4a','flac'].includes(ext)) {
                     return renderCustomVoicePlayer(text);
                 } else {
-                    // Autres fichiers: afficher nom et lien
                     return `<div class="file-preview" onclick="openFileInNewTab('${text}')"><i class="fa-solid fa-file file-icon"></i><span class="file-link">${filename}</span></div>`;
                 }
             }
             
-            // Liens URL standards
-            const urlRegex = /(https?:\/\/[^\s]+)/g;
-            return text.replace(urlRegex, '<a href="$1" target="_blank" class="underline text-blue-300">$1</a>');
+            let processedText = text.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" class="underline text-blue-300">$1</a>');
+            processedText = processedText.replace(/(TF-\w+)|(\w+@dh7\.tf)/g, '<span class="text-blue-300 cursor-pointer" onclick="openChatByIdentifier(\'$1$2\')">$1$2</span>');
+
+            return truncateText(processedText);
+        }
+
+        function truncateText(text) {
+            const CHUNK_SIZE = 700;
+            if (text.length <= CHUNK_SIZE) return `<span class="message-text">${text}</span>`;
+            let html = '';
+            let remaining = text;
+            let chunkId = 0;
+            while (remaining.length > 0) {
+                const chunk = remaining.substring(0, CHUNK_SIZE);
+                remaining = remaining.substring(CHUNK_SIZE);
+                html += `<span class="message-text chunk-${chunkId}" ${chunkId > 0 ? 'style="display:none;"' : ''}>${chunk}</span>`;
+                if (remaining.length > 0) {
+                    html += `<span class="see-more" onclick="showMore(this, ${chunkId})">${translations[currentLanguage]["see-more"]}</span>`;
+                }
+                chunkId++;
+            }
+            return html;
+        }
+
+        function showMore(el, id) {
+            const nextChunk = el.parentElement.querySelector(`.chunk-${id + 1}`);
+            if (nextChunk) {
+                nextChunk.style.display = 'block';
+            }
+            el.remove();
         }
 
         function renderCustomVoicePlayer(src) {
-            const playerId = `voice-${Math.random().toString(36).substr(2,9)}`;
+            const playerId = `${crypto.randomUUID()}`;
             return `
                 <div class="voice-player" data-src="${src}" id="${playerId}">
                     <svg class="play-pause" viewBox="0 0 24 24" fill="white">
-                        <path d="M8 5v14l11-7z"/> <!-- Play -->
+                        <path d="M8 5v14l11-7z"/>
                     </svg>
                     <div class="progress-bar">
                         <div class="wave-form"></div>
@@ -1746,11 +1745,10 @@
                 let currentSpeedIndex = 0;
                 audio.playbackRate = 1;
 
-                // Generate ~30 wave bars with varying heights
-                for (let i = 0; i < 30; i++) {
+                for (let i = 0; i < 50; i++) {
                     const bar = document.createElement('div');
                     bar.className = 'wave-bar';
-                    bar.style.height = `${Math.random() * 80 + 20}%`; // Vary 20-100%
+                    bar.style.height = `${Math.random() * 80 + 20}%`;
                     waveForm.appendChild(bar);
                 }
                 const waveBars = waveForm.querySelectorAll('.wave-bar');
@@ -1898,352 +1896,6 @@
             newTab.document.write('<iframe src="' + dataUrl + '" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>');
         }
 
-        // --- INPUT & SENDING LOGIC ---
-
-        function handleInput(el) {
-            // Auto resize
-            el.style.height = 'auto';
-            el.style.height = (el.scrollHeight) + 'px';
-            updateActionButton();
-        }
-
-        // Gestion Bouton Dynamique (Micro vs Send)
-        function initActionBtn() {
-            const btn = document.getElementById('action-btn');
-            if (!btn) return;
-            const icon = document.getElementById('action-icon');
-            const input = document.getElementById('msg-input');
-
-            // MOUSE / TOUCH EVENTS pour l'enregistrement
-            btn.addEventListener('mousedown', startRecording);
-            btn.addEventListener('touchstart', startRecording, { passive: true });
-            
-            btn.addEventListener('mouseup', endRecordingOrSend);
-            btn.addEventListener('touchend', endRecordingOrSend, { passive: true });
-        }
-
-        function updateActionButton() {
-            const input = document.getElementById('msg-input');
-            if (!input) return;
-            const btn = document.getElementById('action-btn');
-            const icon = document.getElementById('action-icon');
-            
-            if(input.value.trim().length > 0) {
-                // Mode SEND
-                btn.classList.remove('mic-mode');
-                icon.className = "fa-solid fa-paper-plane";
-            } else {
-                // Mode MIC
-                btn.classList.add('mic-mode');
-                icon.className = "fa-solid fa-microphone";
-            }
-        }
-
-        // --- VOICE RECORDER LOGIC ---
-        let longPressTimer;
-        let isRecording = false;
-
-        async function startRecording(e) {
-            const input = document.getElementById('msg-input');
-            if(input.value.trim().length > 0) return; // Si texte, ignorer le micro
-
-            e.preventDefault(); // Empêcher le focus perdu
-            longPressTimer = setTimeout(async () => {
-                isRecording = true;
-                // UI Update
-                document.getElementById('msg-input').classList.add('hidden');
-                document.getElementById('recording-ui').classList.remove('hidden');
-                
-                // Start Logic
-                try {
-                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    mediaRecorder = new MediaRecorder(stream);
-                    audioChunks = [];
-                    mediaRecorder.ondataavailable = event => audioChunks.push(event.data);
-                    mediaRecorder.start();
-                    startTimer();
-                } catch(err) {
-                    alert("Microphone non autorisé");
-                    cancelRecording();
-                }
-            }, 300); // 300ms long press
-        }
-
-        async function endRecordingOrSend(e) {
-            clearTimeout(longPressTimer);
-            const input = document.getElementById('msg-input');
-            
-            // Cas 1: C'était un clic court sur "Envoyer" (car il y a du texte)
-            if(input.value.trim().length > 0) {
-                sendMessage();
-                return;
-            }
-
-            // Cas 2: C'était un enregistrement vocal
-            if(isRecording) {
-                stopTimer();
-                isRecording = false;
-                document.getElementById('msg-input').classList.remove('hidden');
-                document.getElementById('recording-ui').classList.add('hidden');
-                
-                if(mediaRecorder && mediaRecorder.state !== 'inactive') {
-                    mediaRecorder.stop();
-                    mediaRecorder.onstop = async () => {
-                        const audioBlob = new Blob(audioChunks, { type: 'audio/mp3' });
-                        document.getElementById('upload-loading').classList.remove('hidden');
-                        try {
-                            await uploadFile(audioBlob, `voice_${Date.now()}.mp3`, 'audio/mp3');
-                        } finally {
-                            document.getElementById('upload-loading').classList.add('hidden');
-                        }
-                    };
-                }
-            } else {
-                // Clic court sur le micro sans enregistrer -> message d'aide ou rien
-                // alert("Maintenez pour parler");
-            }
-        }
-        
-        function cancelRecording() {
-            isRecording = false;
-            stopTimer();
-            if(mediaRecorder) mediaRecorder.stop();
-            document.getElementById('msg-input').classList.remove('hidden');
-            document.getElementById('recording-ui').classList.add('hidden');
-        }
-
-        function startTimer() {
-            let sec = 0;
-            const timerEl = document.getElementById('rec-timer');
-            recordTimerInterval = setInterval(() => {
-                sec++;
-                let m = Math.floor(sec/60);
-                let s = sec%60;
-                timerEl.innerText = `${m}:${s<10?'0':''}${s}`;
-            }, 1000);
-        }
-        function stopTimer() { clearInterval(recordTimerInterval); document.getElementById('rec-timer').innerText = "0:00"; }
-
-        // --- FILE ATTACHMENT ---
-        async function handleFileSelect(input) {
-            const file = input.files[0];
-            if(!file) return;
-            
-            document.getElementById('upload-loading').classList.remove('hidden');
-            try {
-                await uploadFile(file, file.name, file.type);
-            } finally {
-                document.getElementById('upload-loading').classList.add('hidden');
-            }
-            input.value = "";
-        }
-
-        async function uploadFile(file, filename, type) {
-            let attempts = 0;
-            const maxAttempts = 5;
-            while (attempts < maxAttempts) {
-                try {
-                    const uniqueName = `${crypto.randomUUID()}_${filename}`;
-                    const uploadRes = await fetch(`${UPLOAD_URL}/${uniqueName}`, {
-                        method: 'PUT',
-                        headers: {'Content-Type': type},
-                        body: file
-                    });
-                    if (uploadRes.ok) {
-                        const url = await uploadRes.text();
-                        let content = url;
-                        if (replyingTo) {
-                            content = REPLY_START + replyingTo.id + REPLY_END + replyingTo.sender + REPLY_END + replyingTo.quoted + REPLY_END + '\n\n' + url;
-                            replyingTo = null;
-                            cancelReply();
-                        }
-                        await postData(content);
-                        syncChatSilently();
-                        return;
-                    } else {
-                        attempts++;
-                    }
-                } catch(e) {
-                    console.error(e);
-                    attempts++;
-                }
-            }
-            alert(translations[currentLanguage]["upload_failed"]);
-        }
-
-        // --- SEND API ---
-        async function sendMedia(base64Data, filename) {
-            // Dans ce système simplifié, on envoie le base64 comme texte.
-            // Le rendu sera géré par renderText().
-            await postData(base64Data);
-            syncChatSilently();
-        }
-
-        async function postData(content) {
-            try {
-                await fetch(`${API}/send`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        sender_tfid: user.tfid,
-                        receiver_tfid: activePeer.tfid,
-                        message: content
-                    })
-                });
-            } catch(e) { console.error("Send failed", e); }
-        }
-
-        // --- UI OVERLAYS ---
-        function showLang() {
-            document.getElementById('backdrop').classList.add('show');
-            document.getElementById('lang-sheet').classList.add('show');
-        }
-        function closeOverlays() {
-            document.getElementById('backdrop').classList.remove('show');
-            document.getElementById('lang-sheet').classList.remove('show');
-        }
-        function changeLanguage(lang) {
-            currentLanguage = lang;
-            localStorage.setItem('language', lang);
-            document.querySelectorAll('[data-key]').forEach(el => {
-                const key = el.dataset.key;
-                if (translations[lang][key]) {
-                    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
-                        el.placeholder = translations[lang][key];
-                    } else {
-                        el.innerText = translations[lang][key];
-                    }
-                }
-            });
-            closeOverlays();
-            if (document.querySelector('.no-contacts')) {
-                document.querySelector('.no-contacts').textContent = translations[lang].no_contacts;
-            }
-        }
-
-        let currentText = '';
-        function showCopyMenu(x, y, text) {
-            currentText = text;
-            const menu = document.getElementById('copy-menu');
-            menu.style.left = `${x - 40}px`;
-            menu.style.top = `${y + 10}px`;
-            menu.classList.remove('hidden');
-            document.getElementById('copy-btn').innerText = translations[currentLanguage].copy;
-            document.getElementById('reply-btn').innerText = translations[currentLanguage].reply;
-            document.getElementById('copy-btn').onclick = () => {
-                copyToClipboard(text);
-                hideCopyMenu();
-            };
-            document.getElementById('reply-btn').onclick = () => {
-                replyToMessage(text, document.getElementById('chat-messages').lastChild.classList.contains('me') ? translations[currentLanguage].you : document.getElementById('chat-peer-name').innerText);
-                hideCopyMenu();
-            };
-            document.addEventListener('touchstart', handleOutsideTouch);
-            document.addEventListener('mousedown', handleOutsideTouch);
-        }
-
-        function hideCopyMenu() {
-            document.getElementById('copy-menu').classList.add('hidden');
-            document.removeEventListener('touchstart', handleOutsideTouch);
-            document.removeEventListener('mousedown', handleOutsideTouch);
-        }
-
-        function handleOutsideTouch(e) {
-            if (!document.getElementById('copy-menu').contains(e.target)) {
-                hideCopyMenu();
-            }
-        }
-
-        function copyToClipboard(text) {
-            navigator.clipboard.writeText(text).then(() => {
-                const toast = document.createElement('div');
-                toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-50 text-white px-4 py-2 rounded-full';
-                toast.textContent = translations[currentLanguage].copied;
-                document.body.appendChild(toast);
-                setTimeout(() => toast.remove(), 1500);
-            }).catch(e => console.error(e));
-        }
-
-        function addLongPressListeners(element, longPressCallback, shortPressCallback = null) {
-            let longPressTimer;
-            let isLongPress = false;
-            let startX, startY;
-            let isTouch = false;
-
-            const start = (e) => {
-                isTouch = e.type === 'touchstart';
-                const pos = isTouch ? e.touches[0] : e;
-                startX = pos.clientX;
-                startY = pos.clientY;
-                isLongPress = false;
-                longPressTimer = setTimeout(() => {
-                    isLongPress = true;
-                    longPressCallback(startX, startY);
-                }, 500);
-            };
-
-            const end = (e) => {
-                clearTimeout(longPressTimer);
-                if (!isLongPress && shortPressCallback) {
-                    shortPressCallback();
-                }
-            };
-
-            const move = (e) => {
-                const pos = isTouch ? e.touches[0] : e;
-                if (Math.abs(pos.clientX - startX) > 10 || Math.abs(pos.clientY - startY) > 10) {
-                    clearTimeout(longPressTimer);
-                }
-            };
-
-            element.addEventListener('touchstart', start, { passive: true });
-            element.addEventListener('touchend', end, { passive: true });
-            element.addEventListener('touchmove', move, { passive: true });
-            element.addEventListener('mousedown', start);
-            element.addEventListener('mouseup', end);
-            element.addEventListener('mousemove', move);
-            element.addEventListener('mouseleave', () => clearTimeout(longPressTimer));
-        }
-
-        async function showContactPreview(peer) {
-            if (!peer) return;
-            document.getElementById('preview-overlay').classList.remove('hidden');
-            const preview = document.getElementById('contact-preview');
-            preview.classList.remove('hidden');
-            preview.innerHTML = `
-                <h3 class="font-bold text-lg mb-1">${peer.prenom} ${peer.nom}</h3>
-                <p class="text-[10px] text-zinc-500 mb-4 copyable" onclick="copyToClipboard('${peer.tfid}')">${peer.tfid}</p>
-                <div class="mini-chat"></div>
-            `;
-            try {
-                const res = await fetch(`${API}/messages`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user1_tfid: user.tfid, user2_tfid: peer.tfid })
-                });
-                if (!res.ok) throw new Error('Failed to fetch messages');
-                const messages = await res.json();
-                const msgDiv = preview.querySelector('.mini-chat');
-                const last7 = messages.filter(m => m.text !== 'ok').slice(-7);
-                last7.forEach(m => {
-                    const isMe = m.from === user.tfid;
-                    const div = document.createElement('div');
-                    div.className = `mini-bubble ${isMe ? 'me' : 'them'}`;
-                    div.innerText = getMainMessage(m.text);
-                    msgDiv.appendChild(div);
-                });
-            } catch (e) {
-                console.error(e);
-            }
-        }
-
-        function hideContactPreview() {
-            document.getElementById('preview-overlay').classList.add('hidden');
-            const preview = document.getElementById('contact-preview');
-            preview.classList.add('hidden');
-            preview.innerHTML = '';
-        }
-
         document.addEventListener('gesturestart', function (e) { e.preventDefault(); });
         document.addEventListener('touchmove', function (e) { if (e.scale !== 1) { e.preventDefault(); } } , { passive: false });
         document.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -2256,19 +1908,6 @@
                     console.log('Service Worker registration failed: ', err);
                 });
             });
-        }
-
-        const msgInput = document.getElementById('msg-input');
-        if (msgInput) {
-            msgInput.onkeypress = (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    const start = msgInput.selectionStart;
-                    msgInput.value = msgInput.value.substring(0, start) + '\n' + msgInput.value.substring(start);
-                    msgInput.selectionStart = msgInput.selectionEnd = start + 1;
-                    autoResize(msgInput);
-                }
-            };
         }
 
         changeLanguage(currentLanguage);
